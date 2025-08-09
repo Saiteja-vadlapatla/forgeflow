@@ -89,34 +89,63 @@ export function ProductionStagesForm({ control, machines }: ProductionStagesForm
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle>Production Stages</CardTitle>
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={() => addStage("INTERNAL")}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
             >
+              <Plus className="h-4 w-4 mr-2" />
               <Factory className="h-4 w-4 mr-2" />
-              Internal Operation
+              Add Internal Operation
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="default"
               size="sm"
               onClick={() => addStage("EXTERNAL")}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
             >
+              <Plus className="h-4 w-4 mr-2" />
               <Truck className="h-4 w-4 mr-2" />
-              External Service
+              Add External Service
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         {fields.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <Factory className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No production stages defined</p>
-            <p className="text-sm">Add internal operations or external services above</p>
+          <div className="text-center py-12 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+            <div className="flex justify-center space-x-4 mb-4">
+              <Factory className="h-8 w-8 text-blue-300" />
+              <Truck className="h-8 w-8 text-orange-300" />
+            </div>
+            <p className="text-lg font-medium mb-2">No production stages defined</p>
+            <p className="text-sm mb-6">Create your manufacturing workflow by adding operations</p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => addStage("INTERNAL")}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                <Factory className="h-4 w-4 mr-2" />
+                Add Internal Operation
+              </Button>
+              <Button
+                type="button"
+                variant="default"
+                onClick={() => addStage("EXTERNAL")}
+                className="bg-orange-600 hover:bg-orange-700 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                <Truck className="h-4 w-4 mr-2" />
+                Add External Service
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -139,13 +168,15 @@ export function ProductionStagesForm({ control, machines }: ProductionStagesForm
                           </Badge>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
+                      <div className="flex space-x-1">
                         {index > 0 && (
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => move(index, index - 1)}
+                            className="px-2"
+                            title="Move up"
                           >
                             ↑
                           </Button>
@@ -153,18 +184,22 @@ export function ProductionStagesForm({ control, machines }: ProductionStagesForm
                         {index < fields.length - 1 && (
                           <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => move(index, index + 1)}
+                            className="px-2"
+                            title="Move down"
                           >
                             ↓
                           </Button>
                         )}
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="destructive"
                           size="sm"
                           onClick={() => remove(index)}
+                          className="px-2 bg-red-600 hover:bg-red-700"
+                          title="Delete operation"
                         >
                           <Minus className="h-4 w-4" />
                         </Button>

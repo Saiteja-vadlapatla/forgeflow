@@ -65,6 +65,19 @@ export interface IStorage {
   // Dashboard operations
   getDashboardKPIs(): Promise<DashboardKPIs>;
   getRealtimeData(): Promise<RealtimeData>;
+
+  // Raw Materials operations
+  getRawMaterials(): Promise<any[]>;
+  createRawMaterial(material: any): Promise<any>;
+
+  // Inventory Tools operations
+  getInventoryTools(): Promise<any[]>;
+  createInventoryTool(tool: any): Promise<any>;
+
+  // Production Planning operations
+  getProductionPlans(): Promise<any[]>;
+  createProductionPlan(plan: any): Promise<any>;
+  getCapacityPlanning(): Promise<any[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -73,6 +86,9 @@ export class MemStorage implements IStorage {
   private workOrders: Map<string, WorkOrder>;
   private qualityRecords: Map<string, QualityRecord>;
   private inventoryItems: Map<string, InventoryItem>;
+  private rawMaterials: Map<string, any>;
+  private inventoryTools: Map<string, any>;
+  private productionPlans: Map<string, any>;
   private downtimeEvents: Map<string, DowntimeEvent>;
   private productionLogs: Map<string, ProductionLog>;
   private alerts: Map<string, Alert>;
@@ -83,6 +99,9 @@ export class MemStorage implements IStorage {
     this.workOrders = new Map();
     this.qualityRecords = new Map();
     this.inventoryItems = new Map();
+    this.rawMaterials = new Map();
+    this.inventoryTools = new Map();
+    this.productionPlans = new Map();
     this.downtimeEvents = new Map();
     this.productionLogs = new Map();
     this.alerts = new Map();
@@ -689,6 +708,69 @@ export class MemStorage implements IStorage {
       oeeData,
       qualityTrends,
     };
+  }
+
+  // Raw Materials operations
+  async getRawMaterials(): Promise<any[]> {
+    return Array.from(this.rawMaterials.values());
+  }
+
+  async createRawMaterial(material: any): Promise<any> {
+    const id = randomUUID();
+    const sku = `RM-${material.materialType.substring(0,2).toUpperCase()}-${material.grade}-${Date.now()}`;
+    const newMaterial = {
+      ...material,
+      id,
+      sku,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.rawMaterials.set(id, newMaterial);
+    return newMaterial;
+  }
+
+  // Inventory Tools operations
+  async getInventoryTools(): Promise<any[]> {
+    return Array.from(this.inventoryTools.values());
+  }
+
+  async createInventoryTool(tool: any): Promise<any> {
+    const id = randomUUID();
+    const sku = `TL-${tool.toolType.substring(0,2).toUpperCase()}-${tool.size}-${Date.now()}`;
+    const newTool = {
+      ...tool,
+      id,
+      sku,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.inventoryTools.set(id, newTool);
+    return newTool;
+  }
+
+  // Production Planning operations
+  async getProductionPlans(): Promise<any[]> {
+    return Array.from(this.productionPlans.values());
+  }
+
+  async createProductionPlan(plan: any): Promise<any> {
+    const id = randomUUID();
+    const newPlan = {
+      ...plan,
+      id,
+      totalWorkOrders: 0,
+      completedWorkOrders: 0,
+      efficiency: 0,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.productionPlans.set(id, newPlan);
+    return newPlan;
+  }
+
+  async getCapacityPlanning(): Promise<any[]> {
+    // Return mock capacity planning data for demonstration
+    return [];
   }
 }
 

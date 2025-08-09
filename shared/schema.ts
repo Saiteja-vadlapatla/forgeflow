@@ -329,6 +329,100 @@ export interface RealtimeData {
   qualityTrends: { timestamp: string; value: number }[];
 }
 
+// Inventory Management Tables
+export const rawMaterials = pgTable("raw_materials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: varchar("sku").unique().notNull(), // Auto-generated based on material + grade + diameter + shape
+  materialType: text("material_type").notNull(), // Steel, Aluminum, Stainless Steel, etc.
+  grade: text("grade").notNull(), // 4140, 6061-T6, 316L, etc.
+  shape: text("shape").notNull(), // Round Bar, Square Bar, Plate, etc.
+  diameter: real("diameter"), // in mm
+  thickness: real("thickness"), // in mm for plates
+  width: real("width"), // in mm for plates/squares
+  length: real("length"), // in mm - can vary
+  supplier: text("supplier").notNull(),
+  unitCost: real("unit_cost").notNull(),
+  reorderPoint: integer("reorder_point").default(10),
+  maxStock: integer("max_stock").default(100),
+  location: text("location"), // Warehouse location/bin
+  specifications: jsonb("specifications"), // Additional material specs
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const rawMaterialInventory = pgTable("raw_material_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  materialId: varchar("material_id").notNull().references(() => rawMaterials.id),
+  currentStock: integer("current_stock").default(0),
+  reservedStock: integer("reserved_stock").default(0),
+  availableStock: integer("available_stock").default(0),
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+});
+
+export const inventoryTools = pgTable("inventory_tools", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: varchar("sku").unique().notNull(), // Auto-generated based on type + size + material + coating
+  toolType: text("tool_type").notNull(), // End Mill, Drill Bit, Insert, etc.
+  subType: text("sub_type"), // Roughing, Finishing, etc.
+  manufacturer: text("manufacturer").notNull(),
+  model: text("model").notNull(),
+  size: real("size").notNull(), // Diameter in mm
+  length: real("length"), // Overall length in mm
+  material: text("material").notNull(), // HSS, Carbide, etc.
+  coating: text("coating"), // TiN, TiAlN, etc.
+  geometry: text("geometry"), // For inserts: WNMG, CNMG, etc.
+  applicationMaterial: text("application_material").array(), // Steel, Aluminum, etc.
+  operationType: text("operation_type").array(), // TURNING, MILLING, DRILLING
+  specifications: jsonb("specifications"), // Cutting parameters, angles, etc.
+  supplier: text("supplier").notNull(),
+  unitCost: real("unit_cost").notNull(),
+  reorderPoint: integer("reorder_point").default(5),
+  maxStock: integer("max_stock").default(50),
+  location: text("location"), // Tool crib location
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const toolInventory = pgTable("tool_inventory", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  toolId: varchar("tool_id").notNull().references(() => inventoryTools.id),
+  currentStock: integer("current_stock").default(0),
+  reservedStock: integer("reserved_stock").default(0),
+  availableStock: integer("available_stock").default(0),
+  condition: text("condition").default("new"), // new, used, worn, damaged
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+});
+
+// Production Planning Tables
+export const productionPlans = pgTable("production_plans", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  planName: text("plan_name").notNull(),
+  planType: text("plan_type").notNull(), // daily, weekly, monthly
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  status: text("status").default("draft"), // draft, active, completed
+  totalWorkOrders: integer("total_work_orders").default(0),
+  completedWorkOrders: integer("completed_work_orders").default(0),
+  efficiency: real("efficiency").default(0),
+  notes: text("notes"),
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const capacityPlanning = pgTable("capacity_planning", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  planId: varchar("plan_id").notNull().references(() => productionPlans.id),
+  machineId: varchar("machine_id").notNull(),
+  date: timestamp("date").notNull(),
+  plannedHours: real("planned_hours").notNull(),
+  availableHours: real("available_hours").notNull(),
+  utilization: real("utilization").default(0),
+  workOrders: jsonb("work_orders"), // Array of work order IDs
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Manufacturing-specific types
 export interface ManufacturingOperation {
   id: string;
@@ -354,3 +448,31 @@ export interface QualityMeasurement {
   result: 'PASS' | 'FAIL';
   unit: 'mm' | 'inch' | 'degree';
 }
+
+// Schema exports
+export const insertOperationSchema = createInsertSchema(operations);
+export const insertOperationSequenceSchema = createInsertSchema(operationSequences);
+export const insertRawMaterialSchema = createInsertSchema(rawMaterials);
+export const insertRawMaterialInventorySchema = createInsertSchema(rawMaterialInventory);
+export const insertInventoryToolSchema = createInsertSchema(inventoryTools);
+export const insertToolInventorySchema = createInsertSchema(toolInventory);
+export const insertProductionPlanSchema = createInsertSchema(productionPlans);
+export const insertCapacityPlanningSchema = createInsertSchema(capacityPlanning);
+
+// Type exports
+export type Operation = typeof operations.$inferSelect;
+export type InsertOperation = z.infer<typeof insertOperationSchema>;
+export type OperationSequence = typeof operationSequences.$inferSelect;
+export type InsertOperationSequence = z.infer<typeof insertOperationSequenceSchema>;
+export type RawMaterial = typeof rawMaterials.$inferSelect;
+export type InsertRawMaterial = z.infer<typeof insertRawMaterialSchema>;
+export type RawMaterialInventory = typeof rawMaterialInventory.$inferSelect;
+export type InsertRawMaterialInventory = z.infer<typeof insertRawMaterialInventorySchema>;
+export type InventoryTool = typeof inventoryTools.$inferSelect;
+export type InsertInventoryTool = z.infer<typeof insertInventoryToolSchema>;
+export type ToolInventory = typeof toolInventory.$inferSelect;
+export type InsertToolInventory = z.infer<typeof insertToolInventorySchema>;
+export type ProductionPlan = typeof productionPlans.$inferSelect;
+export type InsertProductionPlan = z.infer<typeof insertProductionPlanSchema>;
+export type CapacityPlanning = typeof capacityPlanning.$inferSelect;
+export type InsertCapacityPlanning = z.infer<typeof insertCapacityPlanningSchema>;

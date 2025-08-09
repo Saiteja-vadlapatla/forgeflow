@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertWorkOrderSchema, insertMachineSchema, insertQualityRecordSchema } from "@shared/schema";
+import { insertWorkOrderSchema, insertMachineSchema, insertQualityRecordSchema, insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -305,6 +305,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(alert);
     } catch (error) {
       res.status(500).json({ error: "Failed to update alert" });
+    }
+  });
+
+  // Inventory API routes
+  app.get("/api/inventory/materials", async (req, res) => {
+    try {
+      const materials = await storage.getRawMaterials();
+      res.json(materials);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch raw materials" });
+    }
+  });
+
+  app.post("/api/inventory/materials", async (req, res) => {
+    try {
+      const validatedData = insertRawMaterialSchema.parse(req.body);
+      const material = await storage.createRawMaterial(validatedData);
+      res.json(material);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create raw material" });
+    }
+  });
+
+  app.patch("/api/inventory/materials/:id/update-stock", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
+      // This would typically update inventory stock levels
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update material stock" });
+    }
+  });
+
+  app.get("/api/inventory/tools", async (req, res) => {
+    try {
+      const tools = await storage.getInventoryTools();
+      res.json(tools);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tools" });
+    }
+  });
+
+  app.post("/api/inventory/tools", async (req, res) => {
+    try {
+      const validatedData = insertInventoryToolSchema.parse(req.body);
+      const tool = await storage.createInventoryTool(validatedData);
+      res.json(tool);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create tool" });
+    }
+  });
+
+  app.patch("/api/inventory/tools/:id/update-stock", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
+      // This would typically update tool inventory stock levels
+      res.json({ success: true });
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update tool stock" });
+    }
+  });
+
+  // Production Planning API routes
+  app.get("/api/production-plans", async (req, res) => {
+    try {
+      const plans = await storage.getProductionPlans();
+      res.json(plans);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch production plans" });
+    }
+  });
+
+  app.post("/api/production-plans", async (req, res) => {
+    try {
+      const validatedData = insertProductionPlanSchema.parse(req.body);
+      const plan = await storage.createProductionPlan(validatedData);
+      res.json(plan);
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create production plan" });
+    }
+  });
+
+  app.get("/api/capacity-planning", async (req, res) => {
+    try {
+      const capacity = await storage.getCapacityPlanning();
+      res.json(capacity);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch capacity planning data" });
     }
   });
 

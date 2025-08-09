@@ -7,6 +7,8 @@ import Dashboard from "@/pages/dashboard";
 import WorkOrdersPage from "@/pages/work-orders";
 import MachineOperationsPage from "@/pages/machine-operations";
 import QualityControlPage from "@/pages/quality-control";
+import { InventoryPage } from "@/pages/inventory";
+import { ProductionPlanningPage } from "@/pages/production-planning";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +19,8 @@ function Router() {
       <Route path="/work-orders" component={WorkOrdersPage} />
       <Route path="/machine-operations" component={MachineOperationsPage} />
       <Route path="/quality-control" component={QualityControlPage} />
+      <Route path="/inventory" component={InventoryPage} />
+      <Route path="/production-planning" component={ProductionPlanningPage} />
       <Route component={NotFound} />
     </Switch>
   );
