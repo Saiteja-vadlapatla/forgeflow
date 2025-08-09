@@ -89,7 +89,24 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
   });
 
   const onSubmit = (data: ToolFormData) => {
-    mutation.mutate(data);
+    // Generate SKU based on tool properties
+    const sku = generateToolSKU(data);
+    const formData = {
+      ...data,
+      sku,
+      applicationMaterial: selectedApplications,
+      operationType: selectedOperations,
+    };
+    mutation.mutate(formData);
+  };
+
+  const generateToolSKU = (data: ToolFormData): string => {
+    const typeCode = data.toolType.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+    const materialCode = data.material ? `-${data.material.substring(0, 3).toUpperCase()}` : '';
+    const sizeCode = data.size ? `-D${data.size}` : '';
+    const coatingCode = data.coating && data.coating !== 'None' ? `-${data.coating.substring(0, 3).toUpperCase()}` : '';
+    
+    return `${typeCode}${materialCode}${sizeCode}${coatingCode}`;
   };
 
   const toolTypes = [

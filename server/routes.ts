@@ -320,11 +320,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory/materials", async (req, res) => {
     try {
+      console.log("Raw material request body:", req.body);
       const validatedData = insertRawMaterialSchema.parse(req.body);
+      console.log("Validated data:", validatedData);
       const material = await storage.createRawMaterial(validatedData);
       res.json(material);
     } catch (error) {
-      res.status(400).json({ error: "Failed to create raw material" });
+      console.error("Raw material creation error:", error);
+      res.status(400).json({ error: "Failed to create raw material", details: error.message });
     }
   });
 
@@ -350,11 +353,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inventory/tools", async (req, res) => {
     try {
+      console.log("Tool request body:", req.body);
       const validatedData = insertInventoryToolSchema.parse(req.body);
+      console.log("Validated tool data:", validatedData);
       const tool = await storage.createInventoryTool(validatedData);
       res.json(tool);
     } catch (error) {
-      res.status(400).json({ error: "Failed to create tool" });
+      console.error("Tool creation error:", error);
+      res.status(400).json({ error: "Failed to create tool", details: error.message });
     }
   });
 

@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ProductionPlan, CapacityPlanning } from "@shared/schema";
+import { ProductionPlanForm } from "@/components/planning/ProductionPlanForm";
+import { CapacityPlanningChart } from "@/components/planning/CapacityPlanningChart";
+import { SchedulingModule } from "@/components/planning/SchedulingModule";
 
-// We'll use the existing Machine type from the earlier schema
 interface Machine {
   id: string;
   name: string;
@@ -17,8 +19,6 @@ interface Machine {
   efficiency: number;
   status: string;
 }
-import { ProductionPlanForm } from "@/components/planning/ProductionPlanForm";
-import { CapacityPlanningChart } from "@/components/planning/CapacityPlanningChart";
 
 export function ProductionPlanningPage() {
   const [selectedPlanType, setSelectedPlanType] = useState<string>("all");
@@ -31,6 +31,41 @@ export function ProductionPlanningPage() {
   const { data: capacityData = [], isLoading: capacityLoading } = useQuery({
     queryKey: ["/api/capacity-planning"],
   });
+
+  // Generate mock capacity data for charts
+  const generateMockCapacityData = () => {
+    const today = new Date();
+    const mockData = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      
+      mockData.push({
+        machineId: "machine-1",
+        machineName: "CNC-001",
+        date: date.toISOString().split('T')[0],
+        plannedHours: 6 + Math.random() * 2,
+        availableHours: 8,
+        utilization: 75 + Math.random() * 30,
+        workOrders: [`WO-${1000 + i}`, `WO-${2000 + i}`],
+        status: Math.random() > 0.7 ? "overloaded" : Math.random() > 0.3 ? "optimal" : "underutilized"
+      });
+      
+      mockData.push({
+        machineId: "machine-2",
+        machineName: "CNC-002",
+        date: date.toISOString().split('T')[0],
+        plannedHours: 7 + Math.random() * 1.5,
+        availableHours: 8,
+        utilization: 80 + Math.random() * 25,
+        workOrders: [`WO-${3000 + i}`],
+        status: Math.random() > 0.6 ? "overloaded" : "optimal"
+      });
+    }
+    
+    return mockData;
+  };
 
   const { data: machines = [] } = useQuery({
     queryKey: ["/api/machines"],
@@ -278,7 +313,10 @@ export function ProductionPlanningPage() {
                 <CardTitle>Weekly Capacity Utilization</CardTitle>
               </CardHeader>
               <CardContent>
-                <CapacityPlanningChart data={capacityData} />
+                <CapacityPlanningChart 
+                  data={generateMockCapacityData()} 
+                  timeRange="week" 
+                />
               </CardContent>
             </Card>
 
@@ -332,27 +370,7 @@ export function ProductionPlanningPage() {
 
         {/* Scheduling Tab */}
         <TabsContent value="scheduling" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Production Scheduling</h2>
-            <Button variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
-              Generate Schedule
-            </Button>
-          </div>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center py-12 text-gray-500">
-                <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium mb-2">Production Schedule</h3>
-                <p className="text-sm mb-6">Interactive Gantt chart for production scheduling coming soon</p>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Schedule
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <SchedulingModule />
         </TabsContent>
       </Tabs>
     </div>

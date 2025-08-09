@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { insertRawMaterialSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { GeometryCalculator } from "./GeometryCalculator";
 
 const rawMaterialFormSchema = insertRawMaterialSchema.omit({ 
   id: true, 
@@ -41,6 +42,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       reorderPoint: 10,
       maxStock: 100,
       location: "",
+      diameter: 0,
+      thickness: 0,
+      width: 0,
+      length: 0,
     },
   });
 
@@ -78,7 +83,24 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
   });
 
   const onSubmit = (data: RawMaterialFormData) => {
-    mutation.mutate(data);
+    // Generate SKU based on material properties
+    const sku = generateSKU(data);
+    const formData = {
+      ...data,
+      sku,
+      currentStock: 0, // New inventory starts with 0 stock
+    };
+    mutation.mutate(formData);
+  };
+
+  const generateSKU = (data: RawMaterialFormData): string => {
+    const materialCode = data.materialType.substring(0, 3).toUpperCase();
+    const gradeCode = data.grade ? `-${data.grade}` : '';
+    const shapeCode = data.shape.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+    const sizeCode = data.diameter ? `-D${data.diameter}` : data.width ? `-W${data.width}` : '';
+    const lengthCode = data.length ? `-L${data.length}` : '';
+    
+    return `${materialCode}${gradeCode}-${shapeCode}${sizeCode}${lengthCode}`;
   };
 
   const materialTypes = [
@@ -96,6 +118,191 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
     "OnlineMetals.com", "ThyssenKrupp", "Nucor Corporation",
     "Steel Dynamics", "Local Supplier"
   ];
+
+  const renderDimensionFields = () => {
+    const shape = form.watch("shape");
+    
+    switch (shape) {
+      case "Round Bar":
+        return (
+          <div>
+            <Label htmlFor="diameter">Diameter (mm)</Label>
+            <Input
+              id="diameter"
+              type="number"
+              step="0.1"
+              {...form.register("diameter", { valueAsNumber: true })}
+              placeholder="25.4"
+              className="mt-1"
+            />
+            <div className="mt-2">
+              <Label htmlFor="length">Length (mm)</Label>
+              <Input
+                id="length"
+                type="number"
+                step="0.1"
+                {...form.register("length", { valueAsNumber: true })}
+                placeholder="3000"
+                className="mt-1"
+              />
+            </div>
+          </div>
+        );
+        
+      case "Square Bar":
+        return (
+          <div>
+            <Label htmlFor="diameter">Side Length (mm)</Label>
+            <Input
+              id="diameter"
+              type="number"
+              step="0.1"
+              {...form.register("diameter", { valueAsNumber: true })}
+              placeholder="25.4"
+              className="mt-1"
+            />
+            <div className="mt-2">
+              <Label htmlFor="length">Length (mm)</Label>
+              <Input
+                id="length"
+                type="number"
+                step="0.1"
+                {...form.register("length", { valueAsNumber: true })}
+                placeholder="3000"
+                className="mt-1"
+              />
+            </div>
+          </div>
+        );
+        
+      case "Rectangular Bar":
+      case "Flat Bar":
+        return (
+          <>
+            <div>
+              <Label htmlFor="width">Width (mm)</Label>
+              <Input
+                id="width"
+                type="number"
+                step="0.1"
+                {...form.register("width", { valueAsNumber: true })}
+                placeholder="50.8"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="thickness">Thickness (mm)</Label>
+              <Input
+                id="thickness"
+                type="number"
+                step="0.1"
+                {...form.register("thickness", { valueAsNumber: true })}
+                placeholder="6.35"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="length">Length (mm)</Label>
+              <Input
+                id="length"
+                type="number"
+                step="0.1"
+                {...form.register("length", { valueAsNumber: true })}
+                placeholder="3000"
+                className="mt-1"
+              />
+            </div>
+          </>
+        );
+        
+      case "Plate":
+      case "Sheet":
+        return (
+          <>
+            <div>
+              <Label htmlFor="width">Width (mm)</Label>
+              <Input
+                id="width"
+                type="number"
+                step="0.1"
+                {...form.register("width", { valueAsNumber: true })}
+                placeholder="1000"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="thickness">Thickness (mm)</Label>
+              <Input
+                id="thickness"
+                type="number"
+                step="0.1"
+                {...form.register("thickness", { valueAsNumber: true })}
+                placeholder="6.35"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="length">Length (mm)</Label>
+              <Input
+                id="length"
+                type="number"
+                step="0.1"
+                {...form.register("length", { valueAsNumber: true })}
+                placeholder="2000"
+                className="mt-1"
+              />
+            </div>
+          </>
+        );
+        
+      case "Tube":
+      case "Pipe":
+        return (
+          <>
+            <div>
+              <Label htmlFor="diameter">Outer Diameter (mm)</Label>
+              <Input
+                id="diameter"
+                type="number"
+                step="0.1"
+                {...form.register("diameter", { valueAsNumber: true })}
+                placeholder="25.4"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="thickness">Wall Thickness (mm)</Label>
+              <Input
+                id="thickness"
+                type="number"
+                step="0.1"
+                {...form.register("thickness", { valueAsNumber: true })}
+                placeholder="2.0"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="length">Length (mm)</Label>
+              <Input
+                id="length"
+                type="number"
+                step="0.1"
+                {...form.register("length", { valueAsNumber: true })}
+                placeholder="3000"
+                className="mt-1"
+              />
+            </div>
+          </>
+        );
+        
+      default:
+        return (
+          <div className="text-gray-500 text-center py-8">
+            Please select a shape to configure dimensions
+          </div>
+        );
+    }
+  };
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -177,55 +384,23 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             <CardTitle>Dimensions (mm)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="diameter">Diameter</Label>
-              <Input
-                id="diameter"
-                type="number"
-                step="0.1"
-                {...form.register("diameter", { valueAsNumber: true })}
-                placeholder="25.4"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="thickness">Thickness</Label>
-              <Input
-                id="thickness"
-                type="number"
-                step="0.1"
-                {...form.register("thickness", { valueAsNumber: true })}
-                placeholder="6.35"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="width">Width</Label>
-              <Input
-                id="width"
-                type="number"
-                step="0.1"
-                {...form.register("width", { valueAsNumber: true })}
-                placeholder="50.8"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="length">Length</Label>
-              <Input
-                id="length"
-                type="number"
-                step="0.1"
-                {...form.register("length", { valueAsNumber: true })}
-                placeholder="3000"
-                className="mt-1"
-              />
-            </div>
+            {renderDimensionFields()}
           </CardContent>
         </Card>
+      </div>
+
+      {/* Weight Calculator */}
+      <GeometryCalculator
+        shape={form.watch("shape")}
+        materialType={form.watch("materialType")}
+        diameter={form.watch("diameter")}
+        thickness={form.watch("thickness")}
+        width={form.watch("width")}
+        length={form.watch("length")}
+        quantity={1}
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Supply Information */}
         <Card>

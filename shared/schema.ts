@@ -466,6 +466,10 @@ export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  // Make some fields optional that might be generated client-side
+  sku: z.string().optional(),
+  currentStock: z.number().optional(),
 });
 export const insertToolInventorySchema = createInsertSchema(toolInventory);
 export const insertProductionPlanSchema = createInsertSchema(productionPlans).omit({
