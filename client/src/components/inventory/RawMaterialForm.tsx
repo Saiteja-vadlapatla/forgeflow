@@ -45,11 +45,21 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: RawMaterialFormData) => 
-      apiRequest("/api/inventory/materials", {
+    mutationFn: async (data: RawMaterialFormData) => {
+      const response = await fetch("/api/inventory/materials", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
-      }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to create raw material");
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/materials"] });
       toast({

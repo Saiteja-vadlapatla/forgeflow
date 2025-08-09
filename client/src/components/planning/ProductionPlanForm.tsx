@@ -43,11 +43,21 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: ProductionPlanFormData) => 
-      apiRequest("/api/production-plans", {
+    mutationFn: async (data: ProductionPlanFormData) => {
+      const response = await fetch("/api/production-plans", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(data),
-      }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to create production plan");
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/production-plans"] });
       toast({
@@ -66,7 +76,14 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
   });
 
   const onSubmit = (data: ProductionPlanFormData) => {
-    mutation.mutate(data);
+    // Convert datetime-local strings to proper format for API
+    const formData = {
+      ...data,
+      startDate: data.startDate,
+      endDate: data.endDate,
+    };
+    
+    mutation.mutate(formData);
   };
 
   return (

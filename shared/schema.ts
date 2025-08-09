@@ -200,6 +200,8 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
   createdAt: true,
 });
 
+
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -224,6 +226,8 @@ export type InsertProductionLog = z.infer<typeof insertProductionLogSchema>;
 
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
+
+
 
 // Manufacturing Operations Tables
 export const operations = pgTable("operations", {
@@ -452,11 +456,26 @@ export interface QualityMeasurement {
 // Schema exports
 export const insertOperationSchema = createInsertSchema(operations);
 export const insertOperationSequenceSchema = createInsertSchema(operationSequences);
-export const insertRawMaterialSchema = createInsertSchema(rawMaterials);
+export const insertRawMaterialSchema = createInsertSchema(rawMaterials).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 export const insertRawMaterialInventorySchema = createInsertSchema(rawMaterialInventory);
-export const insertInventoryToolSchema = createInsertSchema(inventoryTools);
+export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 export const insertToolInventorySchema = createInsertSchema(toolInventory);
-export const insertProductionPlanSchema = createInsertSchema(productionPlans);
+export const insertProductionPlanSchema = createInsertSchema(productionPlans).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  startDate: z.string().transform(str => new Date(str)),
+  endDate: z.string().transform(str => new Date(str))
+});
 export const insertCapacityPlanningSchema = createInsertSchema(capacityPlanning);
 
 // Type exports

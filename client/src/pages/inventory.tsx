@@ -128,7 +128,7 @@ export function InventoryPage() {
                   Add Material
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add Raw Material</DialogTitle>
                 </DialogHeader>
@@ -224,7 +224,7 @@ export function InventoryPage() {
                   Add Tool
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-4xl">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add Tool</DialogTitle>
                 </DialogHeader>

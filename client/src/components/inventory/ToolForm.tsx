@@ -52,15 +52,25 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: ToolFormData) => 
-      apiRequest("/api/inventory/tools", {
+    mutationFn: async (data: ToolFormData) => {
+      const response = await fetch("/api/inventory/tools", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           ...data,
           applicationMaterial: selectedApplications,
           operationType: selectedOperations,
         }),
-      }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to create tool");
+      }
+      
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/tools"] });
       toast({
