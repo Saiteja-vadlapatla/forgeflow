@@ -9,13 +9,34 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { insertWorkOrderSchema, Machine } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { ProductionStagesForm } from "./ProductionStagesForm";
+
+const productionStageSchema = z.object({
+  operationNumber: z.number(),
+  operationType: z.string(),
+  operationDescription: z.string(),
+  location: z.enum(["INTERNAL", "EXTERNAL"]),
+  vendorName: z.string().optional(),
+  vendorContact: z.string().optional(),
+  machineType: z.string().optional(),
+  assignedMachineId: z.string().optional(),
+  setupTime: z.number().optional(),
+  cycleTime: z.number().optional(),
+  leadTime: z.number().optional(),
+  costPerPiece: z.number().optional(),
+  workInstructions: z.string().optional(),
+  specialRequirements: z.string().optional(),
+  qualityChecks: z.array(z.string()).optional(),
+});
 
 const workOrderFormSchema = insertWorkOrderSchema.extend({
   plannedStartDate: z.string().optional(),
   plannedEndDate: z.string().optional(),
+  productionStages: z.array(productionStageSchema).optional(),
 });
 
 type WorkOrderFormData = z.infer<typeof workOrderFormSchema>;
@@ -41,6 +62,7 @@ export function WorkOrderForm({ onSuccess, machines }: WorkOrderFormProps) {
       status: "pending",
       material: "",
       materialGrade: "",
+      productionStages: [],
     },
   });
 
@@ -107,7 +129,16 @@ export function WorkOrderForm({ onSuccess, machines }: WorkOrderFormProps) {
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <Tabs defaultValue="basic" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="basic">Basic Info</TabsTrigger>
+          <TabsTrigger value="manufacturing">Manufacturing</TabsTrigger>
+          <TabsTrigger value="stages">Production Stages</TabsTrigger>
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="basic" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>
           <CardHeader>
@@ -270,8 +301,10 @@ export function WorkOrderForm({ onSuccess, machines }: WorkOrderFormProps) {
           </CardContent>
         </Card>
       </div>
+        </TabsContent>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <TabsContent value="manufacturing" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Production Details */}
         <Card>
           <CardHeader>
@@ -340,93 +373,108 @@ export function WorkOrderForm({ onSuccess, machines }: WorkOrderFormProps) {
           </CardContent>
         </Card>
 
-        {/* Schedule */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Schedule</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="plannedStartDate">Planned Start Date</Label>
-              <Input
-                id="plannedStartDate"
-                type="datetime-local"
-                {...form.register("plannedStartDate")}
-                className="mt-1"
-              />
-            </div>
 
-            <div>
-              <Label htmlFor="plannedEndDate">Planned End Date</Label>
-              <Input
-                id="plannedEndDate"
-                type="datetime-local"
-                {...form.register("plannedEndDate")}
-                className="mt-1"
-              />
-            </div>
+          </div>
+        </TabsContent>
 
-            <div>
-              <Label htmlFor="assignedMachineId">Assigned Machine</Label>
-              <Select 
-                value={form.watch("assignedMachineId") || ""} 
-                onValueChange={(value) => form.setValue("assignedMachineId", value)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select machine" />
-                </SelectTrigger>
-                <SelectContent>
-                  {machines.map((machine) => (
-                    <SelectItem key={machine.id} value={machine.id}>
-                      {machine.name} - {machine.operation}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+        <TabsContent value="stages" className="space-y-6">
+          <ProductionStagesForm 
+            control={form.control}
+            machines={machines}
+          />
+        </TabsContent>
 
-        {/* Instructions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Work Instructions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="setupInstructions">Setup Instructions</Label>
-              <Textarea
-                id="setupInstructions"
-                {...form.register("setupInstructions")}
-                placeholder="Special setup requirements..."
-                className="mt-1 resize-none"
-                rows={3}
-              />
-            </div>
+        <TabsContent value="schedule" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Schedule */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Schedule</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="plannedStartDate">Planned Start Date</Label>
+                  <Input
+                    id="plannedStartDate"
+                    type="datetime-local"
+                    {...form.register("plannedStartDate")}
+                    className="mt-1"
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="programNumber">CNC Program Number</Label>
-              <Input
-                id="programNumber"
-                {...form.register("programNumber")}
-                placeholder="O1001"
-                className="mt-1"
-              />
-            </div>
+                <div>
+                  <Label htmlFor="plannedEndDate">Planned End Date</Label>
+                  <Input
+                    id="plannedEndDate"
+                    type="datetime-local"
+                    {...form.register("plannedEndDate")}
+                    className="mt-1"
+                  />
+                </div>
 
-            <div>
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                {...form.register("notes")}
-                placeholder="Additional notes..."
-                className="mt-1 resize-none"
-                rows={3}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <div>
+                  <Label htmlFor="assignedMachineId">Assigned Machine</Label>
+                  <Select 
+                    value={form.watch("assignedMachineId") || ""} 
+                    onValueChange={(value) => form.setValue("assignedMachineId", value)}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select machine" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {machines.map((machine) => (
+                        <SelectItem key={machine.id} value={machine.id}>
+                          {machine.name} - {machine.operation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Instructions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Work Instructions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="setupInstructions">Setup Instructions</Label>
+                  <Textarea
+                    id="setupInstructions"
+                    {...form.register("setupInstructions")}
+                    placeholder="Special setup requirements..."
+                    className="mt-1 resize-none"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="programNumber">CNC Program Number</Label>
+                  <Input
+                    id="programNumber"
+                    {...form.register("programNumber")}
+                    placeholder="O1001"
+                    className="mt-1"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="notes">Notes</Label>
+                  <Textarea
+                    id="notes"
+                    {...form.register("notes")}
+                    placeholder="Additional notes..."
+                    className="mt-1 resize-none"
+                    rows={3}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-end space-x-4">
         <Button type="button" variant="outline" onClick={onSuccess}>

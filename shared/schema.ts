@@ -230,17 +230,39 @@ export const operations = pgTable("operations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workOrderId: varchar("work_order_id").notNull(),
   operationNumber: integer("operation_number").notNull(),
-  operationType: text("operation_type").notNull(), // TURNING, MILLING, DRILLING, GRINDING, etc.
+  operationType: text("operation_type").notNull(), // TURNING, MILLING, DRILLING, GRINDING, HEAT_TREATMENT, PLATING, etc.
   operationDescription: text("operation_description").notNull(),
-  machineType: text("machine_type").notNull(),
+  location: text("location").notNull(), // INTERNAL, EXTERNAL
+  vendorName: text("vendor_name"), // For external operations
+  vendorContact: text("vendor_contact"),
+  machineType: text("machine_type"), // Only for internal operations
+  assignedMachineId: varchar("assigned_machine_id"), // Only for internal operations
   setupTime: real("setup_time"), // minutes
   cycleTime: real("cycle_time"), // minutes per piece
+  leadTime: real("lead_time"), // days for external operations
+  costPerPiece: real("cost_per_piece"),
   toolingRequired: jsonb("tooling_required"),
   workInstructions: text("work_instructions"),
+  specialRequirements: text("special_requirements"), // Heat treat specs, plating thickness, etc.
   qualityChecks: jsonb("quality_checks"),
-  status: text("status").default("pending"), // pending, in_progress, completed
+  predecessor: varchar("predecessor_operation_id"), // Previous operation dependency
+  status: text("status").default("pending"), // pending, in_progress, completed, shipped, received
+  plannedStartDate: timestamp("planned_start_date"),
+  actualStartDate: timestamp("actual_start_date"),
+  plannedEndDate: timestamp("planned_end_date"),
+  actualEndDate: timestamp("actual_end_date"),
   completedBy: varchar("completed_by"),
   completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const operationSequences = pgTable("operation_sequences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workOrderId: varchar("work_order_id").notNull(),
+  operations: jsonb("operations").notNull(), // Array of operation IDs in sequence
+  totalLeadTime: real("total_lead_time"), // Total estimated time in days
+  currentOperation: varchar("current_operation_id"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
