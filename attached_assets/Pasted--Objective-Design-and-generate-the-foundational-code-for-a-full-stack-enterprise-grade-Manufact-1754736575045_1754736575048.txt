@@ -1,0 +1,81 @@
+**Objective:** Design and generate the foundational code for a full-stack, enterprise-grade Manufacturing Execution System (MES).
+
+**Persona:** You are a world-class Senior Solutions Architect and Full-Stack Developer. Your expertise spans microservices architecture, cloud-native development, industrial IoT (IIoT), and modern web technologies. You are tasked with architecting and building a scalable, real-time MES from the ground up.
+
+**Project Name:** "Aether MES"
+
+**Core Philosophy:** The system must be:
+* **Modular:** Built on a microservices architecture to ensure independent development, deployment, and scalability of each component.
+* **Real-time:** Capable of ingesting and processing high-frequency data from factory floor equipment and providing live dashboards.
+* **Scalable:** Designed to run on a containerized, cloud-native infrastructure, capable of supporting a single factory or a global network of manufacturing plants.
+* **Secure:** Incorporate robust authentication, authorization, and data encryption at all levels.
+* **User-Centric:** Feature a clean, intuitive, and responsive user interface for operators, managers, and quality assurance personnel.
+
+**Functional Requirements (Modules):**
+
+Based on established manufacturing system requirements, you are to design and build the core of the following modules. For each module, define the data models, API endpoints, and create the foundational frontend and backend code.
+
+1.  **Manufacturing Planning Module:**
+    * Features: Production Planning, Bill of Materials (BOM) Management (multi-level), Work Order Generation, Resource & Capacity Planning, Production Scheduling (with Gantt chart visualization).
+
+2.  **MES - Core Execution System:**
+    * Features: Real-time Monitoring (ingest data via MQTT/OPC-UA), Work Center Management, Process Flow Control, Control Plan Execution, Production Analytics (OEE, TEEP), and Downtime Tracking.
+
+3.  **Quality Management Module:**
+    * Features: Quality Plan creation, Inspection Management (in-process checks), Test Results Tracking, Non-Conformance Reporting (NCR), and Corrective/Preventive Action (CAPA) workflows.
+
+4.  **Inventory & Logistics Module:**
+    * Features: Raw Materials Tracking, Finished Goods Inventory, Warehouse Management (bin locations), and real-time stock level monitoring tied to production consumption.
+
+5.  **Analytics & Strategy Module (OOD):**
+    * Features: Work Order Tracking, Output Optimization algorithms, Performance Analytics dashboards, and Stock Manufacturing Reports.
+
+**Technical Stack Specification:**
+
+You are to use the following modern, robust technology stack:
+
+* **Architecture:** Microservices.
+* **Backend:**
+    * Language/Framework: **Python with FastAPI** for its high performance and automatic OpenAPI documentation. Use Pydantic for data validation.
+    * Real-time Communication: **WebSockets** or **gRPC** for pushing live data to the frontend.
+* **Frontend:**
+    * Framework: **React with TypeScript** using Vite for a fast development experience.
+    * State Management: **Zustand** or **Redux Toolkit**.
+    * UI Component Library: **Ant Design** or **MUI** for a professional, data-dense interface.
+* **Database:**
+    * Primary/Relational DB: **PostgreSQL**. For storing core data like work orders, BOMs, user data, and quality reports.
+    * Time-Series DB: **TimescaleDB** (as a PostgreSQL extension) or **InfluxDB**. For storing high-frequency sensor and machine data for real-time monitoring and analytics.
+* **API Specification:** Generate **OpenAPI 3.0** specs for all RESTful endpoints.
+* **Deployment & DevOps:**
+    * Containerization: **Docker**.
+    * Orchestration: **Kubernetes**.
+    * CI/CD: Provide a template for a **GitHub Actions** pipeline that builds, tests, and deploys the containerized services.
+
+**Assumptions:**
+Assume the industry you are targeting is a mechanical manufacturing industry with CNC Lathes, Milling, COnventional Turning, Grinding, WireCut machines etc. No sheet bending or wire processing.
+
+Broad manufacturing areas:
+
+1. Turning - Conventional & CNC
+2. Milling - Conventional & CNC
+3. Surface Grinding - Conventional
+4. Cylindrical Grinding - Conventional
+5. CNC Wire Cut
+6. Drilling
+7. Tapping
+
+**Deliverables:**
+
+Please structure your response to provide the following deliverables in order:
+
+1.  **High-Level Architecture Document:** A Markdown document explaining the overall system design, the responsibilities of each microservice, and how they communicate with each other (e.g., REST, async messaging via RabbitMQ/Kafka). Include a diagram if possible.
+2.  **Project Directory Structure:** A tree structure outlining the folders and key files for the entire monorepo (e.g., `services/`, `frontend/`, `libs/`, `docs/`).
+3.  **Database Schema:** Provide the `SQL CREATE TABLE` statements for the PostgreSQL database, covering the core entities for at least three modules (e.g., Manufacturing Planning, MES Execution, Quality).
+4.  **Core Module Implementation (Code Generation):**
+    * For the **MES - Core Execution System**, generate the FastAPI backend code, including data models (Pydantic), API endpoints for `WorkCenter` and `DowntimeEvent`, and a placeholder for the real-time data ingestion logic.
+    * For the **Frontend**, generate the React components (using TypeScript and Ant Design) for a "Real-time Production Dashboard" that would display data from the MES backend. Include a mock WebSocket client hook.
+5.  **Deployment Artifacts:** Generate a sample `Dockerfile` for a backend service and a basic Kubernetes `Deployment.yaml` and `Service.yaml` for it.
+
+**Initiation Command:**
+
+"Begin the architecture and generation for project 'Aether MES'. Start with the High-Level Architecture Document."
