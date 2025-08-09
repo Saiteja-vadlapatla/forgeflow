@@ -141,6 +141,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quality records endpoints
+  app.get("/api/quality/records", async (req, res) => {
+    try {
+      const records = await storage.getAllQualityRecords();
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch quality records" });
+    }
+  });
+
+  app.post("/api/quality/records", async (req, res) => {
+    try {
+      const parsed = insertQualityRecordSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
+      }
+      
+      const record = await storage.createQualityRecord(parsed.data);
+      res.json(record);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create quality record" });
+    }
+  });
+
   // Work Order endpoints
   app.get("/api/work-orders", async (req, res) => {
     try {

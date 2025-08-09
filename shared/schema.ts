@@ -16,13 +16,24 @@ export const users = pgTable("users", {
 export const machines = pgTable("machines", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
-  type: text("type").notNull(), // CNC_TURNING, CNC_MILLING, SURFACE_GRINDING, etc.
-  operation: text("operation").notNull(),
+  type: text("type").notNull(), // CNC_TURNING, CONVENTIONAL_TURNING, CNC_MILLING, etc.
+  operation: text("operation").notNull(), // Turning, Milling, Surface Grinding, etc.
+  subOperation: text("sub_operation"), // Facing, Threading, Boring, Roughing, Finishing
+  manufacturer: text("manufacturer"), // Mazak, Haas, DMG Mori, etc.
+  model: text("model"),
+  serialNumber: text("serial_number"),
+  location: text("location"), // Shop Floor A, Cell 1, etc.
   status: text("status").notNull().default("idle"), // running, idle, setup, maintenance, error
   efficiency: real("efficiency").default(0),
   currentWorkOrderId: varchar("current_work_order_id"),
   lastMaintenanceDate: timestamp("last_maintenance_date"),
+  nextMaintenanceDue: timestamp("next_maintenance_due"),
   totalRuntime: integer("total_runtime").default(0), // in minutes
+  maxSpindleSpeed: integer("max_spindle_speed"), // RPM
+  maxFeedRate: real("max_feed_rate"), // mm/min or in/min
+  workEnvelope: jsonb("work_envelope"), // X, Y, Z dimensions
+  toolCapacity: integer("tool_capacity"), // Number of tools in carousel/turret
+  specifications: jsonb("specifications"), // Machine-specific technical specs
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -32,17 +43,33 @@ export const workOrders = pgTable("work_orders", {
   orderNumber: text("order_number").notNull().unique(),
   partNumber: text("part_number").notNull(),
   partName: text("part_name").notNull(),
+  customerPartNumber: text("customer_part_number"),
+  drawing: text("drawing"), // Drawing number/revision
+  material: text("material"), // Steel, Aluminum, Brass, etc.
+  materialGrade: text("material_grade"), // 4140, 6061-T6, etc.
+  rawMaterialSize: text("raw_material_size"), // "50mm x 100mm x 200mm"
+  finishedDimensions: text("finished_dimensions"),
   quantity: integer("quantity").notNull(),
   completedQuantity: integer("completed_quantity").default(0),
   status: text("status").notNull().default("pending"), // pending, in_progress, setup, completed, on_hold
   priority: text("priority").notNull().default("normal"), // low, normal, high, urgent
+  operationType: text("operation_type").notNull(), // TURNING, MILLING, GRINDING, DRILLING, etc.
   assignedMachineId: varchar("assigned_machine_id"),
+  operatorId: varchar("operator_id"),
+  setupInstructions: text("setup_instructions"),
+  toolingRequired: jsonb("tooling_required"), // Array of required tools
+  programNumber: text("program_number"), // CNC program number
   plannedStartDate: timestamp("planned_start_date"),
   actualStartDate: timestamp("actual_start_date"),
   plannedEndDate: timestamp("planned_end_date"),
   actualEndDate: timestamp("actual_end_date"),
+  estimatedSetupTime: real("estimated_setup_time"), // in minutes
+  actualSetupTime: real("actual_setup_time"),
+  estimatedCycleTime: real("estimated_cycle_time"), // per piece in minutes
+  actualCycleTime: real("actual_cycle_time"),
   estimatedHours: real("estimated_hours"),
   actualHours: real("actual_hours"),
+  qualityRequirements: jsonb("quality_requirements"), // Tolerances, surface finish, etc.
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -52,14 +79,25 @@ export const qualityRecords = pgTable("quality_records", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workOrderId: varchar("work_order_id").notNull(),
   machineId: varchar("machine_id").notNull(),
-  inspectionType: text("inspection_type").notNull(), // first_article, in_process, final
-  result: text("result").notNull(), // pass, fail, rework
-  measurements: jsonb("measurements"), // JSON object with measurement data
-  defectType: text("defect_type"),
+  partNumber: text("part_number").notNull(),
+  serialNumber: text("serial_number"),
+  inspectionType: text("inspection_type").notNull(), // first_article, in_process, final, receiving
+  result: text("result").notNull(), // pass, fail, rework, hold
+  measurements: jsonb("measurements"), // Dimensional measurements, surface finish, hardness
+  criticalDimensions: jsonb("critical_dimensions"), // Key measurements with tolerances
+  surfaceFinish: real("surface_finish"), // Ra value in micrometers
+  hardness: real("hardness"), // HRC, HRB, or Brinell
+  concentricity: real("concentricity"), // TIR in mm or inches
+  runout: real("runout"), // TIR for cylindrical parts
+  defectType: text("defect_type"), // dimensional, surface, material, geometric
+  defectLocation: text("defect_location"), // Where on the part
   defectDescription: text("defect_description"),
+  gaugeCalibrationDue: timestamp("gauge_calibration_due"),
   inspectorId: varchar("inspector_id").notNull(),
   inspectionDate: timestamp("inspection_date").defaultNow().notNull(),
   correctiveAction: text("corrective_action"),
+  dispositionCode: text("disposition_code"), // USE_AS_IS, REWORK, SCRAP, RETURN
+  reworkInstructions: text("rework_instructions"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -187,6 +225,60 @@ export type InsertProductionLog = z.infer<typeof insertProductionLogSchema>;
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
 
+// Manufacturing Operations Tables
+export const operations = pgTable("operations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workOrderId: varchar("work_order_id").notNull(),
+  operationNumber: integer("operation_number").notNull(),
+  operationType: text("operation_type").notNull(), // TURNING, MILLING, DRILLING, GRINDING, etc.
+  operationDescription: text("operation_description").notNull(),
+  machineType: text("machine_type").notNull(),
+  setupTime: real("setup_time"), // minutes
+  cycleTime: real("cycle_time"), // minutes per piece
+  toolingRequired: jsonb("tooling_required"),
+  workInstructions: text("work_instructions"),
+  qualityChecks: jsonb("quality_checks"),
+  status: text("status").default("pending"), // pending, in_progress, completed
+  completedBy: varchar("completed_by"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const tools = pgTable("tools", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  toolNumber: text("tool_number").notNull().unique(),
+  toolType: text("tool_type").notNull(), // INSERT, END_MILL, DRILL, BORING_BAR, etc.
+  manufacturer: text("manufacturer"),
+  description: text("description").notNull(),
+  diameter: real("diameter"), // in mm
+  length: real("length"), // in mm
+  material: text("material"), // HSS, CARBIDE, CERAMIC, etc.
+  coating: text("coating"), // TiN, TiAlN, uncoated, etc.
+  currentLocation: text("current_location"),
+  status: text("status").default("available"), // available, in_use, maintenance, worn_out
+  totalUsageHours: real("total_usage_hours").default(0),
+  maxUsageHours: real("max_usage_hours"),
+  lastMaintenanceDate: timestamp("last_maintenance_date"),
+  nextMaintenanceHours: real("next_maintenance_hours"),
+  costPerTool: real("cost_per_tool"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const processes = pgTable("processes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // TURNING, MILLING, GRINDING, etc.
+  subCategory: text("sub_category"), // ROUGHING, FINISHING, THREADING, etc.
+  description: text("description"),
+  standardParameters: jsonb("standard_parameters"), // speeds, feeds, depths
+  qualityStandards: jsonb("quality_standards"),
+  safetyRequirements: text("safety_requirements"),
+  estimatedCycleTime: real("estimated_cycle_time"),
+  isStandard: boolean("is_standard").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Dashboard data types
 export interface DashboardKPIs {
   overallOEE: number;
@@ -194,11 +286,15 @@ export interface DashboardKPIs {
   totalMachines: number;
   productionRate: number;
   qualityRate: number;
+  setupEfficiency: number;
+  cycleTimeVariance: number;
 }
 
 export interface MachineWithWorkOrder extends Machine {
   workOrder?: WorkOrder;
   downtime?: number;
+  currentOperation?: string;
+  nextMaintenance?: string;
 }
 
 export interface RealtimeData {
@@ -208,4 +304,31 @@ export interface RealtimeData {
   alerts: Alert[];
   productionData: { timestamp: string; value: number }[];
   oeeData: { timestamp: string; value: number }[];
+  qualityTrends: { timestamp: string; value: number }[];
+}
+
+// Manufacturing-specific types
+export interface ManufacturingOperation {
+  id: string;
+  type: 'TURNING' | 'MILLING' | 'GRINDING' | 'DRILLING' | 'TAPPING' | 'WIRE_CUT';
+  subType?: 'ROUGHING' | 'FINISHING' | 'THREADING' | 'BORING' | 'FACING';
+  parameters: {
+    spindleSpeed?: number; // RPM
+    feedRate?: number; // mm/min or in/min
+    depthOfCut?: number; // mm or inches
+    toolNumber?: string;
+    coolant?: boolean;
+  };
+}
+
+export interface QualityMeasurement {
+  dimension: string;
+  nominal: number;
+  tolerance: {
+    plus: number;
+    minus: number;
+  };
+  actual: number;
+  result: 'PASS' | 'FAIL';
+  unit: 'mm' | 'inch' | 'degree';
 }

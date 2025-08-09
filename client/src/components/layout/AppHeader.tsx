@@ -1,4 +1,5 @@
 import { Factory } from "lucide-react";
+import { Link } from "wouter";
 
 interface AppHeaderProps {
   isConnected: boolean;
@@ -15,11 +16,21 @@ export function AppHeader({ isConnected }: AppHeaderProps) {
               <h1 className="text-2xl font-bold text-[#1976d2]">Aether MES</h1>
             </div>
             <nav className="hidden md:flex space-x-6">
-              <a href="#dashboard" className="text-[#1976d2] font-medium border-b-2 border-[#1976d2] pb-1">Dashboard</a>
-              <a href="#production" className="text-gray-600 hover:text-[#1976d2] transition-colors">Production</a>
-              <a href="#quality" className="text-gray-600 hover:text-[#1976d2] transition-colors">Quality</a>
-              <a href="#inventory" className="text-gray-600 hover:text-[#1976d2] transition-colors">Inventory</a>
-              <a href="#planning" className="text-gray-600 hover:text-[#1976d2] transition-colors">Planning</a>
+              <Link href="/dashboard">
+                <span className="text-[#1976d2] font-medium border-b-2 border-[#1976d2] pb-1">Dashboard</span>
+              </Link>
+              <Link href="/machine-operations">
+                <span className="text-gray-600 hover:text-[#1976d2] transition-colors">Production</span>
+              </Link>
+              <Link href="/quality-control">
+                <span className="text-gray-600 hover:text-[#1976d2] transition-colors">Quality</span>
+              </Link>
+              <Link href="/inventory">
+                <span className="text-gray-600 hover:text-[#1976d2] transition-colors">Inventory</span>
+              </Link>
+              <Link href="/production-planning">
+                <span className="text-gray-600 hover:text-[#1976d2] transition-colors">Planning</span>
+              </Link>
             </nav>
           </div>
           <div className="flex items-center space-x-4">

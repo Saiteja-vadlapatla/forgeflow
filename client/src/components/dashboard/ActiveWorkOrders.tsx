@@ -67,7 +67,7 @@ export function ActiveWorkOrders({ workOrders }: ActiveWorkOrdersProps) {
       <CardContent className="p-6">
         <div className="space-y-4">
           {workOrders.map((order) => {
-            const progress = order.quantity > 0 ? (order.completedQuantity / order.quantity) * 100 : 0;
+            const progress = order.quantity > 0 ? ((order.completedQuantity || 0) / order.quantity) * 100 : 0;
             
             return (
               <div key={order.id} className="border border-gray-200 rounded-lg p-4">
@@ -80,7 +80,7 @@ export function ActiveWorkOrders({ workOrders }: ActiveWorkOrdersProps) {
                 <p className="text-sm text-gray-600 mb-2">Part: {order.partNumber}</p>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Progress:</span>
-                  <span className="font-medium">{Math.round(progress)}% ({order.completedQuantity}/{order.quantity})</span>
+                  <span className="font-medium">{Math.round(progress)}% ({order.completedQuantity || 0}/{order.quantity})</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div 

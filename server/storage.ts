@@ -329,7 +329,9 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = randomUUID();
     const user: User = { 
-      ...insertUser, 
+      ...insertUser,
+      role: insertUser.role || "operator",
+      email: insertUser.email || null,
       id,
       createdAt: new Date(),
     };
@@ -349,7 +351,12 @@ export class MemStorage implements IStorage {
   async createMachine(insertMachine: InsertMachine): Promise<Machine> {
     const id = randomUUID();
     const machine: Machine = { 
-      ...insertMachine, 
+      ...insertMachine,
+      status: insertMachine.status || "idle",
+      efficiency: insertMachine.efficiency || 0,
+      currentWorkOrderId: insertMachine.currentWorkOrderId || null,
+      totalRuntime: insertMachine.totalRuntime || 0,
+      lastMaintenanceDate: insertMachine.lastMaintenanceDate || null,
       id,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -399,7 +406,18 @@ export class MemStorage implements IStorage {
   async createWorkOrder(insertWorkOrder: InsertWorkOrder): Promise<WorkOrder> {
     const id = randomUUID();
     const workOrder: WorkOrder = { 
-      ...insertWorkOrder, 
+      ...insertWorkOrder,
+      status: insertWorkOrder.status || "pending",
+      priority: insertWorkOrder.priority || "normal",
+      completedQuantity: insertWorkOrder.completedQuantity || 0,
+      assignedMachineId: insertWorkOrder.assignedMachineId || null,
+      plannedStartDate: insertWorkOrder.plannedStartDate || null,
+      actualStartDate: insertWorkOrder.actualStartDate || null,
+      plannedEndDate: insertWorkOrder.plannedEndDate || null,
+      actualEndDate: insertWorkOrder.actualEndDate || null,
+      estimatedHours: insertWorkOrder.estimatedHours || null,
+      actualHours: insertWorkOrder.actualHours || null,
+      notes: insertWorkOrder.notes || null,
       id,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -435,7 +453,12 @@ export class MemStorage implements IStorage {
   async createQualityRecord(insertRecord: InsertQualityRecord): Promise<QualityRecord> {
     const id = randomUUID();
     const record: QualityRecord = { 
-      ...insertRecord, 
+      ...insertRecord,
+      measurements: insertRecord.measurements || null,
+      defectType: insertRecord.defectType || null,
+      defectDescription: insertRecord.defectDescription || null,
+      correctiveAction: insertRecord.correctiveAction || null,
+      inspectionDate: insertRecord.inspectionDate || new Date(),
       id,
       createdAt: new Date(),
     };
@@ -460,7 +483,12 @@ export class MemStorage implements IStorage {
   async createInventoryItem(insertItem: InsertInventoryItem): Promise<InventoryItem> {
     const id = randomUUID();
     const item: InventoryItem = { 
-      ...insertItem, 
+      ...insertItem,
+      currentStock: insertItem.currentStock || 0,
+      minStockLevel: insertItem.minStockLevel || 0,
+      maxStockLevel: insertItem.maxStockLevel || null,
+      unitCost: insertItem.unitCost || null,
+      location: insertItem.location || null,
       id,
       lastUpdated: new Date(),
       createdAt: new Date(),
@@ -495,7 +523,11 @@ export class MemStorage implements IStorage {
   async createDowntimeEvent(insertEvent: InsertDowntimeEvent): Promise<DowntimeEvent> {
     const id = randomUUID();
     const event: DowntimeEvent = { 
-      ...insertEvent, 
+      ...insertEvent,
+      endTime: insertEvent.endTime || null,
+      duration: insertEvent.duration || null,
+      description: insertEvent.description || null,
+      resolvedBy: insertEvent.resolvedBy || null,
       id,
       createdAt: new Date(),
     };
@@ -516,7 +548,10 @@ export class MemStorage implements IStorage {
   async createProductionLog(insertLog: InsertProductionLog): Promise<ProductionLog> {
     const id = randomUUID();
     const log: ProductionLog = { 
-      ...insertLog, 
+      ...insertLog,
+      timestamp: insertLog.timestamp || new Date(),
+      shiftId: insertLog.shiftId || null,
+      cycleTime: insertLog.cycleTime || null,
       id,
       createdAt: new Date(),
     };
@@ -542,7 +577,13 @@ export class MemStorage implements IStorage {
   async createAlert(insertAlert: InsertAlert): Promise<Alert> {
     const id = randomUUID();
     const alert: Alert = { 
-      ...insertAlert, 
+      ...insertAlert,
+      sourceId: insertAlert.sourceId || null,
+      severity: insertAlert.severity || "medium",
+      isRead: insertAlert.isRead ?? false,
+      isResolved: insertAlert.isResolved ?? false,
+      resolvedBy: insertAlert.resolvedBy || null,
+      resolvedAt: insertAlert.resolvedAt || null,
       id,
       createdAt: new Date(),
     };
@@ -592,12 +633,27 @@ export class MemStorage implements IStorage {
     const qualityRate = recentQualityRecords.length > 0 ? 
       (passedRecords.length / recentQualityRecords.length) * 100 : 99.2;
     
+    // Calculate setup efficiency and cycle time variance for enhanced KPIs
+    const setupTime = workOrders
+      .filter(wo => wo.actualSetupTime && wo.estimatedSetupTime)
+      .reduce((sum, wo) => sum + ((wo.estimatedSetupTime || 0) / (wo.actualSetupTime || 1)), 0);
+    const setupEfficiency = setupTime > 0 ? (setupTime / workOrders.length) * 100 : 95;
+
+    const cycleTimeVariance = workOrders
+      .filter(wo => wo.actualCycleTime && wo.estimatedCycleTime)
+      .reduce((sum, wo) => {
+        const variance = Math.abs((wo.actualCycleTime || 0) - (wo.estimatedCycleTime || 0));
+        return sum + (variance / (wo.estimatedCycleTime || 1));
+      }, 0);
+
     return {
       overallOEE: Math.round(overallOEE * 10) / 10,
       activeMachines,
       totalMachines,
       productionRate,
       qualityRate: Math.round(qualityRate * 10) / 10,
+      setupEfficiency: Math.round(setupEfficiency * 10) / 10,
+      cycleTimeVariance: Math.round(cycleTimeVariance * 10) / 10,
     };
   }
 
@@ -619,6 +675,11 @@ export class MemStorage implements IStorage {
       value: Math.floor(Math.random() * 15) + 75,
     }));
     
+    const qualityTrends = Array.from({ length: 24 }, (_, i) => ({
+      timestamp: new Date(now - (23 - i) * 60 * 60 * 1000).toISOString(),
+      value: Math.floor(Math.random() * 5) + 95,
+    }));
+    
     return {
       kpis,
       machines,
@@ -626,6 +687,7 @@ export class MemStorage implements IStorage {
       alerts,
       productionData,
       oeeData,
+      qualityTrends,
     };
   }
 }
