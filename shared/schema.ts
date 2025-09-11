@@ -831,6 +831,9 @@ export const insertRawMaterialSchema = createInsertSchema(rawMaterials).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  // Make SKU optional since it can be generated client-side or server-side
+  sku: z.string().optional(),
 });
 export const insertRawMaterialInventorySchema = createInsertSchema(rawMaterialInventory);
 export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit({
@@ -838,9 +841,8 @@ export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit
   createdAt: true,
   updatedAt: true,
 }).extend({
-  // Make some fields optional that might be generated client-side
+  // Make SKU optional since it can be generated client-side or server-side
   sku: z.string().optional(),
-  currentStock: z.number().optional(),
 });
 export const insertToolInventorySchema = createInsertSchema(toolInventory);
 export const insertProductionPlanSchema = createInsertSchema(productionPlans).omit({

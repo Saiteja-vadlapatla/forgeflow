@@ -86,7 +86,6 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
     const formData = {
       ...data,
       sku,
-      currentStock: 0 // New inventory starts with 0 stock
     };
     mutation.mutate(formData);
   };

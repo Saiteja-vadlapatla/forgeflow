@@ -1966,7 +1966,8 @@ export class MemStorage implements IStorage {
 
   async createRawMaterial(material: any): Promise<any> {
     const id = randomUUID();
-    const sku = `RM-${material.materialType.substring(0,2).toUpperCase()}-${material.grade}-${Date.now()}`;
+    // Use client-provided SKU if available, otherwise generate one
+    const sku = material.sku || `RM-${material.materialType.substring(0,2).toUpperCase()}-${(material.grade || 'UNK')}-${Date.now()}`;
     const newMaterial = {
       ...material,
       id,
@@ -1998,7 +1999,8 @@ export class MemStorage implements IStorage {
 
   async createInventoryTool(tool: any): Promise<any> {
     const id = randomUUID();
-    const sku = `TL-${tool.toolType.substring(0,2).toUpperCase()}-${tool.size}-${Date.now()}`;
+    // Use client-provided SKU if available, otherwise generate one
+    const sku = tool.sku || `TL-${tool.toolType.substring(0,2).toUpperCase()}-${tool.size}-${Date.now()}`;
     const newTool = {
       ...tool,
       id,

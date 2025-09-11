@@ -16,7 +16,8 @@ import { insertInventoryToolSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 const toolFormSchema = insertInventoryToolSchema.omit({ 
-  sku: true 
+  sku: true,
+  currentStock: true
 });
 
 type ToolFormData = z.infer<typeof toolFormSchema>;
@@ -56,11 +57,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...data,
-          applicationMaterial: selectedApplications,
-          operationType: selectedOperations,
-        }),
+        body: JSON.stringify(data),
       });
       
       if (!response.ok) {
