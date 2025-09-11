@@ -229,7 +229,7 @@ export type InsertAlert = z.infer<typeof insertAlertSchema>;
 
 
 
-// Manufacturing Operations Tables
+// Manufacturing Operations Tables - Enhanced for Scheduling
 export const operations = pgTable("operations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   workOrderId: varchar("work_order_id").notNull(),
@@ -239,26 +239,35 @@ export const operations = pgTable("operations", {
   location: text("location").notNull(), // INTERNAL, EXTERNAL
   vendorName: text("vendor_name"), // For external operations
   vendorContact: text("vendor_contact"),
-  machineType: text("machine_type"), // Only for internal operations
-  assignedMachineId: varchar("assigned_machine_id"), // Only for internal operations
-  setupTime: real("setup_time"), // minutes
-  cycleTime: real("cycle_time"), // minutes per piece
-  leadTime: real("lead_time"), // days for external operations
+  machineTypes: jsonb("machine_types"), // Array of machine types that can handle this operation
+  assignedMachineId: varchar("assigned_machine_id"), // Assigned machine for internal operations
+  setupTimeMinutes: real("setup_time_minutes"), // Setup time in minutes
+  runTimeMinutesPerUnit: real("run_time_minutes_per_unit"), // Run time per unit in minutes
+  batchSize: integer("batch_size"), // Minimum batch size for setup efficiency
+  operationFamily: text("operation_family"), // For setup matrix (e.g., "TURNING_STEEL", "MILLING_ALUMINUM")
+  leadTimeDays: real("lead_time_days"), // days for external operations
   costPerPiece: real("cost_per_piece"),
-  toolingRequired: jsonb("tooling_required"),
+  toolingRequired: jsonb("tooling_required"), // Array of required tool IDs
+  requiredSkills: jsonb("required_skills"), // Array of operator skill requirements
   workInstructions: text("work_instructions"),
   specialRequirements: text("special_requirements"), // Heat treat specs, plating thickness, etc.
   qualityChecks: jsonb("quality_checks"),
-  predecessor: varchar("predecessor_operation_id"), // Previous operation dependency
-  status: text("status").default("pending"), // pending, in_progress, completed, shipped, received
+  predecessorOperationIds: jsonb("predecessor_operation_ids"), // Array of operation dependencies
+  successorOperationIds: jsonb("successor_operation_ids"), // Array of operations that depend on this one
+  priority: integer("priority").default(100), // Lower number = higher priority
+  dueDate: timestamp("due_date"), // Individual operation due date for scheduling
+  status: text("status").default("pending"), // pending, scheduled, in_progress, completed, shipped, received
   plannedStartDate: timestamp("planned_start_date"),
   actualStartDate: timestamp("actual_start_date"),
   plannedEndDate: timestamp("planned_end_date"),
   actualEndDate: timestamp("actual_end_date"),
   completedBy: varchar("completed_by"),
   completedAt: timestamp("completed_at"),
+  schedulingWeight: real("scheduling_weight").default(1.0), // Weight for priority calculation
+  isBottleneck: boolean("is_bottleneck").default(false), // Mark as bottleneck operation
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const operationSequences = pgTable("operation_sequences", {
@@ -397,17 +406,19 @@ export const toolInventory = pgTable("tool_inventory", {
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
-// Production Planning Tables
+// Production Planning Tables - Enhanced for Industry Standards
 export const productionPlans = pgTable("production_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   planName: text("plan_name").notNull(),
   planType: text("plan_type").notNull(), // daily, weekly, monthly
   startDate: timestamp("start_date").notNull(),
   endDate: timestamp("end_date").notNull(),
-  status: text("status").default("draft"), // draft, active, completed
+  status: text("status").default("draft"), // draft, active, completed, archived
   totalWorkOrders: integer("total_work_orders").default(0),
   completedWorkOrders: integer("completed_work_orders").default(0),
   efficiency: real("efficiency").default(0),
+  workOrderIds: jsonb("work_order_ids"), // Array of selected work order IDs
+  schedulingPolicy: jsonb("scheduling_policy"), // {rule: EDD|SPT|CR, horizon: hours, allowOverload: boolean}
   notes: text("notes"),
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -425,6 +436,111 @@ export const capacityPlanning = pgTable("capacity_planning", {
   workOrders: jsonb("work_orders"), // Array of work order IDs
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Machine Capabilities and Calendars
+export const machineCapabilities = pgTable("machine_capabilities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  machineId: varchar("machine_id").notNull().references(() => machines.id),
+  machineTypes: jsonb("machine_types").notNull(), // Array of operation types this machine can handle
+  operationFamilies: jsonb("operation_families").notNull(), // Array of operation families for setup matrix
+  efficiency: real("efficiency").default(1.0), // Machine efficiency factor (0.0-1.0)
+  calendarId: varchar("calendar_id").notNull(),
+  preferredOperations: jsonb("preferred_operations"), // Operations this machine excels at
+  alternativeOperations: jsonb("alternative_operations"), // Operations possible with lower efficiency
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const calendars = pgTable("calendars", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  shifts: jsonb("shifts").notNull(), // Array of shift definitions with start/end times
+  workDays: jsonb("work_days").notNull(), // Array of working days [1,2,3,4,5] for Mon-Fri
+  exceptions: jsonb("exceptions"), // Array of holiday/maintenance dates
+  timezone: text("timezone").default("UTC"),
+  isDefault: boolean("is_default").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Setup Time Matrix for Sequence-Dependent Changeovers
+export const setupMatrix = pgTable("setup_matrix", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fromFamily: text("from_family").notNull(), // Operation family transitioning from
+  toFamily: text("to_family").notNull(), // Operation family transitioning to
+  changeoverMinutes: real("changeover_minutes").notNull(), // Setup time in minutes
+  machineType: text("machine_type").notNull(), // Which type of machine this applies to
+  description: text("description"), // Details about the changeover process
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Schedule Slots - Core Scheduling Output
+export const scheduleSlots = pgTable("schedule_slots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  planId: varchar("plan_id").notNull().references(() => productionPlans.id),
+  workOrderId: varchar("work_order_id").notNull().references(() => workOrders.id),
+  operationId: varchar("operation_id").notNull().references(() => operations.id),
+  machineId: varchar("machine_id").notNull().references(() => machines.id),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  setupMinutes: real("setup_minutes").default(0),
+  runMinutes: real("run_minutes").notNull(),
+  quantity: integer("quantity").notNull(),
+  priority: integer("priority").default(100), // Lower number = higher priority
+  status: text("status").default("scheduled"), // scheduled, in_progress, completed, cancelled
+  actualStartTime: timestamp("actual_start_time"),
+  actualEndTime: timestamp("actual_end_time"),
+  actualSetupMinutes: real("actual_setup_minutes"),
+  actualRunMinutes: real("actual_run_minutes"),
+  schedulingRule: text("scheduling_rule"), // EDD, SPT, CR, etc.
+  conflictFlags: jsonb("conflict_flags"), // Array of detected conflicts
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Capacity Buckets - Daily/Hourly Resource Utilization
+export const capacityBuckets = pgTable("capacity_buckets", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  machineId: varchar("machine_id").notNull().references(() => machines.id),
+  date: timestamp("date").notNull(),
+  hour: integer("hour"), // 0-23 for hourly buckets, null for daily buckets
+  availableMinutes: real("available_minutes").notNull(),
+  plannedMinutes: real("planned_minutes").default(0),
+  actualMinutes: real("actual_minutes").default(0),
+  utilization: real("utilization").default(0), // planned/available
+  actualUtilization: real("actual_utilization").default(0), // actual/available
+  isOverloaded: boolean("is_overloaded").default(false),
+  overloadPercentage: real("overload_percentage").default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Shift Entries for Data Collection and Analytics
+export const shiftEntries = pgTable("shift_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  machineId: varchar("machine_id").notNull().references(() => machines.id),
+  operatorId: varchar("operator_id").notNull(),
+  date: timestamp("date").notNull(),
+  shift: text("shift").notNull(), // day, evening, night
+  plannedMinutes: real("planned_minutes").notNull(),
+  runMinutes: real("run_minutes").default(0),
+  setupMinutes: real("setup_minutes").default(0),
+  downtimeMinutes: real("downtime_minutes").default(0),
+  maintenanceMinutes: real("maintenance_minutes").default(0),
+  goodQuantity: integer("good_quantity").default(0),
+  scrapQuantity: integer("scrap_quantity").default(0),
+  reworkQuantity: integer("rework_quantity").default(0),
+  cycleTimeActual: real("cycle_time_actual"), // Average cycle time for the shift
+  cycleTimeStandard: real("cycle_time_standard"), // Standard/target cycle time
+  oeeAvailability: real("oee_availability").default(0), // A = (planned - downtime) / planned
+  oeePerformance: real("oee_performance").default(0), // P = (standard * good) / run_minutes
+  oeeQuality: real("oee_quality").default(0), // Q = good / (good + scrap + rework)
+  oeeOverall: real("oee_overall").default(0), // A * P * Q
+  scheduleAdherence: real("schedule_adherence").default(0), // Adherence to planned schedule
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Manufacturing-specific types
@@ -453,9 +569,16 @@ export interface QualityMeasurement {
   unit: 'mm' | 'inch' | 'degree';
 }
 
-// Schema exports
-export const insertOperationSchema = createInsertSchema(operations);
-export const insertOperationSequenceSchema = createInsertSchema(operationSequences);
+// Schema exports - Enhanced with new planning tables
+export const insertOperationSchema = createInsertSchema(operations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertOperationSequenceSchema = createInsertSchema(operationSequences).omit({
+  id: true,
+  createdAt: true,
+});
 export const insertRawMaterialSchema = createInsertSchema(rawMaterials).omit({
   id: true,
   createdAt: true,
@@ -480,9 +603,43 @@ export const insertProductionPlanSchema = createInsertSchema(productionPlans).om
   startDate: z.string().transform(str => new Date(str)),
   endDate: z.string().transform(str => new Date(str))
 });
-export const insertCapacityPlanningSchema = createInsertSchema(capacityPlanning);
+export const insertCapacityPlanningSchema = createInsertSchema(capacityPlanning).omit({
+  id: true,
+  createdAt: true,
+});
 
-// Type exports
+// New planning schema exports
+export const insertMachineCapabilitySchema = createInsertSchema(machineCapabilities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertCalendarSchema = createInsertSchema(calendars).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertSetupMatrixSchema = createInsertSchema(setupMatrix).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertScheduleSlotSchema = createInsertSchema(scheduleSlots).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertCapacityBucketSchema = createInsertSchema(capacityBuckets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertShiftEntrySchema = createInsertSchema(shiftEntries).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports - Complete with new planning types
 export type Operation = typeof operations.$inferSelect;
 export type InsertOperation = z.infer<typeof insertOperationSchema>;
 export type OperationSequence = typeof operationSequences.$inferSelect;
@@ -499,3 +656,64 @@ export type ProductionPlan = typeof productionPlans.$inferSelect;
 export type InsertProductionPlan = z.infer<typeof insertProductionPlanSchema>;
 export type CapacityPlanning = typeof capacityPlanning.$inferSelect;
 export type InsertCapacityPlanning = z.infer<typeof insertCapacityPlanningSchema>;
+
+// New planning type exports
+export type MachineCapability = typeof machineCapabilities.$inferSelect;
+export type InsertMachineCapability = z.infer<typeof insertMachineCapabilitySchema>;
+export type Calendar = typeof calendars.$inferSelect;
+export type InsertCalendar = z.infer<typeof insertCalendarSchema>;
+export type SetupMatrix = typeof setupMatrix.$inferSelect;
+export type InsertSetupMatrix = z.infer<typeof insertSetupMatrixSchema>;
+export type ScheduleSlot = typeof scheduleSlots.$inferSelect;
+export type InsertScheduleSlot = z.infer<typeof insertScheduleSlotSchema>;
+export type CapacityBucket = typeof capacityBuckets.$inferSelect;
+export type InsertCapacityBucket = z.infer<typeof insertCapacityBucketSchema>;
+export type ShiftEntry = typeof shiftEntries.$inferSelect;
+export type InsertShiftEntry = z.infer<typeof insertShiftEntrySchema>;
+
+// Extended interfaces for production planning
+export interface SchedulingPolicy {
+  rule: 'EDD' | 'SPT' | 'CR' | 'FIFO' | 'PRIORITY'; // Earliest Due Date, Shortest Processing Time, Critical Ratio
+  horizon: number; // Planning horizon in hours
+  allowOverload: boolean; // Allow machine overloading
+  maxOverloadPercentage?: number; // Maximum allowed overload percentage
+  rescheduleInterval?: number; // Auto-reschedule interval in minutes
+}
+
+export interface ShiftDefinition {
+  name: string;
+  startTime: string; // "08:00"
+  endTime: string; // "16:00"
+  breakMinutes: number;
+}
+
+export interface CalendarException {
+  date: string; // ISO date
+  type: 'holiday' | 'maintenance' | 'shutdown';
+  description: string;
+}
+
+export interface OperationCapability {
+  operationType: string;
+  efficiency: number; // 0.0 - 1.0
+  setupTimeMinutes: number;
+  maxCycleTimeMinutes?: number;
+}
+
+export interface SchedulingConflict {
+  type: 'resource_conflict' | 'precedence_violation' | 'capacity_overload' | 'deadline_missed';
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  description: string;
+  affectedOperations: string[]; // Operation IDs
+  suggestedResolution?: string;
+}
+
+export interface ProductionMetrics {
+  oeeOverall: number;
+  scheduleAdherence: number;
+  throughputRate: number;
+  utilizationRate: number;
+  qualityRate: number;
+  bottleneckMachines: string[];
+  criticalWorkOrders: string[];
+}
