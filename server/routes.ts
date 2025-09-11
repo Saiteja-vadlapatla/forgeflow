@@ -7,7 +7,8 @@ import {
   insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema,
   insertSetupGroupSchema, insertOperatorSkillSchema, insertToolResourceSchema,
   insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema,
-  insertScheduleSlotSchema, insertOperationSchema,
+  insertScheduleSlotSchema, insertOperationSchema, insertMachineCapabilitySchema,
+  insertCalendarSchema, insertSetupMatrixSchema, insertDowntimeEventSchema,
   insertShiftReportSchema, insertOperatorSessionSchema, insertReasonCodeSchema, insertScrapLogSchema,
   insertProductionLogSchema, analyticsQuerySchema, analyticsFiltersSchema
 } from "@shared/schema";
@@ -240,32 +241,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Quality endpoints
-  app.get("/api/quality/records", async (req, res) => {
-    try {
-      const records = await storage.getAllQualityRecords();
-      res.json(records);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch quality records" });
-    }
-  });
-
-  app.post("/api/quality/records", async (req, res) => {
-    try {
-      const validation = insertQualityRecordSchema.safeParse(req.body);
-      if (!validation.success) {
-        return res.status(400).json({ error: "Invalid quality record data", details: validation.error });
-      }
-      
-      const record = await storage.createQualityRecord(validation.data);
-      res.status(201).json(record);
-      
-      // Broadcast update
-      broadcastRealtimeData();
-    } catch (error) {
-      res.status(500).json({ error: "Failed to create quality record" });
-    }
-  });
 
   // Inventory endpoints
   app.get("/api/inventory", async (req, res) => {
@@ -312,6 +287,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Alert not found" });
       }
       res.json(alert);
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(500).json({ error: "Failed to update alert" });
     }
@@ -334,6 +312,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Validated data:", validatedData);
       const material = await storage.createRawMaterial(validatedData);
       res.json(material);
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       console.error("Raw material creation error:", error);
       res.status(400).json({ error: "Failed to create raw material", details: error instanceof Error ? error.message : "Unknown error" });
@@ -346,6 +327,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
       // This would typically update inventory stock levels
       res.json({ success: true });
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(400).json({ error: "Failed to update material stock" });
     }
@@ -367,6 +351,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Validated tool data:", validatedData);
       const tool = await storage.createInventoryTool(validatedData);
       res.json(tool);
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       console.error("Tool creation error:", error);
       res.status(400).json({ error: "Failed to create tool", details: error instanceof Error ? error.message : "Unknown error" });
@@ -379,6 +366,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
       // This would typically update tool inventory stock levels
       res.json({ success: true });
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(400).json({ error: "Failed to update tool stock" });
     }
@@ -398,7 +388,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertProductionPlanSchema.parse(req.body);
       const plan = await storage.createProductionPlan(validatedData);
-      res.json(plan);
+      res.status(201).json(plan);
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(400).json({ error: "Failed to create production plan" });
     }
@@ -522,6 +515,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const setupGroup = await storage.createSetupGroup(validation.data);
       res.status(201).json(setupGroup);
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(500).json({ error: "Failed to create setup group" });
     }
@@ -534,6 +530,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Setup group not found" });
       }
       res.json(setupGroup);
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(500).json({ error: "Failed to update setup group" });
     }
@@ -543,6 +542,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await storage.deleteSetupGroup(req.params.id);
       res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete setup group" });
     }
@@ -2052,6 +2054,571 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting real-time snapshots:', error);
       res.status(500).json({ error: "Failed to get real-time snapshots" });
+    }
+  });
+
+  // Operations endpoints (missing CRUD operations)
+  app.get("/api/operations", async (req, res) => {
+    try {
+      const operations = await storage.getAllOperations();
+      res.json(operations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch operations" });
+    }
+  });
+
+  app.get("/api/operations/:id", async (req, res) => {
+    try {
+      const operation = await storage.getOperation(req.params.id);
+      if (!operation) {
+        return res.status(404).json({ error: "Operation not found" });
+      }
+      res.json(operation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch operation" });
+    }
+  });
+
+  app.get("/api/operations/work-order/:workOrderId", async (req, res) => {
+    try {
+      const operations = await storage.getOperationsByWorkOrder(req.params.workOrderId);
+      res.json(operations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch operations for work order" });
+    }
+  });
+
+  app.post("/api/operations", async (req, res) => {
+    try {
+      const validation = insertOperationSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid operation data", details: validation.error });
+      }
+      
+      const operation = await storage.createOperation(validation.data);
+      res.status(201).json(operation);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create operation" });
+    }
+  });
+
+  app.patch("/api/operations/:id", async (req, res) => {
+    try {
+      const operation = await storage.updateOperation?.(req.params.id, req.body);
+      if (!operation) {
+        return res.status(404).json({ error: "Operation not found" });
+      }
+      res.json(operation);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update operation" });
+    }
+  });
+
+  app.delete("/api/operations/:id", async (req, res) => {
+    try {
+      await storage.deleteOperation?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete operation" });
+    }
+  });
+
+  // Additional Schedule Slots endpoints
+  app.get("/api/schedule/slots", async (req, res) => {
+    try {
+      const slots = await storage.getAllScheduleSlots();
+      res.json(slots);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch schedule slots" });
+    }
+  });
+
+  app.get("/api/schedule/slots/:id", async (req, res) => {
+    try {
+      const slot = await storage.getScheduleSlot(req.params.id);
+      if (!slot) {
+        return res.status(404).json({ error: "Schedule slot not found" });
+      }
+      res.json(slot);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch schedule slot" });
+    }
+  });
+
+  app.get("/api/schedule/slots/by-plan/:planId", async (req, res) => {
+    try {
+      const slots = await storage.getScheduleSlotsByPlan(req.params.planId);
+      res.json(slots);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch schedule slots for plan" });
+    }
+  });
+
+  app.post("/api/schedule/slots", async (req, res) => {
+    try {
+      const validation = insertScheduleSlotSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid schedule slot data", details: validation.error });
+      }
+      
+      const slot = await storage.createScheduleSlot(validation.data);
+      res.status(201).json(slot);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create schedule slot" });
+    }
+  });
+
+  app.delete("/api/schedule/slots/:id", async (req, res) => {
+    try {
+      await storage.deleteScheduleSlot?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete schedule slot" });
+    }
+  });
+
+  // Production Logs endpoints (missing update/delete)
+  app.get("/api/production-logs", async (req, res) => {
+    try {
+      const logs = await storage.getAllProductionLogs();
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch production logs" });
+    }
+  });
+
+  app.get("/api/production-logs/:id", async (req, res) => {
+    try {
+      const log = await storage.getProductionLog?.(req.params.id);
+      if (!log) {
+        return res.status(404).json({ error: "Production log not found" });
+      }
+      res.json(log);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch production log" });
+    }
+  });
+
+  app.get("/api/production-logs/machine/:machineId", async (req, res) => {
+    try {
+      const logs = await storage.getProductionLogsByMachine(req.params.machineId);
+      res.json(logs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch production logs for machine" });
+    }
+  });
+
+  app.post("/api/production-logs", async (req, res) => {
+    try {
+      const validation = insertProductionLogSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid production log data", details: validation.error });
+      }
+      
+      const log = await storage.createProductionLog(validation.data);
+      
+      // Cross-module side-effects: update work order completed quantity and machine runtime
+      if (log.workOrderId && log.actualQuantity) {
+        const workOrder = await storage.getWorkOrder(log.workOrderId);
+        if (workOrder) {
+          const newCompletedQuantity = (workOrder.completedQuantity || 0) + log.actualQuantity;
+          await storage.updateWorkOrder(log.workOrderId, { completedQuantity: newCompletedQuantity });
+          
+          // Update work order status if completed
+          if (newCompletedQuantity >= workOrder.quantity) {
+            await storage.updateWorkOrder(log.workOrderId, { status: "completed", actualEndDate: new Date() });
+          }
+        }
+      }
+      
+      // Update machine runtime
+      if (log.machineId && log.actualCycleTime) {
+        const machine = await storage.getMachine(log.machineId);
+        if (machine) {
+          const newRuntime = (machine.totalRuntime || 0) + log.actualCycleTime;
+          await storage.updateMachine(log.machineId, { totalRuntime: newRuntime });
+        }
+      }
+      
+      res.status(201).json(log);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create production log" });
+    }
+  });
+
+  app.patch("/api/production-logs/:id", async (req, res) => {
+    try {
+      const log = await storage.updateProductionLog?.(req.params.id, req.body);
+      if (!log) {
+        return res.status(404).json({ error: "Production log not found" });
+      }
+      res.json(log);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update production log" });
+    }
+  });
+
+  app.delete("/api/production-logs/:id", async (req, res) => {
+    try {
+      await storage.deleteProductionLog?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete production log" });
+    }
+  });
+
+  // Downtime Events endpoints (missing update/delete)
+  app.get("/api/downtime-events", async (req, res) => {
+    try {
+      const events = await storage.getAllDowntimeEvents();
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch downtime events" });
+    }
+  });
+
+  app.get("/api/downtime-events/:id", async (req, res) => {
+    try {
+      const event = await storage.getDowntimeEvent(req.params.id);
+      if (!event) {
+        return res.status(404).json({ error: "Downtime event not found" });
+      }
+      res.json(event);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch downtime event" });
+    }
+  });
+
+  app.get("/api/downtime-events/active", async (req, res) => {
+    try {
+      const events = await storage.getActiveDowntimeEvents();
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active downtime events" });
+    }
+  });
+
+  app.post("/api/downtime-events", async (req, res) => {
+    try {
+      const validation = insertDowntimeEventSchema.safeParse?.(req.body);
+      if (!validation?.success) {
+        return res.status(400).json({ error: "Invalid downtime event data" });
+      }
+      
+      const event = await storage.createDowntimeEvent(validation.data);
+      
+      // Cross-module side-effects: update machine status if downtime starts
+      if (event.machineId && !event.endTime) {
+        await storage.updateMachine(event.machineId, { status: "maintenance" });
+        
+        // Create alert for unplanned downtime
+        if (event.reason.toLowerCase().includes('breakdown') || event.reason.toLowerCase().includes('failure')) {
+          await storage.createAlert({
+            machineId: event.machineId,
+            type: "breakdown",
+            severity: "high",
+            title: `Unplanned Downtime: ${event.reason}`,
+            message: `Machine ${event.machineId} is experiencing unplanned downtime: ${event.reason}`,
+            isRead: false,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+        }
+      }
+      
+      res.status(201).json(event);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create downtime event" });
+    }
+  });
+
+  app.patch("/api/downtime-events/:id", async (req, res) => {
+    try {
+      const existingEvent = await storage.getDowntimeEvent(req.params.id);
+      if (!existingEvent) {
+        return res.status(404).json({ error: "Downtime event not found" });
+      }
+      
+      const event = await storage.updateDowntimeEvent?.(req.params.id, req.body);
+      
+      // Cross-module side-effects: update machine status if downtime ends
+      if (event && req.body.endTime && !existingEvent.endTime) {
+        await storage.updateMachine(event.machineId, { status: "idle" });
+      }
+      
+      res.json(event);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update downtime event" });
+    }
+  });
+
+  app.delete("/api/downtime-events/:id", async (req, res) => {
+    try {
+      await storage.deleteDowntimeEvent?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete downtime event" });
+    }
+  });
+
+  // Machine Capabilities endpoints (missing POST, PATCH, DELETE)
+  app.get("/api/machine-capabilities", async (req, res) => {
+    try {
+      const capabilities = await storage.getAllMachineCapabilities();
+      res.json(capabilities);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch machine capabilities" });
+    }
+  });
+
+  app.get("/api/machine-capabilities/:id", async (req, res) => {
+    try {
+      const capability = await storage.getMachineCapability?.(req.params.id);
+      if (!capability) {
+        return res.status(404).json({ error: "Machine capability not found" });
+      }
+      res.json(capability);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch machine capability" });
+    }
+  });
+
+  app.get("/api/machine-capabilities/machine/:machineId", async (req, res) => {
+    try {
+      const capabilities = await storage.getMachineCapabilitiesByMachine?.(req.params.machineId);
+      res.json(capabilities || []);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch machine capabilities" });
+    }
+  });
+
+  app.post("/api/machine-capabilities", async (req, res) => {
+    try {
+      const validation = insertMachineCapabilitySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid machine capability data", details: validation.error });
+      }
+      
+      const capability = await storage.createMachineCapability?.(validation.data);
+      res.status(201).json(capability);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create machine capability" });
+    }
+  });
+
+  app.patch("/api/machine-capabilities/:id", async (req, res) => {
+    try {
+      const capability = await storage.updateMachineCapability?.(req.params.id, req.body);
+      if (!capability) {
+        return res.status(404).json({ error: "Machine capability not found" });
+      }
+      res.json(capability);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update machine capability" });
+    }
+  });
+
+  app.delete("/api/machine-capabilities/:id", async (req, res) => {
+    try {
+      await storage.deleteMachineCapability?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete machine capability" });
+    }
+  });
+
+  // Calendars endpoints (missing all CRUD operations)
+  app.get("/api/calendars", async (req, res) => {
+    try {
+      const calendars = await storage.getAllCalendars?.()||[];
+      res.json(calendars);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch calendars" });
+    }
+  });
+
+  app.get("/api/calendars/:id", async (req, res) => {
+    try {
+      const calendar = await storage.getCalendar?.(req.params.id);
+      if (!calendar) {
+        return res.status(404).json({ error: "Calendar not found" });
+      }
+      res.json(calendar);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch calendar" });
+    }
+  });
+
+  app.get("/api/calendars/default", async (req, res) => {
+    try {
+      const calendar = await storage.getDefaultCalendar();
+      if (!calendar) {
+        return res.status(404).json({ error: "Default calendar not found" });
+      }
+      res.json(calendar);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch default calendar" });
+    }
+  });
+
+  app.post("/api/calendars", async (req, res) => {
+    try {
+      const validation = insertCalendarSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid calendar data", details: validation.error });
+      }
+      
+      const calendar = await storage.createCalendar?.(validation.data);
+      res.status(201).json(calendar);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create calendar" });
+    }
+  });
+
+  app.patch("/api/calendars/:id", async (req, res) => {
+    try {
+      const calendar = await storage.updateCalendar?.(req.params.id, req.body);
+      if (!calendar) {
+        return res.status(404).json({ error: "Calendar not found" });
+      }
+      res.json(calendar);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update calendar" });
+    }
+  });
+
+  app.delete("/api/calendars/:id", async (req, res) => {
+    try {
+      await storage.deleteCalendar?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete calendar" });
+    }
+  });
+
+  // Setup Matrix endpoints (missing all CRUD operations)
+  app.get("/api/setup-matrix", async (req, res) => {
+    try {
+      const matrix = await storage.getAllSetupMatrix();
+      res.json(matrix);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setup matrix" });
+    }
+  });
+
+  app.get("/api/setup-matrix/:id", async (req, res) => {
+    try {
+      const entry = await storage.getSetupMatrixEntry?.(req.params.id);
+      if (!entry) {
+        return res.status(404).json({ error: "Setup matrix entry not found" });
+      }
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setup matrix entry" });
+    }
+  });
+
+  app.get("/api/setup-matrix/machine/:machineId", async (req, res) => {
+    try {
+      const entries = await storage.getSetupMatrixByMachine?.(req.params.machineId);
+      res.json(entries || []);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setup matrix for machine" });
+    }
+  });
+
+  app.post("/api/setup-matrix", async (req, res) => {
+    try {
+      const validation = insertSetupMatrixSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid setup matrix data", details: validation.error });
+      }
+      
+      const entry = await storage.createSetupMatrixEntry?.(validation.data);
+      res.status(201).json(entry);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create setup matrix entry" });
+    }
+  });
+
+  app.patch("/api/setup-matrix/:id", async (req, res) => {
+    try {
+      const entry = await storage.updateSetupMatrixEntry?.(req.params.id, req.body);
+      if (!entry) {
+        return res.status(404).json({ error: "Setup matrix entry not found" });
+      }
+      res.json(entry);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update setup matrix entry" });
+    }
+  });
+
+  app.delete("/api/setup-matrix/:id", async (req, res) => {
+    try {
+      await storage.deleteSetupMatrixEntry?.(req.params.id);
+      res.status(204).send();
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete setup matrix entry" });
     }
   });
 

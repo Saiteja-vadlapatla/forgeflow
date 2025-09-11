@@ -7,7 +7,7 @@ import {
   Save, 
   Copy, 
   Trash2, 
-  Compare, 
+  GitCompare, 
   TrendingUp, 
   Clock, 
   DollarSign,
@@ -42,7 +42,7 @@ import {
   ReferenceLine
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { Scenario, Machine, WorkOrder } from "@shared/schema";
+import { Scenario, InsertScenario, Machine, WorkOrder, Calendar } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ScenarioFormData {
@@ -250,8 +250,8 @@ export function ScenarioPlanner() {
       setScenarioFormData({
         name: scenario.name,
         description: scenario.description || "",
-        baselineDate: scenario.baselineDate?.split('T')[0] || new Date().toISOString().split('T')[0],
-        analysisType: scenario.analysisType as "capacity" | "scheduling" | "cost" || "capacity",
+        baselineDate: scenario.baselineDate?.toISOString().split('T')[0] || new Date().toISOString().split('T')[0],
+        analysisType: (scenario.scenarioType as "capacity" | "scheduling" | "cost") || "capacity",
         overrides: scenario.overrides as ScenarioOverride[] || [],
       });
     } else {
@@ -304,11 +304,25 @@ export function ScenarioPlanner() {
       return;
     }
 
-    const scenarioData = {
-      ...scenarioFormData,
+    const scenarioData: InsertScenario = {
+      name: scenarioFormData.name,
+      description: scenarioFormData.description,
       baselineDate: new Date(scenarioFormData.baselineDate),
+      scenarioType: scenarioFormData.analysisType,
+      parameters: { analysisType: scenarioFormData.analysisType },
+      overrides: scenarioFormData.overrides,
+      workOrderScope: null,
+      dateRange: null,
+      results: null,
+      metrics: null,
       status: "draft",
       createdBy: "current-user",
+      lastRunAt: null,
+      runtime: null,
+      version: 1,
+      isPublic: false,
+      tags: null,
+      notes: null,
     };
 
     if (editingScenario) {
@@ -492,7 +506,7 @@ export function ScenarioPlanner() {
                                 </span>
                               </div>
                               <Badge variant="outline" className="capitalize">
-                                {scenario.analysisType || "capacity"}
+                                {scenario.scenarioType || "capacity"}
                               </Badge>
                               <Badge className={
                                 scenario.status === "completed" ? "bg-green-100 text-green-800" :

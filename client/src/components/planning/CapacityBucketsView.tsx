@@ -28,6 +28,10 @@ import { Machine, WorkOrder, CapacityPlanning, CapacityBucket } from "@shared/sc
 interface CapacityBucketWithMachineName extends CapacityBucket {
   machineName: string;
   status: "underutilized" | "optimal" | "overloaded" | "maintenance";
+  availableHours: number;  // Converted from availableMinutes
+  reservedHours: number;   // Converted from plannedMinutes
+  workOrders: WorkOrder[]; // Associated work orders
+  shift?: string;          // Derived shift information
 }
 
 interface CapacityMetrics {
@@ -102,6 +106,7 @@ export function CapacityBucketsView() {
                  utilization > 80 ? "optimal" : 
                  machine?.status === "maintenance" ? "maintenance" : "underutilized",
           workOrders: [], // TODO: Add work order info from server response
+          shift: bucket.hour !== null ? `Shift ${Math.floor((bucket.hour || 0) / 8) + 1}` : undefined,
         });
       }
     }
@@ -124,8 +129,8 @@ export function CapacityBucketsView() {
     }
 
     const summary = capacityBucketsResponse.summary || {};
-    const totalCapacity = capacityBuckets.reduce((sum, bucket) => sum + bucket.availableHours, 0);
-    const totalReserved = capacityBuckets.reduce((sum, bucket) => sum + bucket.reservedHours, 0);
+    const totalCapacity = capacityBuckets.reduce((sum, bucket) => sum + (bucket.availableHours || 0), 0);
+    const totalReserved = capacityBuckets.reduce((sum, bucket) => sum + (bucket.reservedHours || 0), 0);
     
     const overloadedMachines = new Set(
       capacityBuckets.filter(bucket => bucket.status === "overloaded").map(b => b.machineId)
@@ -170,8 +175,8 @@ export function CapacityBucketsView() {
         };
       }
 
-      groupedData[key].availableHours += bucket.availableHours || (bucket.availableMinutes / 60) || 0;
-      groupedData[key].reservedHours += bucket.reservedHours || (bucket.plannedMinutes / 60) || 0;
+      groupedData[key].availableHours += bucket.availableHours || ((bucket.availableMinutes || 0) / 60);
+      groupedData[key].reservedHours += bucket.reservedHours || ((bucket.plannedMinutes || 0) / 60);
       groupedData[key].machines.push(bucket);
     });
 
@@ -192,7 +197,7 @@ export function CapacityBucketsView() {
         machineUtilization[bucket.machineId] = {};
       }
       const date = new Date(bucket.date).toISOString().split('T')[0];
-      machineUtilization[bucket.machineId][date] = bucket.utilization;
+      machineUtilization[bucket.machineId][date] = bucket.utilization || 0;
     });
 
     return machineUtilization;
@@ -207,7 +212,7 @@ export function CapacityBucketsView() {
   };
 
   const getUtilizationFromBucket = (bucket: CapacityBucketWithMachineName) => {
-    return bucket.utilization || (bucket.plannedMinutes && bucket.availableMinutes ? (bucket.plannedMinutes / bucket.availableMinutes) * 100 : 0);
+    return bucket.utilization || (bucket.plannedMinutes && bucket.availableMinutes ? ((bucket.plannedMinutes || 0) / (bucket.availableMinutes || 1)) * 100 : 0);
   };
 
   const getStatusColor = (status: string) => {
@@ -551,19 +556,19 @@ export function CapacityBucketsView() {
                           </Badge>
                         </TableCell>
                       )}
-                      <TableCell>{bucket.availableHours}h</TableCell>
+                      <TableCell>{(bucket.availableHours || 0).toFixed(1)}h</TableCell>
                       <TableCell>
-                        <span className="font-medium">{bucket.reservedHours.toFixed(1)}h</span>
+                        <span className="font-medium">{(bucket.reservedHours || 0).toFixed(1)}h</span>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center space-x-2">
                           <div className="w-16 bg-gray-200 rounded-full h-2">
                             <div 
                               className={`h-2 rounded-full ${getUtilizationColor(bucket.utilization)}`}
-                              style={{ width: `${Math.min(100, bucket.utilization)}%` }}
+                              style={{ width: `${Math.min(100, bucket.utilization || 0)}%` }}
                             />
                           </div>
-                          <span className="text-sm">{Math.round(bucket.utilization)}%</span>
+                          <span className="text-sm">{Math.round(bucket.utilization || 0)}%</span>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -573,8 +578,8 @@ export function CapacityBucketsView() {
                       </TableCell>
                       <TableCell>
                         <div className="text-sm">
-                          {bucket.workOrders.slice(0, 2).map((wo, woIdx) => (
-                            <div key={woIdx}>{wo}</div>
+                          {bucket.workOrders.slice(0, 2).map((wo: WorkOrder, woIdx: number) => (
+                            <div key={woIdx}>{wo.orderNumber}</div>
                           ))}
                           {bucket.workOrders.length > 2 && (
                             <div className="text-gray-500">+{bucket.workOrders.length - 2} more</div>
