@@ -72,11 +72,16 @@ export interface IStorage {
   getAllDowntimeEvents(): Promise<DowntimeEvent[]>;
   getDowntimeEvent(id: string): Promise<DowntimeEvent | undefined>;
   createDowntimeEvent(event: InsertDowntimeEvent): Promise<DowntimeEvent>;
+  updateDowntimeEvent(id: string, updates: Partial<DowntimeEvent>): Promise<DowntimeEvent | undefined>;
+  deleteDowntimeEvent(id: string): Promise<void>;
   getActiveDowntimeEvents(): Promise<DowntimeEvent[]>;
 
   // Production operations
   getAllProductionLogs(): Promise<ProductionLog[]>;
+  getProductionLog(id: string): Promise<ProductionLog | undefined>;
   createProductionLog(log: InsertProductionLog): Promise<ProductionLog>;
+  updateProductionLog(id: string, updates: Partial<ProductionLog>): Promise<ProductionLog | undefined>;
+  deleteProductionLog(id: string): Promise<void>;
   getProductionLogsByMachine(machineId: string): Promise<ProductionLog[]>;
 
   // Alert operations
@@ -109,6 +114,8 @@ export interface IStorage {
   getAllOperations(): Promise<Operation[]>;
   getOperation(id: string): Promise<Operation | undefined>;
   createOperation(operation: InsertOperation): Promise<Operation>;
+  updateOperation(id: string, updates: Partial<Operation>): Promise<Operation | undefined>;
+  deleteOperation(id: string): Promise<void>;
   getOperationsByWorkOrder(workOrderId: string): Promise<Operation[]>;
   
   // Schedule Slots operations
@@ -116,6 +123,7 @@ export interface IStorage {
   getScheduleSlot(id: string): Promise<ScheduleSlot | undefined>;
   createScheduleSlot(slot: InsertScheduleSlot): Promise<ScheduleSlot>;
   updateScheduleSlot(id: string, updates: Partial<ScheduleSlot>): Promise<ScheduleSlot | undefined>;
+  deleteScheduleSlot(id: string): Promise<void>;
   getScheduleSlotsByPlan(planId: string): Promise<ScheduleSlot[]>;
   getScheduleSlotsByDateRange(startDate: Date, endDate: Date, machineIds?: string[]): Promise<ScheduleSlot[]>;
   validateScheduleSlots(slots: ScheduleSlot[]): Promise<SchedulingConflict[]>;
@@ -125,17 +133,27 @@ export interface IStorage {
   // Machine Capabilities operations
   getAllMachineCapabilities(): Promise<MachineCapability[]>;
   getMachineCapability(machineId: string): Promise<MachineCapability | undefined>;
+  getMachineCapabilitiesByMachine(machineId: string): Promise<MachineCapability[]>;
   createMachineCapability(capability: InsertMachineCapability): Promise<MachineCapability>;
+  updateMachineCapability(id: string, updates: Partial<MachineCapability>): Promise<MachineCapability | undefined>;
+  deleteMachineCapability(id: string): Promise<void>;
   
   // Calendar operations
   getAllCalendars(): Promise<Calendar[]>;
   getCalendar(id: string): Promise<Calendar | undefined>;
   createCalendar(calendar: InsertCalendar): Promise<Calendar>;
+  updateCalendar(id: string, updates: Partial<Calendar>): Promise<Calendar | undefined>;
+  deleteCalendar(id: string): Promise<void>;
   getDefaultCalendar(): Promise<Calendar | undefined>;
   
   // Setup Matrix operations
   getAllSetupMatrix(): Promise<SetupMatrix[]>;
+  getSetupMatrixEntry(fromOperationType: string, toOperationType: string): Promise<SetupMatrix | undefined>;
+  getSetupMatrixByMachine(machineId: string): Promise<SetupMatrix[]>;
   createSetupMatrix(setup: InsertSetupMatrix): Promise<SetupMatrix>;
+  createSetupMatrixEntry(setup: InsertSetupMatrix): Promise<SetupMatrix>;
+  updateSetupMatrixEntry(id: string, updates: Partial<SetupMatrix>): Promise<SetupMatrix | undefined>;
+  deleteSetupMatrixEntry(id: string): Promise<void>;
   
   // Capacity Buckets operations
   getCapacityBuckets(machineId?: string, startDate?: Date, endDate?: Date): Promise<CapacityBucket[]>;
@@ -280,6 +298,9 @@ export class MemStorage implements IStorage {
   private downtimeEvents: Map<string, DowntimeEvent>;
   private productionLogs: Map<string, ProductionLog>;
   private alerts: Map<string, Alert>;
+  
+  // Session store for authentication
+  public sessionStore: any;
   
   // Scheduling-related storage
   private operations: Map<string, Operation>;
@@ -2108,6 +2129,26 @@ export class MemStorage implements IStorage {
       .sort((a, b) => a.operationNumber - b.operationNumber);
   }
 
+  async updateOperation(id: string, updates: Partial<Operation>): Promise<Operation | undefined> {
+    const existingOperation = this.operations.get(id);
+    if (!existingOperation) {
+      return undefined;
+    }
+
+    const updatedOperation: Operation = {
+      ...existingOperation,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    
+    this.operations.set(id, updatedOperation);
+    return updatedOperation;
+  }
+
+  async deleteOperation(id: string): Promise<void> {
+    this.operations.delete(id);
+  }
+
   // Schedule Slots methods
   async getAllScheduleSlots(): Promise<ScheduleSlot[]> {
     return Array.from(this.scheduleSlots.values())
@@ -2156,6 +2197,10 @@ export class MemStorage implements IStorage {
     
     this.scheduleSlots.set(id, updatedSlot);
     return updatedSlot;
+  }
+
+  async deleteScheduleSlot(id: string): Promise<void> {
+    this.scheduleSlots.delete(id);
   }
 
   async getScheduleSlotsByDateRange(startDate: Date, endDate: Date, machineIds?: string[]): Promise<ScheduleSlot[]> {
@@ -2485,6 +2530,31 @@ export class MemStorage implements IStorage {
     return capability;
   }
 
+  async getMachineCapabilitiesByMachine(machineId: string): Promise<MachineCapability[]> {
+    return Array.from(this.machineCapabilities.values())
+      .filter(cap => cap.machineId === machineId);
+  }
+
+  async updateMachineCapability(id: string, updates: Partial<MachineCapability>): Promise<MachineCapability | undefined> {
+    const existing = this.machineCapabilities.get(id);
+    if (!existing) {
+      return undefined;
+    }
+
+    const updated: MachineCapability = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    
+    this.machineCapabilities.set(id, updated);
+    return updated;
+  }
+
+  async deleteMachineCapability(id: string): Promise<void> {
+    this.machineCapabilities.delete(id);
+  }
+
   // Calendar methods
   async getAllCalendars(): Promise<Calendar[]> {
     return Array.from(this.calendars.values());
@@ -2507,6 +2577,26 @@ export class MemStorage implements IStorage {
     };
     this.calendars.set(id, calendar);
     return calendar;
+  }
+
+  async updateCalendar(id: string, updates: Partial<Calendar>): Promise<Calendar | undefined> {
+    const existing = this.calendars.get(id);
+    if (!existing) {
+      return undefined;
+    }
+
+    const updated: Calendar = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    
+    this.calendars.set(id, updated);
+    return updated;
+  }
+
+  async deleteCalendar(id: string): Promise<void> {
+    this.calendars.delete(id);
   }
 
   async getDefaultCalendar(): Promise<Calendar | undefined> {
