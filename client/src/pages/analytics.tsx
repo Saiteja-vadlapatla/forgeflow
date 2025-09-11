@@ -173,6 +173,85 @@ export default function Analytics() {
     return params.toString();
   }, [filters.dateRange.from, filters.dateRange.to, filters.granularity, filters.machineId, filters.workOrderId]);
 
+  // Memoize refresh interval to prevent query instability
+  const kpiRefreshInterval = useMemo(() => {
+    return wsConnected ? false : (autoRefresh ? 30000 : false);
+  }, [wsConnected, autoRefresh]);
+
+  const realtimeRefreshInterval = useMemo(() => {
+    return wsConnected ? false : 10000;
+  }, [wsConnected]);
+
+  // Fetch analytics data - always enabled to prevent conditional hook calls
+  const { data: kpis, isLoading: kpisLoading, refetch: refetchKpis } = useQuery<AnalyticsKPIs>({
+    queryKey: ['/api/analytics/kpis', queryParams],
+    refetchInterval: kpiRefreshInterval,
+    staleTime: wsConnected ? Infinity : 30000 // Use stale time instead of enabled
+  });
+
+  const { data: oeeData, isLoading: oeeLoading } = useQuery<OEEBreakdown[]>({
+    queryKey: ['/api/analytics/oee', queryParams],
+    refetchInterval: kpiRefreshInterval,
+    staleTime: wsConnected ? Infinity : 30000
+  });
+
+  const { data: adherenceData, isLoading: adherenceLoading } = useQuery<AdherenceMetrics[]>({
+    queryKey: ['/api/analytics/adherence', queryParams],
+    refetchInterval: kpiRefreshInterval,
+    staleTime: wsConnected ? Infinity : 30000
+  });
+
+  const { data: utilizationData, isLoading: utilizationLoading } = useQuery<UtilizationMetrics[]>({
+    queryKey: ['/api/analytics/utilization', queryParams],
+    refetchInterval: kpiRefreshInterval,
+    staleTime: wsConnected ? Infinity : 30000
+  });
+
+  const { data: qualityData, isLoading: qualityLoading } = useQuery<QualitySummary>({
+    queryKey: ['/api/analytics/quality', queryParams],
+    refetchInterval: kpiRefreshInterval,
+    staleTime: wsConnected ? Infinity : 30000
+  });
+
+  const { data: realtimeSnapshots, isLoading: snapshotsLoading } = useQuery<MachineOEESnapshot[]>({
+    queryKey: ['/api/analytics/realtime-snapshots'],
+    refetchInterval: realtimeRefreshInterval,
+    staleTime: wsConnected ? Infinity : 10000
+  });
+
+  // Fetch machines for filtering
+  const { data: machines } = useQuery<any[]>({
+    queryKey: ['/api/machines']
+  });
+
+  // Fetch work orders for filtering
+  const { data: workOrders } = useQuery<any[]>({
+    queryKey: ['/api/work-orders']
+  });
+
+  // Memoize expensive calculations to prevent recalculation on every render - MOVED BEFORE EARLY RETURN
+  const averageOEE = useMemo(() => {
+    return oeeData ? oeeData.reduce((sum, item) => sum + item.oeeScore, 0) / (oeeData.length || 1) : 0;
+  }, [oeeData]);
+  
+  const averageAdherence = useMemo(() => {
+    return adherenceData ? adherenceData.reduce((sum, item) => sum + item.adherenceScore, 0) / (adherenceData.length || 1) : 0;
+  }, [adherenceData]);
+  
+  const averageUtilization = useMemo(() => {
+    return utilizationData ? utilizationData.reduce((sum, item) => sum + item.utilizationRate, 0) / (utilizationData.length || 1) : 0;
+  }, [utilizationData]);
+
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleRefresh = useCallback(() => {
+    refetchKpis();
+  }, [refetchKpis]);
+
+  const handleExport = useCallback(() => {
+    // Export functionality would be implemented here
+    console.log('Export analytics data');
+  }, []);
+
   // Handle WebSocket real-time data updates
   useEffect(() => {
     if (!wsData) return;
@@ -208,78 +287,7 @@ export default function Analytics() {
     }
   }, [wsData, queryClient, queryParams]);
 
-  // Memoize refresh interval to prevent query instability
-  const kpiRefreshInterval = useMemo(() => {
-    return wsConnected ? false : (autoRefresh ? 30000 : false);
-  }, [wsConnected, autoRefresh]);
-
-  const realtimeRefreshInterval = useMemo(() => {
-    return wsConnected ? false : 10000;
-  }, [wsConnected]);
-
-  // Fetch analytics data - prefer WebSocket data when connected, fallback to HTTP when disconnected
-  const { data: kpis, isLoading: kpisLoading, refetch: refetchKpis } = useQuery<AnalyticsKPIs>({
-    queryKey: ['/api/analytics/kpis', queryParams],
-    enabled: !wsConnected || !wsData?.analyticsKPIs, // Only fetch via HTTP if WebSocket is disconnected or no data
-    refetchInterval: kpiRefreshInterval, // Faster fallback polling
-    initialData: wsData?.analyticsKPIs // Use WebSocket data as initial data
-  });
-
-  const { data: oeeData, isLoading: oeeLoading } = useQuery<OEEBreakdown[]>({
-    queryKey: ['/api/analytics/oee', queryParams],
-    enabled: !wsConnected || !wsData?.oeeBreakdowns,
-    refetchInterval: kpiRefreshInterval,
-    initialData: wsData?.oeeBreakdowns
-  });
-
-  const { data: adherenceData, isLoading: adherenceLoading } = useQuery<AdherenceMetrics[]>({
-    queryKey: ['/api/analytics/adherence', queryParams],
-    enabled: !wsConnected || !wsData?.adherenceMetrics,
-    refetchInterval: kpiRefreshInterval,
-    initialData: wsData?.adherenceMetrics
-  });
-
-  const { data: utilizationData, isLoading: utilizationLoading } = useQuery<UtilizationMetrics[]>({
-    queryKey: ['/api/analytics/utilization', queryParams],
-    enabled: !wsConnected || !wsData?.utilizationMetrics,
-    refetchInterval: kpiRefreshInterval,
-    initialData: wsData?.utilizationMetrics
-  });
-
-  const { data: qualityData, isLoading: qualityLoading } = useQuery<QualitySummary>({
-    queryKey: ['/api/analytics/quality', queryParams],
-    enabled: !wsConnected || !wsData?.qualitySummary,
-    refetchInterval: kpiRefreshInterval,
-    initialData: wsData?.qualitySummary
-  });
-
-  const { data: realtimeSnapshots, isLoading: snapshotsLoading } = useQuery<MachineOEESnapshot[]>({
-    queryKey: ['/api/analytics/realtime-snapshots'],
-    enabled: !wsConnected || !wsData?.machineOEESnapshots,
-    refetchInterval: realtimeRefreshInterval, // Faster refresh for real-time data
-    initialData: wsData?.machineOEESnapshots
-  });
-
-  // Fetch machines for filtering
-  const { data: machines } = useQuery<any[]>({
-    queryKey: ['/api/machines']
-  });
-
-  // Fetch work orders for filtering
-  const { data: workOrders } = useQuery<any[]>({
-    queryKey: ['/api/work-orders']
-  });
-
-  // Memoize event handlers to prevent unnecessary re-renders
-  const handleRefresh = useCallback(() => {
-    refetchKpis();
-  }, [refetchKpis]);
-
-  const handleExport = useCallback(() => {
-    // Export functionality would be implemented here
-    console.log('Export analytics data');
-  }, []);
-
+  // NOW SAFE TO RETURN EARLY - ALL HOOKS HAVE BEEN DECLARED
   if (kpisLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -290,19 +298,6 @@ export default function Analytics() {
       </div>
     );
   }
-
-  // Memoize expensive calculations to prevent recalculation on every render
-  const averageOEE = useMemo(() => {
-    return oeeData ? oeeData.reduce((sum, item) => sum + item.oeeScore, 0) / (oeeData.length || 1) : 0;
-  }, [oeeData]);
-  
-  const averageAdherence = useMemo(() => {
-    return adherenceData ? adherenceData.reduce((sum, item) => sum + item.adherenceScore, 0) / (adherenceData.length || 1) : 0;
-  }, [adherenceData]);
-  
-  const averageUtilization = useMemo(() => {
-    return utilizationData ? utilizationData.reduce((sum, item) => sum + item.utilizationRate, 0) / (utilizationData.length || 1) : 0;
-  }, [utilizationData]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
