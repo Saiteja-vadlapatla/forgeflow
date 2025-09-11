@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Filter, Calendar, Clock, Wrench, Package, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -154,23 +154,14 @@ export function WorkOrderSelector({
     });
   }, [workOrders, filters]);
 
-  // Calculate total capacity impact - split into separate memo to prevent unnecessary recalculation
-  const basicCapacityInfo = useMemo(() => {
+  // Calculate capacity impact with simplified, stable memoization
+  const capacityImpact = useMemo(() => {
     const selectedWOs = workOrders.filter(wo => selectedWorkOrders.includes(wo.id));
     const totalHours = selectedWOs.reduce((sum, wo) => sum + (wo.estimatedHours || 0), 0);
     const totalQuantity = selectedWOs.reduce((sum, wo) => sum + wo.quantity, 0);
     
-    return {
-      selectedWOs,
-      totalHours,
-      totalQuantity,
-      workOrderCount: selectedWOs.length,
-    };
-  }, [selectedWorkOrders, workOrders]);
-
-  // Separate memo for resource requirements to stabilize object reference
-  const resourceRequirements = useMemo(() => {
-    return basicCapacityInfo.selectedWOs.reduce((acc, wo) => {
+    // Calculate resource requirements in same memo to avoid chain dependencies
+    const resourceRequirements = selectedWOs.reduce((acc, wo) => {
       const opType = wo.operationType;
       if (!acc[opType]) {
         acc[opType] = { count: 0, hours: 0, quantity: 0, capableMachines: [], utilizationByMachine: {} };
@@ -217,24 +208,33 @@ export function WorkOrderSelector({
       capableMachines: Machine[];
       utilizationByMachine: Record<string, { machineName: string; hours: number; workOrders: number }>;
     }>);
-  }, [basicCapacityInfo.selectedWOs, machines, machineCapabilities]);
 
-  const capacityImpact = useMemo(() => ({
-    ...basicCapacityInfo,
-    resourceRequirements
-  }), [basicCapacityInfo, resourceRequirements]);
+    return {
+      selectedWOs,
+      totalHours,
+      totalQuantity,
+      workOrderCount: selectedWOs.length,
+      resourceRequirements
+    };
+  }, [selectedWorkOrders, workOrders, machines, machineCapabilities]);
 
-  // Notify parent of capacity changes with proper dependencies - use ref to prevent infinite loops
-  const previousCapacity = useMemo(() => ({
-    totalHours: capacityImpact.totalHours,
-    workOrderCount: capacityImpact.workOrderCount
-  }), [capacityImpact.totalHours, capacityImpact.workOrderCount]);
+  // Use useCallback to stabilize capacity change callback
+  const stableOnCapacityChange = useCallback(onCapacityChange || (() => {}), [onCapacityChange]);
 
+  // Notify parent of capacity changes - using ref to track previous values and prevent unnecessary calls
+  const previousValues = useRef({ totalHours: 0, workOrderCount: 0 });
+  
   useEffect(() => {
-    if (onCapacityChange) {
-      onCapacityChange(capacityImpact.totalHours, capacityImpact.resourceRequirements);
+    if (stableOnCapacityChange && 
+        (previousValues.current.totalHours !== capacityImpact.totalHours || 
+         previousValues.current.workOrderCount !== capacityImpact.workOrderCount)) {
+      previousValues.current = {
+        totalHours: capacityImpact.totalHours,
+        workOrderCount: capacityImpact.workOrderCount
+      };
+      stableOnCapacityChange(capacityImpact.totalHours, capacityImpact.resourceRequirements);
     }
-  }, [onCapacityChange, previousCapacity.totalHours, previousCapacity.workOrderCount]);
+  }, [capacityImpact.totalHours, capacityImpact.workOrderCount, capacityImpact.resourceRequirements, stableOnCapacityChange]);
 
   const handleWorkOrderToggle = useCallback((workOrderId: string) => {
     const newSelection = selectedWorkOrders.includes(workOrderId)
@@ -522,7 +522,7 @@ export function WorkOrderSelector({
               <div className="divide-y">
                 {filteredWorkOrders.map((workOrder, index) => (
                   <div 
-                    key={workOrder.id} 
+                    key={`workorder-${workOrder.id}-${index}`} 
                     className={`p-4 hover:bg-gray-50 transition-colors ${
                       selectedWorkOrders.includes(workOrder.id) ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
                     }`}
