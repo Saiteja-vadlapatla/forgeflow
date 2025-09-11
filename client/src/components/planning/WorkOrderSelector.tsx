@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Filter, Calendar, Clock, Wrench, Package, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -133,18 +133,20 @@ export function WorkOrderSelector({
       return acc;
     }, {} as Record<string, { count: number; hours: number; quantity: number }>);
 
-    // Notify parent of capacity changes
-    if (onCapacityChange) {
-      onCapacityChange(totalHours, resourceRequirements);
-    }
-
     return {
       totalHours,
       totalQuantity,
       workOrderCount: selectedWOs.length,
       resourceRequirements
     };
-  }, [selectedWorkOrders, workOrders, onCapacityChange]);
+  }, [selectedWorkOrders, workOrders]);
+
+  // Notify parent of capacity changes (separate useEffect to prevent infinite loop)
+  useEffect(() => {
+    if (onCapacityChange) {
+      onCapacityChange(capacityImpact.totalHours, capacityImpact.resourceRequirements);
+    }
+  }, [capacityImpact.totalHours, capacityImpact.resourceRequirements, onCapacityChange]);
 
   const handleWorkOrderToggle = (workOrderId: string) => {
     const newSelection = selectedWorkOrders.includes(workOrderId)
