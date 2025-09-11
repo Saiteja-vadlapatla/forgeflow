@@ -294,6 +294,12 @@ export class MemStorage implements IStorage {
   private materialAvailability: Map<string, MaterialAvailability>;
   private resourceReservations: Map<string, ResourceReservation>;
   private scenarios: Map<string, Scenario>;
+  
+  // Data Entry Module storage
+  private shiftReports: Map<string, ShiftReport>;
+  private operatorSessions: Map<string, OperatorSession>;
+  private reasonCodes: Map<string, ReasonCode>;
+  private scrapLogs: Map<string, ScrapLog>;
 
   constructor() {
     this.users = new Map();
@@ -324,6 +330,12 @@ export class MemStorage implements IStorage {
     this.materialAvailability = new Map();
     this.resourceReservations = new Map();
     this.scenarios = new Map();
+    
+    // Initialize data entry storage
+    this.shiftReports = new Map();
+    this.operatorSessions = new Map();
+    this.reasonCodes = new Map();
+    this.scrapLogs = new Map();
 
     this.initializeTestData();
   }
@@ -970,68 +982,68 @@ export class MemStorage implements IStorage {
       {
         id: "skill-1",
         operatorId: "op-001",
-        operatorName: "John Smith",
         skillType: "CNC_OPERATOR",
         skillLevel: 4,
         certificationDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000),
         expirationDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000),
-        trainerId: "trainer-001",
+        certifyingAuthority: "trainer-001",
+        machineTypes: ["CNC_TURNING", "CNC_MILLING"],
+        operationTypes: ["TURNING"],
+        hourlyRate: 28.50,
+        availability: { "days": [1,2,3,4,5], "shifts": ["day"] },
         notes: "Certified on Mazak and Haas machines",
         isActive: true,
-        hourlyRate: 28.50,
-        maxHoursPerWeek: 40,
-        shiftPreference: "day",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "skill-2",
         operatorId: "op-002",
-        operatorName: "Sarah Johnson",
         skillType: "CNC_OPERATOR",
         skillLevel: 5,
         certificationDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
         expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
-        trainerId: "trainer-001",
+        certifyingAuthority: "trainer-001",
+        machineTypes: ["CNC_TURNING", "CNC_MILLING"],
+        operationTypes: ["TURNING", "MILLING"],
+        hourlyRate: 32.00,
+        availability: { "days": [1,2,3,4,5,6], "shifts": ["day"] },
         notes: "Expert level - can train others",
         isActive: true,
-        hourlyRate: 32.00,
-        maxHoursPerWeek: 50,
-        shiftPreference: "day",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "skill-3",
         operatorId: "op-003",
-        operatorName: "Mike Chen",
         skillType: "EDM_OPERATOR",
         skillLevel: 3,
         certificationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
         expirationDate: new Date(Date.now() + 630 * 24 * 60 * 60 * 1000),
-        trainerId: "trainer-002",
+        certifyingAuthority: "trainer-002",
+        machineTypes: ["WIRE_CUT"],
+        operationTypes: ["WIRE_CUT"],
+        hourlyRate: 30.00,
+        availability: { "days": [1,2,3,4,5], "shifts": ["evening"] },
         notes: "Specialized in wire EDM operations",
         isActive: true,
-        hourlyRate: 30.00,
-        maxHoursPerWeek: 40,
-        shiftPreference: "evening",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "skill-4",
         operatorId: "op-004",
-        operatorName: "Lisa Brown",
         skillType: "GRINDING_OPERATOR",
         skillLevel: 4,
         certificationDate: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
         expirationDate: new Date(Date.now() + 520 * 24 * 60 * 60 * 1000),
-        trainerId: "trainer-003",
+        certifyingAuthority: "trainer-003",
+        machineTypes: ["SURFACE_GRINDING"],
+        operationTypes: ["GRINDING"],
+        hourlyRate: 26.00,
+        availability: { "days": [1,2,3,4,5], "shifts": ["day"] },
         notes: "Surface and cylindrical grinding certified",
         isActive: true,
-        hourlyRate: 26.00,
-        maxHoursPerWeek: 40,
-        shiftPreference: "day",
         createdAt: now,
         updatedAt: now,
       },
@@ -1043,60 +1055,51 @@ export class MemStorage implements IStorage {
       {
         id: "tool-res-1",
         toolId: "T001",
-        toolDescription: "Rough Turning Insert CNMG-432",
         location: "Tool Crib A",
         totalQuantity: 50,
         availableQuantity: 35,
         reservedQuantity: 10,
-        minimumQuantity: 15,
-        unitCost: 12.50,
-        supplierName: "Sandvik",
-        supplierPartNumber: "CNMG 12 04 08-PM 4315",
-        expectedDeliveryDays: 5,
-        lastInventoryDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        status: "available",
-        machineCompatibility: ["machine-1", "machine-2"],
-        notes: "Standard carbide inserts for steel",
+        inUseQuantity: 5,
+        maintenanceQuantity: 0,
+        condition: "good",
+        lastInspectionDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        nextInspectionDue: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        usageTracking: { "totalCycles": 1250, "hoursUsed": 45.5 },
+        costCenter: "Production",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "tool-res-2",
         toolId: "M012",
-        toolDescription: "End Mill 12mm 4-Flute Carbide",
         location: "Tool Crib A",
         totalQuantity: 25,
         availableQuantity: 12,
         reservedQuantity: 8,
-        minimumQuantity: 10,
-        unitCost: 45.00,
-        supplierName: "Kennametal",
-        supplierPartNumber: "B4C12050040",
-        expectedDeliveryDays: 3,
-        lastInventoryDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-        status: "low_stock",
-        machineCompatibility: ["machine-2"],
-        notes: "High-performance end mills for aluminum",
+        inUseQuantity: 5,
+        maintenanceQuantity: 0,
+        condition: "good",
+        lastInspectionDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        nextInspectionDue: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+        usageTracking: { "totalCycles": 800, "hoursUsed": 32.0 },
+        costCenter: "Production",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "tool-res-3",
         toolId: "WIRE-0.25",
-        toolDescription: "EDM Wire 0.25mm Brass",
         location: "EDM Area",
         totalQuantity: 500,
         availableQuantity: 275,
         reservedQuantity: 100,
-        minimumQuantity: 100,
-        unitCost: 1.25,
-        supplierName: "Berkenhoff",
-        supplierPartNumber: "BEDRA-25",
-        expectedDeliveryDays: 10,
-        lastInventoryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-        status: "available",
-        machineCompatibility: ["machine-4"],
-        notes: "Premium brass wire for precision cutting",
+        inUseQuantity: 125,
+        maintenanceQuantity: 0,
+        condition: "good",
+        lastInspectionDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        nextInspectionDue: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        usageTracking: { "totalLength": 2500, "hoursUsed": 18.5 },
+        costCenter: "EDM",
         createdAt: now,
         updatedAt: now,
       },
@@ -1109,17 +1112,19 @@ export class MemStorage implements IStorage {
         id: "mat-avail-1",
         workOrderId: "wo-1",
         materialId: "STL-4140-50X150X300",
-        materialDescription: "Steel 4140 Bar 50x150x300mm",
         requiredQuantity: 5,
-        availableQuantity: 12,
+        allocatedQuantity: 5,
         reservedQuantity: 3,
-        shortfallQuantity: 0,
-        unitOfMeasure: "pieces",
-        estimatedArrivalDate: null,
-        supplierName: "Steel Supply Co",
-        status: "available",
+        availableDate: new Date(Date.now() - 24 * 60 * 60 * 1000),
+        expirationDate: null,
+        supplier: "Steel Supply Co",
+        purchaseOrderNumber: "PO-2024-001",
+        unitCost: 45.50,
+        totalCost: 227.50,
+        deliveryStatus: "received",
+        qualityStatus: "approved",
         location: "Warehouse A-1",
-        lastUpdated: now,
+        batchLotNumber: "STL-001-2024",
         notes: "Standard steel bar stock",
         createdAt: now,
         updatedAt: now,
@@ -1128,17 +1133,19 @@ export class MemStorage implements IStorage {
         id: "mat-avail-2",
         workOrderId: "wo-2",
         materialId: "ALU-6061-60X80X220",
-        materialDescription: "Aluminum 6061-T6 Block 60x80x220mm",
         requiredQuantity: 3,
-        availableQuantity: 1,
+        allocatedQuantity: 1,
         reservedQuantity: 1,
-        shortfallQuantity: 2,
-        unitOfMeasure: "pieces",
-        estimatedArrivalDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
-        supplierName: "Aluminum Plus",
-        status: "shortage",
+        availableDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        expirationDate: null,
+        supplier: "Aluminum Plus",
+        purchaseOrderNumber: "PO-2024-002",
+        unitCost: 85.00,
+        totalCost: 255.00,
+        deliveryStatus: "in_transit",
+        qualityStatus: "pending",
         location: "Warehouse A-2",
-        lastUpdated: now,
+        batchLotNumber: "ALU-002-2024",
         notes: "Rush order placed for additional stock",
         createdAt: now,
         updatedAt: now,
@@ -1147,17 +1154,19 @@ export class MemStorage implements IStorage {
         id: "mat-avail-3",
         workOrderId: "wo-3",
         materialId: "D2-25X100X150",
-        materialDescription: "Tool Steel D2 Plate 25x100x150mm",
         requiredQuantity: 2,
-        availableQuantity: 8,
+        allocatedQuantity: 2,
         reservedQuantity: 2,
-        shortfallQuantity: 0,
-        unitOfMeasure: "pieces",
-        estimatedArrivalDate: null,
-        supplierName: "Specialty Steels",
-        status: "available",
+        availableDate: new Date(Date.now() - 48 * 60 * 60 * 1000),
+        expirationDate: null,
+        supplier: "Specialty Steels",
+        purchaseOrderNumber: "PO-2024-003",
+        unitCost: 125.00,
+        totalCost: 250.00,
+        deliveryStatus: "received",
+        qualityStatus: "approved",
         location: "Tool Steel Storage",
-        lastUpdated: now,
+        batchLotNumber: "D2-003-2024",
         notes: "Premium tool steel for EDM operations",
         createdAt: now,
         updatedAt: now,
@@ -1172,10 +1181,10 @@ export class MemStorage implements IStorage {
         resourceType: "operator",
         resourceId: "op-001",
         workOrderId: "wo-1",
-        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
         quantity: 1,
-        priority: "normal",
+        priority: 100,
         status: "active",
         conflictResolution: null,
         notes: "John Smith assigned to HSK turning operation",
@@ -1187,10 +1196,10 @@ export class MemStorage implements IStorage {
         resourceType: "tool",
         resourceId: "tool-res-1",
         workOrderId: "wo-1",
-        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
         quantity: 10,
-        priority: "normal",
+        priority: 100,
         status: "active",
         conflictResolution: null,
         notes: "CNMG inserts reserved for turning operation",
@@ -1202,10 +1211,10 @@ export class MemStorage implements IStorage {
         resourceType: "material",
         resourceId: "mat-avail-1",
         workOrderId: "wo-1",
-        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
         quantity: 3,
-        priority: "normal",
+        priority: 100,
         status: "active",
         conflictResolution: null,
         notes: "Steel bar stock reserved for work order",
@@ -1217,10 +1226,10 @@ export class MemStorage implements IStorage {
         resourceType: "operator",
         resourceId: "op-003",
         workOrderId: "wo-3",
-        startDate: new Date(Date.now() + 12 * 60 * 60 * 1000),
-        endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        startTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         quantity: 1,
-        priority: "high",
+        priority: 50,
         status: "pending",
         conflictResolution: null,
         notes: "Mike Chen scheduled for EDM operation",
@@ -1234,58 +1243,49 @@ export class MemStorage implements IStorage {
     const setupGroups: SetupGroup[] = [
       {
         id: "setup-group-1",
-        groupName: "Steel Turning Family",
+        name: "Steel Turning Family",
         description: "Operations that can share setups for steel turning",
         machineTypes: ["CNC_TURNING", "CONVENTIONAL_TURNING"],
         operationFamilies: ["TURNING_STEEL"],
-        setupTimeReduction: 75,
-        batchSizeMultiplier: 1.2,
-        priority: 100,
-        isActive: true,
-        constraints: {
-          maxBatchSize: 50,
-          materialCompatibility: ["Steel", "Stainless Steel"],
-          toolingCompatibility: ["CNMG", "TNMG"]
+        standardSetupMinutes: 45,
+        toolConfiguration: {
+          "toolTypes": ["CNMG", "TNMG"],
+          "toolHolders": ["MCLNR", "MTJNR"]
         },
-        notes: "Standard steel turning operations can be batched together",
+        fixtures: ["3-jaw chuck", "4-jaw chuck", "collets"],
+        workholding: "Chuck",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "setup-group-2",
-        groupName: "Aluminum Milling Family",
+        name: "Aluminum Milling Family",
         description: "Milling operations optimized for aluminum",
         machineTypes: ["CNC_MILLING"],
         operationFamilies: ["MILLING_ALUMINUM"],
-        setupTimeReduction: 60,
-        batchSizeMultiplier: 1.5,
-        priority: 90,
-        isActive: true,
-        constraints: {
-          maxBatchSize: 25,
-          materialCompatibility: ["Aluminum", "Aluminum Alloy"],
-          toolingCompatibility: ["End Mill", "Face Mill"]
+        standardSetupMinutes: 60,
+        toolConfiguration: {
+          "toolTypes": ["End Mill", "Face Mill"],
+          "coatings": ["TiAlN", "Uncoated"]
         },
-        notes: "Aluminum operations benefit from dedicated coolant setup",
+        fixtures: ["vise", "fixture plate", "clamps"],
+        workholding: "Vise",
         createdAt: now,
         updatedAt: now,
       },
       {
         id: "setup-group-3",
-        groupName: "EDM Precision Group",
+        name: "EDM Precision Group",
         description: "High-precision EDM operations",
         machineTypes: ["WIRE_CUT", "SINK_EDM"],
         operationFamilies: ["EDM_STEEL", "EDM_CARBIDE"],
-        setupTimeReduction: 45,
-        batchSizeMultiplier: 1.1,
-        priority: 110,
-        isActive: true,
-        constraints: {
-          maxBatchSize: 10,
-          materialCompatibility: ["Tool Steel", "Carbide"],
-          toolingCompatibility: ["Wire", "Graphite Electrode"]
+        standardSetupMinutes: 120,
+        toolConfiguration: {
+          "wireType": ["0.25mm brass", "0.20mm brass"],
+          "electrodes": ["graphite", "copper"]
         },
-        notes: "Precision EDM requires stable setup conditions",
+        fixtures: ["clamps", "supports", "ground straps"],
+        workholding: "Clamps",
         createdAt: now,
         updatedAt: now,
       },
@@ -1355,7 +1355,7 @@ export class MemStorage implements IStorage {
         const bucket: CapacityBucket = {
           id: `bucket-${machineId}-${currentDate.getFullYear()}-${currentDate.getMonth() + 1}-${currentDate.getDate()}`,
           machineId,
-          date: currentDate.toISOString().split('T')[0],
+          date: currentDate,
           hour: null, // Daily buckets
           availableMinutes,
           plannedMinutes,
@@ -2915,6 +2915,531 @@ export class MemStorage implements IStorage {
 
   async deleteScenario(id: string): Promise<void> {
     this.scenarios.delete(id);
+  }
+
+  // Data Entry Module implementations
+  // Shift Reports operations
+  async getAllShiftReports(): Promise<ShiftReport[]> {
+    return Array.from(this.shiftReports.values());
+  }
+
+  async getShiftReport(id: string): Promise<ShiftReport | undefined> {
+    return this.shiftReports.get(id);
+  }
+
+  async createShiftReport(shift: InsertShiftReport): Promise<ShiftReport> {
+    const id = randomUUID();
+    const now = new Date();
+    const newShiftReport: ShiftReport = {
+      ...shift,
+      supervisor: shift.supervisor ?? null,
+      totalProduced: shift.totalProduced ?? null,
+      totalScrap: shift.totalScrap ?? null,
+      totalDowntime: shift.totalDowntime ?? null,
+      efficiency: shift.efficiency ?? null,
+      notes: shift.notes ?? null,
+      status: shift.status ?? 'active',
+      issues: shift.issues ?? null,
+      achievements: shift.achievements ?? null,
+      attendanceCount: shift.attendanceCount ?? null,
+      safetyIncidents: shift.safetyIncidents ?? null,
+      maintenancePerformed: shift.maintenancePerformed ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.shiftReports.set(id, newShiftReport);
+    return newShiftReport;
+  }
+
+  async updateShiftReport(id: string, updates: Partial<ShiftReport>): Promise<ShiftReport | undefined> {
+    const shiftReport = this.shiftReports.get(id);
+    if (!shiftReport) return undefined;
+    
+    const updatedShiftReport: ShiftReport = {
+      ...shiftReport,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.shiftReports.set(id, updatedShiftReport);
+    return updatedShiftReport;
+  }
+
+  async getActiveShiftReports(): Promise<ShiftReport[]> {
+    return Array.from(this.shiftReports.values())
+      .filter(report => report.status === 'active');
+  }
+
+  async getShiftReportsByDate(date: Date): Promise<ShiftReport[]> {
+    const dateStr = date.toISOString().split('T')[0];
+    return Array.from(this.shiftReports.values())
+      .filter(report => report.shiftDate.toISOString().split('T')[0] === dateStr);
+  }
+
+  async closeShiftReport(id: string, endTime: Date): Promise<ShiftReport | undefined> {
+    const shiftReport = this.shiftReports.get(id);
+    if (!shiftReport) return undefined;
+    
+    const updatedShiftReport: ShiftReport = {
+      ...shiftReport,
+      endTime,
+      status: 'completed',
+      updatedAt: new Date(),
+    };
+    this.shiftReports.set(id, updatedShiftReport);
+    return updatedShiftReport;
+  }
+
+  // Operator Sessions operations
+  async getAllOperatorSessions(): Promise<OperatorSession[]> {
+    return Array.from(this.operatorSessions.values());
+  }
+
+  async getOperatorSession(id: string): Promise<OperatorSession | undefined> {
+    return this.operatorSessions.get(id);
+  }
+
+  async createOperatorSession(session: InsertOperatorSession): Promise<OperatorSession> {
+    const id = randomUUID();
+    const now = new Date();
+    const newSession: OperatorSession = {
+      ...session,
+      setupTime: session.setupTime ?? null,
+      runTime: session.runTime ?? null,
+      breakTime: session.breakTime ?? null,
+      downtimeMinutes: session.downtimeMinutes ?? null,
+      partCount: session.partCount ?? null,
+      scrapCount: session.scrapCount ?? null,
+      qualityIssues: session.qualityIssues ?? null,
+      notes: session.notes ?? null,
+      endTime: session.endTime ?? null,
+      status: session.status ?? 'active',
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.operatorSessions.set(id, newSession);
+    return newSession;
+  }
+
+  async updateOperatorSession(id: string, updates: Partial<OperatorSession>): Promise<OperatorSession | undefined> {
+    const session = this.operatorSessions.get(id);
+    if (!session) return undefined;
+    
+    const updatedSession: OperatorSession = {
+      ...session,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.operatorSessions.set(id, updatedSession);
+    return updatedSession;
+  }
+
+  async getActiveOperatorSessions(): Promise<OperatorSession[]> {
+    return Array.from(this.operatorSessions.values())
+      .filter(session => session.status === 'active');
+  }
+
+  async getOperatorSessionsByShift(shiftId: string): Promise<OperatorSession[]> {
+    return Array.from(this.operatorSessions.values())
+      .filter(session => session.shiftId === shiftId);
+  }
+
+  async getOperatorSessionsByOperator(operatorId: string): Promise<OperatorSession[]> {
+    return Array.from(this.operatorSessions.values())
+      .filter(session => session.operatorId === operatorId);
+  }
+
+  async endOperatorSession(id: string, endTime: Date): Promise<OperatorSession | undefined> {
+    const session = this.operatorSessions.get(id);
+    if (!session) return undefined;
+    
+    const updatedSession: OperatorSession = {
+      ...session,
+      endTime,
+      status: 'completed',
+      updatedAt: new Date(),
+    };
+    this.operatorSessions.set(id, updatedSession);
+    return updatedSession;
+  }
+
+  // Reason Codes operations
+  async getAllReasonCodes(): Promise<ReasonCode[]> {
+    return Array.from(this.reasonCodes.values());
+  }
+
+  async getReasonCode(id: string): Promise<ReasonCode | undefined> {
+    return this.reasonCodes.get(id);
+  }
+
+  async createReasonCode(reasonCode: InsertReasonCode): Promise<ReasonCode> {
+    const id = randomUUID();
+    const now = new Date();
+    const newReasonCode: ReasonCode = {
+      ...reasonCode,
+      description: reasonCode.description ?? null,
+      category: reasonCode.category ?? null,
+      subcategory: reasonCode.subcategory ?? null,
+      impactLevel: reasonCode.impactLevel ?? 'low',
+      isActive: reasonCode.isActive ?? true,
+      color: reasonCode.color ?? null,
+      sortOrder: reasonCode.sortOrder ?? null,
+      parentCode: reasonCode.parentCode ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.reasonCodes.set(id, newReasonCode);
+    return newReasonCode;
+  }
+
+  async updateReasonCode(id: string, updates: Partial<ReasonCode>): Promise<ReasonCode | undefined> {
+    const reasonCode = this.reasonCodes.get(id);
+    if (!reasonCode) return undefined;
+    
+    const updatedReasonCode: ReasonCode = {
+      ...reasonCode,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.reasonCodes.set(id, updatedReasonCode);
+    return updatedReasonCode;
+  }
+
+  async getReasonCodesByCategory(category: string): Promise<ReasonCode[]> {
+    return Array.from(this.reasonCodes.values())
+      .filter(code => code.category === category);
+  }
+
+  async getActiveReasonCodes(): Promise<ReasonCode[]> {
+    return Array.from(this.reasonCodes.values())
+      .filter(code => code.isActive);
+  }
+
+  async deleteReasonCode(id: string): Promise<void> {
+    this.reasonCodes.delete(id);
+  }
+
+  // Scrap Logs operations
+  async getAllScrapLogs(): Promise<ScrapLog[]> {
+    return Array.from(this.scrapLogs.values());
+  }
+
+  async getScrapLog(id: string): Promise<ScrapLog | undefined> {
+    return this.scrapLogs.get(id);
+  }
+
+  async createScrapLog(scrapLog: InsertScrapLog): Promise<ScrapLog> {
+    const id = randomUUID();
+    const now = new Date();
+    const newScrapLog: ScrapLog = {
+      ...scrapLog,
+      reasonCodeId: scrapLog.reasonCodeId ?? null,
+      description: scrapLog.description ?? null,
+      materialCost: scrapLog.materialCost ?? null,
+      laborCost: scrapLog.laborCost ?? null,
+      batchNumber: scrapLog.batchNumber ?? null,
+      notes: scrapLog.notes ?? null,
+      verifiedBy: scrapLog.verifiedBy ?? null,
+      verifiedAt: scrapLog.verifiedAt ?? null,
+      status: scrapLog.status ?? 'pending',
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.scrapLogs.set(id, newScrapLog);
+    return newScrapLog;
+  }
+
+  async updateScrapLog(id: string, updates: Partial<ScrapLog>): Promise<ScrapLog | undefined> {
+    const scrapLog = this.scrapLogs.get(id);
+    if (!scrapLog) return undefined;
+    
+    const updatedScrapLog: ScrapLog = {
+      ...scrapLog,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.scrapLogs.set(id, updatedScrapLog);
+    return updatedScrapLog;
+  }
+
+  async getScrapLogsByWorkOrder(workOrderId: string): Promise<ScrapLog[]> {
+    return Array.from(this.scrapLogs.values())
+      .filter(log => log.workOrderId === workOrderId);
+  }
+
+  async getScrapLogsByShift(shiftId: string): Promise<ScrapLog[]> {
+    return Array.from(this.scrapLogs.values())
+      .filter(log => log.shiftId === shiftId);
+  }
+
+  async getScrapLogsByOperator(operatorId: string): Promise<ScrapLog[]> {
+    return Array.from(this.scrapLogs.values())
+      .filter(log => log.operatorId === operatorId);
+  }
+
+  async verifyScrapLog(id: string, verifiedBy: string): Promise<ScrapLog | undefined> {
+    const scrapLog = this.scrapLogs.get(id);
+    if (!scrapLog) return undefined;
+    
+    const updatedScrapLog: ScrapLog = {
+      ...scrapLog,
+      verifiedBy,
+      verifiedAt: new Date(),
+      status: 'verified',
+      updatedAt: new Date(),
+    };
+    this.scrapLogs.set(id, updatedScrapLog);
+    return updatedScrapLog;
+  }
+
+  // Data Entry validation utilities
+  async validateWorkOrderAssignment(workOrderId: string, machineId: string): Promise<boolean> {
+    const workOrder = this.workOrders.get(workOrderId);
+    const machine = this.machines.get(machineId);
+    
+    if (!workOrder || !machine) return false;
+    
+    // Check if work order is already assigned to a different machine
+    if (workOrder.assignedMachineId && workOrder.assignedMachineId !== machineId) {
+      return false;
+    }
+    
+    // Check if machine can handle the operation type
+    if (workOrder.operationType && machine.type) {
+      const operationTypeMapping: Record<string, string[]> = {
+        'TURNING': ['CNC_TURNING', 'CONVENTIONAL_TURNING'],
+        'MILLING': ['CNC_MILLING', 'CONVENTIONAL_MILLING'],
+        'GRINDING': ['SURFACE_GRINDING', 'CYLINDRICAL_GRINDING'],
+        'WIRE_CUT': ['WIRE_CUT'],
+        'DRILLING': ['DRILLING', 'CNC_MILLING'],
+      };
+      
+      const validMachineTypes = operationTypeMapping[workOrder.operationType] || [];
+      if (!validMachineTypes.includes(machine.type)) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  async validateOperatorSession(operatorId: string, machineId: string, workOrderId: string): Promise<boolean> {
+    // Check if operator already has an active session on a different machine
+    const activeSessions = await this.getActiveOperatorSessions();
+    const operatorActiveSessions = activeSessions.filter(session => 
+      session.operatorId === operatorId && session.machineId !== machineId
+    );
+    
+    if (operatorActiveSessions.length > 0) {
+      return false; // Operator can only be active on one machine at a time
+    }
+    
+    // Validate work order assignment
+    const workOrderValid = await this.validateWorkOrderAssignment(workOrderId, machineId);
+    if (!workOrderValid) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  async validateProductionQuantity(workOrderId: string, quantityToAdd: number): Promise<{ isValid: boolean; remainingQuantity: number; }> {
+    const workOrder = this.workOrders.get(workOrderId);
+    if (!workOrder) {
+      return { isValid: false, remainingQuantity: 0 };
+    }
+    
+    const completedQuantity = workOrder.completedQuantity || 0;
+    const remainingQuantity = workOrder.quantity - completedQuantity;
+    
+    const isValid = quantityToAdd <= remainingQuantity && quantityToAdd > 0;
+    
+    return { isValid, remainingQuantity };
+  }
+
+  async getShiftSummary(shiftId: string): Promise<{
+    totalProduced: number;
+    totalScrap: number;
+    totalDowntime: number;
+    efficiency: number;
+    activeSessions: number;
+  }> {
+    const sessions = await this.getOperatorSessionsByShift(shiftId);
+    const scrapLogs = await this.getScrapLogsByShift(shiftId);
+    
+    const totalProduced = sessions.reduce((sum, session) => sum + (session.partCount || 0), 0);
+    const totalScrap = scrapLogs.reduce((sum, log) => sum + log.quantity, 0);
+    const totalDowntime = sessions.reduce((sum, session) => sum + (session.downtimeMinutes || 0), 0);
+    const activeSessions = sessions.filter(session => session.status === 'active').length;
+    
+    const totalRunTime = sessions.reduce((sum, session) => sum + (session.runTime || 0), 0);
+    const totalTime = totalRunTime + totalDowntime;
+    const efficiency = totalTime > 0 ? (totalRunTime / totalTime) * 100 : 0;
+    
+    return {
+      totalProduced,
+      totalScrap,
+      totalDowntime,
+      efficiency,
+      activeSessions
+    };
+  }
+
+  // Analytics operations (implementing missing ones)
+  async getAnalyticsKPIs(filters: AnalyticsFilters): Promise<AnalyticsKPIs> {
+    // Use the AnalyticsEngine to calculate KPIs
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const machines = Array.from(this.machines.values());
+    const workOrders = Array.from(this.workOrders.values());
+    const productionLogs = Array.from(this.productionLogs.values());
+    const downtimeEvents = Array.from(this.downtimeEvents.values());
+    const qualityRecords = Array.from(this.qualityRecords.values());
+    const scheduleSlots = Array.from(this.scheduleSlots.values());
+    
+    return AnalyticsEngine.calculateAnalyticsKPIs(
+      machines,
+      workOrders,
+      productionLogs,
+      downtimeEvents,
+      qualityRecords,
+      scheduleSlots,
+      filters.dateRange
+    );
+  }
+
+  async getOEEBreakdown(machineIds?: string[], period?: { from: Date; to: Date }): Promise<OEEBreakdown[]> {
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const machines = Array.from(this.machines.values())
+      .filter(machine => !machineIds || machineIds.includes(machine.id));
+    
+    const defaultPeriod = period || {
+      from: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+      to: new Date()
+    };
+    
+    return machines.map(machine => {
+      const productionLogs = Array.from(this.productionLogs.values())
+        .filter(log => log.machineId === machine.id);
+      const downtimeEvents = Array.from(this.downtimeEvents.values())
+        .filter(event => event.machineId === machine.id);
+      const qualityRecords = Array.from(this.qualityRecords.values())
+        .filter(record => record.machineId === machine.id);
+      const scheduleSlots = Array.from(this.scheduleSlots.values())
+        .filter(slot => slot.machineId === machine.id);
+      
+      return AnalyticsEngine.calculateOEE(
+        machine,
+        productionLogs,
+        downtimeEvents,
+        qualityRecords,
+        scheduleSlots,
+        defaultPeriod
+      );
+    });
+  }
+
+  async getScheduleAdherence(filters: AnalyticsFilters): Promise<AdherenceMetrics[]> {
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const workOrders = Array.from(this.workOrders.values());
+    const scheduleSlots = Array.from(this.scheduleSlots.values());
+    
+    return AnalyticsEngine.calculateScheduleAdherence(
+      workOrders,
+      scheduleSlots,
+      filters.dateRange
+    );
+  }
+
+  async getUtilizationMetrics(machineIds?: string[], period?: { from: Date; to: Date }): Promise<UtilizationMetrics[]> {
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const machines = Array.from(this.machines.values())
+      .filter(machine => !machineIds || machineIds.includes(machine.id));
+    const productionLogs = Array.from(this.productionLogs.values());
+    const downtimeEvents = Array.from(this.downtimeEvents.values());
+    const operatorSessions = Array.from(this.operatorSessions.values());
+    
+    const defaultPeriod = period || {
+      from: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+      to: new Date()
+    };
+    
+    return AnalyticsEngine.calculateUtilizationMetrics(
+      machines,
+      productionLogs,
+      downtimeEvents,
+      operatorSessions,
+      defaultPeriod
+    );
+  }
+
+  async getQualitySummary(filters: AnalyticsFilters): Promise<QualitySummary> {
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const qualityRecords = Array.from(this.qualityRecords.values());
+    
+    return AnalyticsEngine.calculateQualitySummary(
+      qualityRecords,
+      filters.dateRange
+    );
+  }
+
+  async getAnalyticsTrends(metric: string, filters: AnalyticsFilters): Promise<TrendPoint[]> {
+    // Simplified trend calculation - in production this would be more sophisticated
+    const period = filters.dateRange;
+    const days = Math.ceil((period.to.getTime() - period.from.getTime()) / (1000 * 60 * 60 * 24));
+    
+    const trends: TrendPoint[] = [];
+    for (let i = 0; i < days; i++) {
+      const date = new Date(period.from);
+      date.setDate(date.getDate() + i);
+      
+      // Generate sample trend data - in production this would be calculated from real data
+      const value = Math.floor(Math.random() * 100) + 50;
+      trends.push({
+        timestamp: date,
+        value,
+        label: date.toISOString().split('T')[0]
+      });
+    }
+    
+    return trends;
+  }
+
+  async getMachineOEESnapshots(): Promise<MachineOEESnapshot[]> {
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const machines = Array.from(this.machines.values());
+    const workOrders = Array.from(this.workOrders.values());
+    const productionLogs = Array.from(this.productionLogs.values());
+    const downtimeEvents = Array.from(this.downtimeEvents.values());
+    const qualityRecords = Array.from(this.qualityRecords.values());
+    
+    return AnalyticsEngine.getRealtimeMachineOEE(
+      machines,
+      productionLogs,
+      downtimeEvents,
+      qualityRecords,
+      workOrders
+    );
+  }
+
+  async getDowntimePareto(filters: AnalyticsFilters): Promise<{ category: string; value: number; percentage: number }[]> {
+    const { AnalyticsEngine } = await import('./analytics');
+    
+    const downtimeEvents = Array.from(this.downtimeEvents.values())
+      .filter(event => 
+        event.startTime >= filters.dateRange.from && 
+        event.startTime <= filters.dateRange.to
+      );
+    
+    return AnalyticsEngine.generateDowntimePareto(downtimeEvents, filters.dateRange);
   }
 }
 

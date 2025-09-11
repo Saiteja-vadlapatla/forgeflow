@@ -150,8 +150,8 @@ export class AnalyticsEngine {
       // Calculate time metrics
       const totalAvailableTime = periodHours * 60; // in minutes
       const downtime = machineDowntime.reduce((sum, event) => sum + (event.duration || 0), 0);
-      const setupTime = machineSessions.reduce((sum, session) => sum + session.setupTime, 0);
-      const runTime = machineSessions.reduce((sum, session) => sum + session.runTime, 0);
+      const setupTime = machineSessions.reduce((sum, session) => sum + (session.setupTime || 0), 0);
+      const runTime = machineSessions.reduce((sum, session) => sum + (session.runTime || 0), 0);
       const productiveTime = runTime;
       const idleTime = Math.max(0, totalAvailableTime - productiveTime - setupTime - downtime);
 
@@ -306,26 +306,40 @@ export class AnalyticsEngine {
     const qualityTrend: 'improving' | 'declining' | 'stable' = 'stable';
 
     return {
+      period: `${period.from.toISOString().split('T')[0]} to ${period.to.toISOString().split('T')[0]}`,
       oeeOverall: Math.round(oeeOverall * 100) / 100,
       availability: Math.round(availability * 100) / 100,
       performance: Math.round(performance * 100) / 100,
       quality: Math.round(quality * 100) / 100,
       scheduleAdherence: Math.round(scheduleAdherence * 100) / 100,
       utilizationRate: Math.round(utilizationRate * 100) / 100,
-      throughputRate: Math.round(throughputRate * 100) / 100,
-      scrapRate: Math.round(scrapRate * 100) / 100,
       firstPassYield: Math.round(firstPassYield * 100) / 100,
+      scrapRate: Math.round(scrapRate * 100) / 100,
+      throughputRate: Math.round(throughputRate * 100) / 100,
       plannedVsActualHours: Math.round(plannedVsActualHours * 100) / 100,
       cycleTrend,
       qualityTrend,
-      timestamp: new Date()
+      timestamp: new Date(),
+      mtbf: utilizationMetrics.length > 0 ? utilizationMetrics.reduce((sum, m) => sum + m.mtbf, 0) / utilizationMetrics.length : 0,
+      mttr: utilizationMetrics.length > 0 ? utilizationMetrics.reduce((sum, m) => sum + m.mttr, 0) / utilizationMetrics.length : 0,
+      machineOEESnapshots: this.getRealtimeMachineOEE(machines, productionLogs, downtimeEvents, qualityRecords, workOrders),
+      trendData: {
+        oee: this.generateTrendData(oeeBreakdowns.map(oee => ({ timestamp: new Date(), value: oee.oeeScore }))),
+        quality: qualitySummary.qualityTrend,
+        utilization: this.generateTrendData(utilizationMetrics.map(util => ({ timestamp: new Date(), value: util.utilizationRate }))),
+        adherence: this.generateTrendData(adherenceMetrics.map(adh => ({ timestamp: new Date(), value: adh.adherenceScore })))
+      },
+      topDowntimeReasons: this.generateDowntimePareto(downtimeEvents, period),
+      topDefectTypes: qualitySummary.topDefectTypes,
+      bottleneckMachines: machines.filter(m => m.efficiency && m.efficiency < 70).map(m => m.id),
+      criticalWorkOrders: workOrders.filter(wo => wo.priority === 'urgent' || wo.priority === 'high').map(wo => wo.id)
     };
   }
 
   /**
    * Generate machine OEE snapshots for real-time monitoring
    */
-  static generateMachineOEESnapshots(
+  static getRealtimeMachineOEE(
     machines: Machine[],
     productionLogs: ProductionLog[],
     downtimeEvents: DowntimeEvent[],
@@ -360,7 +374,7 @@ export class AnalyticsEngine {
         currentWorkOrderId: currentWorkOrder?.id,
         partNumber: currentWorkOrder?.partNumber,
         cycleProgress: currentWorkOrder 
-          ? (currentWorkOrder.completedQuantity / currentWorkOrder.quantity) * 100 
+          ? ((currentWorkOrder.completedQuantity || 0) / currentWorkOrder.quantity) * 100 
           : undefined,
         lastUpdated: now
       };
@@ -468,5 +482,30 @@ export class AnalyticsEngine {
         value: data.total > 0 ? (data.passed / data.total) * 100 : 0,
         label: date
       }));
+  }
+
+  // Additional helper methods
+  private static generateTrendData(data: Array<{ timestamp: Date; value: number }>): TrendPoint[] {
+    return data.map(item => ({
+      timestamp: item.timestamp,
+      value: item.value,
+      label: item.timestamp.toISOString().split('T')[0]
+    }));
+  }
+
+  private static generateDowntimePareto(downtimeEvents: DowntimeEvent[], period: { from: Date; to: Date }): ParetoItem[] {
+    const reasonCounts: Record<string, number> = {};
+    
+    downtimeEvents
+      .filter(event => 
+        event.startTime >= period.from && 
+        event.startTime <= period.to
+      )
+      .forEach(event => {
+        const duration = event.duration || 0;
+        reasonCounts[event.reason] = (reasonCounts[event.reason] || 0) + duration;
+      });
+
+    return this.generateParetoAnalysis(reasonCounts);
   }
 }

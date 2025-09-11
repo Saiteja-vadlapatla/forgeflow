@@ -13,6 +13,7 @@ import { ProductionPlanningPage } from "@/pages/production-planning";
 import { CapacityPlanningPage } from "@/pages/capacity-planning";
 import { GanttPage } from "@/pages/gantt";
 import { DataEntryPage } from "@/pages/data-entry";
+import Analytics from "@/pages/analytics";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/capacity-planning" component={CapacityPlanningPage} />
       <Route path="/gantt" component={GanttPage} />
       <Route path="/data-entry" component={DataEntryPage} />
+      <Route path="/analytics" component={Analytics} />
       <Route component={NotFound} />
     </Switch>
   );

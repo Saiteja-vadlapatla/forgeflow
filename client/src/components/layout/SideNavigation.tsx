@@ -20,7 +20,7 @@ export function SideNavigation() {
     { path: "/machine-operations", icon: Cog, label: "Machine Operations" },
     { path: "/work-orders", icon: ClipboardList, label: "Work Orders", badge: "12" },
     { path: "/quality-control", icon: ClipboardCheck, label: "Quality Control" },
-    { path: "/oee-analytics", icon: TrendingUp, label: "OEE Analytics" },
+    { path: "/analytics", icon: TrendingUp, label: "Analytics Dashboard" },
     { path: "/inventory", icon: Package, label: "Inventory" },
     { path: "/production-planning", icon: Calendar, label: "Production Planning" },
     { path: "/capacity-planning", icon: Activity, label: "Capacity Planning" },

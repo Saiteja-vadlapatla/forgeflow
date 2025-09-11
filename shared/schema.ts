@@ -992,21 +992,6 @@ export interface SchedulingConflict {
 }
 
 // Analytics Types for Comprehensive Dashboard
-export interface AnalyticsKPIs {
-  oeeOverall: number;
-  availability: number;
-  performance: number;
-  quality: number;
-  scheduleAdherence: number;
-  utilizationRate: number;
-  throughputRate: number;
-  scrapRate: number;
-  firstPassYield: number;
-  plannedVsActualHours: number;
-  cycleTrend: 'up' | 'down' | 'stable';
-  qualityTrend: 'improving' | 'declining' | 'stable';
-  timestamp: Date;
-}
 
 export interface OEEBreakdown {
   machineId: string;
@@ -1098,17 +1083,6 @@ export interface MachineOEESnapshot {
   lastUpdated: Date;
 }
 
-export interface AnalyticsFilters {
-  dateRange: {
-    from: Date;
-    to: Date;
-  };
-  machineIds?: string[];
-  workOrderIds?: string[];
-  operatorIds?: string[];
-  partNumbers?: string[];
-  granularity: 'hour' | 'shift' | 'day' | 'week' | 'month';
-}
 
 export interface ProductionMetrics {
   oeeOverall: number;
@@ -1119,3 +1093,58 @@ export interface ProductionMetrics {
   bottleneckMachines: string[];
   criticalWorkOrders: string[];
 }
+
+export interface AnalyticsKPIs {
+  period: string;
+  oeeOverall: number;
+  availability: number;
+  performance: number;
+  quality: number;
+  scheduleAdherence: number;
+  utilizationRate: number;
+  firstPassYield: number;
+  scrapRate: number;
+  throughputRate: number;
+  plannedVsActualHours: number;
+  cycleTrend: 'up' | 'down' | 'stable';
+  qualityTrend: 'improving' | 'declining' | 'stable';
+  timestamp: Date;
+  mtbf: number; // hours
+  mttr: number; // hours
+  machineOEESnapshots: MachineOEESnapshot[];
+  trendData: {
+    oee: TrendPoint[];
+    quality: TrendPoint[];
+    utilization: TrendPoint[];
+    adherence: TrendPoint[];
+  };
+  topDowntimeReasons: ParetoItem[];
+  topDefectTypes: ParetoItem[];
+  bottleneckMachines: string[];
+  criticalWorkOrders: string[];
+}
+
+// Zod schemas for API validation
+export const analyticsFiltersSchema = z.object({
+  dateRange: z.object({
+    from: z.string().transform((str) => new Date(str)),
+    to: z.string().transform((str) => new Date(str))
+  }),
+  machineIds: z.array(z.string()).optional(),
+  workOrderIds: z.array(z.string()).optional(),
+  operatorIds: z.array(z.string()).optional(),
+  partNumbers: z.array(z.string()).optional(),
+  granularity: z.enum(['hour', 'shift', 'day', 'week', 'month'])
+});
+
+export const analyticsQuerySchema = z.object({
+  from: z.string().transform((str) => new Date(str)),
+  to: z.string().transform((str) => new Date(str)),
+  machineId: z.string().optional(),
+  workOrderId: z.string().optional(),
+  operatorId: z.string().optional(),
+  granularity: z.enum(['hour', 'shift', 'day', 'week', 'month']).default('day')
+});
+
+export type AnalyticsFilters = z.infer<typeof analyticsFiltersSchema>;
+export type AnalyticsQuery = z.infer<typeof analyticsQuerySchema>;

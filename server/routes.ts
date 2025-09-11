@@ -9,8 +9,9 @@ import {
   insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema,
   insertScheduleSlotSchema, insertOperationSchema,
   insertShiftReportSchema, insertOperatorSessionSchema, insertReasonCodeSchema, insertScrapLogSchema,
-  insertProductionLogSchema
+  insertProductionLogSchema, analyticsQuerySchema, analyticsFiltersSchema
 } from "@shared/schema";
+import { AnalyticsEngine } from "./analytics";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -1854,6 +1855,203 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error validating production quantity:', error);
       res.status(500).json({ error: "Failed to validate production quantity" });
+    }
+  });
+
+  // Analytics endpoints
+  app.get("/api/analytics/kpis", async (req, res) => {
+    try {
+      const validation = analyticsQuerySchema.safeParse(req.query);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid query parameters", details: validation.error });
+      }
+
+      const { from, to, machineId, workOrderId, granularity } = validation.data;
+      const period = { from, to };
+
+      // Get all required data including scheduleSlots and operatorSessions
+      const [machines, workOrders, productionLogs, downtimeEvents, qualityRecords, scheduleSlots, operatorSessions] = await Promise.all([
+        storage.getAllMachines(),
+        storage.getAllWorkOrders(),
+        storage.getAllProductionLogs(),
+        storage.getAllDowntimeEvents(),
+        storage.getAllQualityRecords(),
+        storage.getAllScheduleSlots(),
+        storage.getAllOperatorSessions()
+      ]);
+
+      // Filter data if specific filters are provided
+      const filteredMachines = machineId ? machines.filter(m => m.id === machineId) : machines;
+      const filteredWorkOrders = workOrderId ? workOrders.filter(wo => wo.id === workOrderId) : workOrders;
+
+      const kpis = AnalyticsEngine.calculateAnalyticsKPIs(
+        filteredMachines,
+        filteredWorkOrders,
+        productionLogs,
+        downtimeEvents,
+        qualityRecords,
+        scheduleSlots,
+        operatorSessions,
+        period
+      );
+
+      res.json(kpis);
+    } catch (error) {
+      console.error('Error calculating analytics KPIs:', error);
+      res.status(500).json({ error: "Failed to calculate analytics KPIs" });
+    }
+  });
+
+  app.get("/api/analytics/oee", async (req, res) => {
+    try {
+      const validation = analyticsQuerySchema.safeParse(req.query);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid query parameters", details: validation.error });
+      }
+
+      const { from, to, machineId } = validation.data;
+      const period = { from, to };
+
+      const [machines, productionLogs, downtimeEvents, qualityRecords, scheduleSlots] = await Promise.all([
+        storage.getAllMachines(),
+        storage.getAllProductionLogs(),
+        storage.getAllDowntimeEvents(),
+        storage.getAllQualityRecords(),
+        storage.getAllScheduleSlots()
+      ]);
+
+      const targetMachines = machineId ? machines.filter(m => m.id === machineId) : machines;
+
+      const oeeData = targetMachines.map(machine => 
+        AnalyticsEngine.calculateOEE(
+          machine,
+          productionLogs.filter(log => log.machineId === machine.id),
+          downtimeEvents.filter(event => event.machineId === machine.id),
+          qualityRecords.filter(record => record.machineId === machine.id),
+          scheduleSlots.filter(slot => slot.machineId === machine.id),
+          period
+        )
+      );
+
+      res.json(oeeData);
+    } catch (error) {
+      console.error('Error calculating OEE:', error);
+      res.status(500).json({ error: "Failed to calculate OEE" });
+    }
+  });
+
+  app.get("/api/analytics/adherence", async (req, res) => {
+    try {
+      const validation = analyticsQuerySchema.safeParse(req.query);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid query parameters", details: validation.error });
+      }
+
+      const { from, to, machineId } = validation.data;
+      const period = { from, to };
+
+      const [workOrders, scheduleSlots] = await Promise.all([
+        storage.getAllWorkOrders(),
+        storage.getAllScheduleSlots()
+      ]);
+
+      const filteredWorkOrders = machineId 
+        ? workOrders.filter(wo => wo.assignedMachineId === machineId)
+        : workOrders;
+
+      const adherenceData = AnalyticsEngine.calculateScheduleAdherence(
+        filteredWorkOrders,
+        scheduleSlots,
+        period
+      );
+
+      res.json(adherenceData);
+    } catch (error) {
+      console.error('Error calculating schedule adherence:', error);
+      res.status(500).json({ error: "Failed to calculate schedule adherence" });
+    }
+  });
+
+  app.get("/api/analytics/utilization", async (req, res) => {
+    try {
+      const validation = analyticsQuerySchema.safeParse(req.query);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid query parameters", details: validation.error });
+      }
+
+      const { from, to, machineId } = validation.data;
+      const period = { from, to };
+
+      const [machines, productionLogs, downtimeEvents, operatorSessions] = await Promise.all([
+        storage.getAllMachines(),
+        storage.getAllProductionLogs(),
+        storage.getAllDowntimeEvents(),
+        storage.getAllOperatorSessions()
+      ]);
+
+      const targetMachines = machineId ? machines.filter(m => m.id === machineId) : machines;
+
+      const utilizationData = AnalyticsEngine.calculateUtilizationMetrics(
+        targetMachines,
+        productionLogs,
+        downtimeEvents,
+        operatorSessions,
+        period
+      );
+
+      res.json(utilizationData);
+    } catch (error) {
+      console.error('Error calculating utilization metrics:', error);
+      res.status(500).json({ error: "Failed to calculate utilization metrics" });
+    }
+  });
+
+  app.get("/api/analytics/quality", async (req, res) => {
+    try {
+      const validation = analyticsQuerySchema.safeParse(req.query);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid query parameters", details: validation.error });
+      }
+
+      const { from, to, workOrderId } = validation.data;
+      const period = { from, to };
+
+      const qualityRecords = await storage.getAllQualityRecords();
+      const filteredRecords = workOrderId 
+        ? qualityRecords.filter(qr => qr.workOrderId === workOrderId)
+        : qualityRecords;
+
+      const qualityData = AnalyticsEngine.calculateQualitySummary(filteredRecords, period);
+
+      res.json(qualityData);
+    } catch (error) {
+      console.error('Error calculating quality metrics:', error);
+      res.status(500).json({ error: "Failed to calculate quality metrics" });
+    }
+  });
+
+  app.get("/api/analytics/realtime-snapshots", async (req, res) => {
+    try {
+      const [machines, workOrders, productionLogs, downtimeEvents, qualityRecords] = await Promise.all([
+        storage.getAllMachines(),
+        storage.getAllWorkOrders(),
+        storage.getAllProductionLogs(),
+        storage.getAllDowntimeEvents(),
+        storage.getAllQualityRecords()
+      ]);
+
+      const snapshots = AnalyticsEngine.getRealtimeMachineOEE(
+        machines,
+        productionLogs,
+        downtimeEvents,
+        qualityRecords,
+        workOrders
+      );
+
+      res.json(snapshots);
+    } catch (error) {
+      console.error('Error getting real-time snapshots:', error);
+      res.status(500).json({ error: "Failed to get real-time snapshots" });
     }
   });
 
