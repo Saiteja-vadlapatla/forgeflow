@@ -26,7 +26,10 @@ import {
   type ShiftReport, type InsertShiftReport,
   type OperatorSession, type InsertOperatorSession,
   type ReasonCode, type InsertReasonCode,
-  type ScrapLog, type InsertScrapLog
+  type ScrapLog, type InsertScrapLog,
+  type AnalyticsKPIs, type OEEBreakdown, type AdherenceMetrics,
+  type UtilizationMetrics, type QualitySummary, type TrendPoint,
+  type MachineOEESnapshot, type AnalyticsFilters
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { ProductionScheduler } from "./scheduling";
@@ -250,6 +253,16 @@ export interface IStorage {
     efficiency: number;
     activeSessions: number;
   }>;
+
+  // Analytics operations
+  getAnalyticsKPIs(filters: AnalyticsFilters): Promise<AnalyticsKPIs>;
+  getOEEBreakdown(machineIds?: string[], period?: { from: Date; to: Date }): Promise<OEEBreakdown[]>;
+  getScheduleAdherence(filters: AnalyticsFilters): Promise<AdherenceMetrics[]>;
+  getUtilizationMetrics(machineIds?: string[], period?: { from: Date; to: Date }): Promise<UtilizationMetrics[]>;
+  getQualitySummary(filters: AnalyticsFilters): Promise<QualitySummary>;
+  getAnalyticsTrends(metric: string, filters: AnalyticsFilters): Promise<TrendPoint[]>;
+  getMachineOEESnapshots(): Promise<MachineOEESnapshot[]>;
+  getDowntimePareto(filters: AnalyticsFilters): Promise<{ category: string; value: number; percentage: number }[]>;
 }
 
 export class MemStorage implements IStorage {

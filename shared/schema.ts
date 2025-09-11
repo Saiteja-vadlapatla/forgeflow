@@ -991,6 +991,125 @@ export interface SchedulingConflict {
   suggestedResolution?: string;
 }
 
+// Analytics Types for Comprehensive Dashboard
+export interface AnalyticsKPIs {
+  oeeOverall: number;
+  availability: number;
+  performance: number;
+  quality: number;
+  scheduleAdherence: number;
+  utilizationRate: number;
+  throughputRate: number;
+  scrapRate: number;
+  firstPassYield: number;
+  plannedVsActualHours: number;
+  cycleTrend: 'up' | 'down' | 'stable';
+  qualityTrend: 'improving' | 'declining' | 'stable';
+  timestamp: Date;
+}
+
+export interface OEEBreakdown {
+  machineId: string;
+  machineName: string;
+  availability: number;
+  performance: number;
+  quality: number;
+  oeeScore: number;
+  plannedRuntime: number; // minutes
+  actualRuntime: number; // minutes
+  unplannedDowntime: number; // minutes
+  setupTime: number; // minutes
+  idealCycleTime: number; // minutes per piece
+  actualCycleTime: number; // minutes per piece
+  totalParts: number;
+  goodParts: number;
+  scrapParts: number;
+  period: string; // ISO date or range
+}
+
+export interface AdherenceMetrics {
+  workOrderId: string;
+  partNumber: string;
+  plannedStartDate: Date;
+  actualStartDate: Date;
+  plannedEndDate: Date;
+  actualEndDate: Date;
+  adherenceScore: number; // percentage
+  delayMinutes: number;
+  isEarly: boolean;
+  isOnTime: boolean;
+  isLate: boolean;
+  machineId: string;
+  operatorId: string;
+}
+
+export interface UtilizationMetrics {
+  machineId: string;
+  machineName: string;
+  totalAvailableTime: number; // minutes
+  productiveTime: number; // minutes
+  setupTime: number; // minutes
+  downtime: number; // minutes
+  idleTime: number; // minutes
+  utilizationRate: number; // percentage
+  efficiency: number; // percentage
+  mtbf: number; // mean time between failures (hours)
+  mttr: number; // mean time to repair (hours)
+  period: string;
+}
+
+export interface QualitySummary {
+  totalInspected: number;
+  totalPassed: number;
+  totalFailed: number;
+  totalRework: number;
+  firstPassYield: number; // percentage
+  scrapRate: number; // percentage
+  reworkRate: number; // percentage
+  topDefectTypes: ParetoItem[];
+  qualityTrend: TrendPoint[];
+  period: string;
+}
+
+export interface TrendPoint {
+  timestamp: Date;
+  value: number;
+  label?: string;
+}
+
+export interface ParetoItem {
+  category: string;
+  value: number;
+  percentage: number;
+  cumulativePercentage: number;
+}
+
+export interface MachineOEESnapshot {
+  machineId: string;
+  machineName: string;
+  status: string;
+  currentOEE: number;
+  availability: number;
+  performance: number;
+  quality: number;
+  currentWorkOrderId?: string;
+  partNumber?: string;
+  cycleProgress?: number;
+  lastUpdated: Date;
+}
+
+export interface AnalyticsFilters {
+  dateRange: {
+    from: Date;
+    to: Date;
+  };
+  machineIds?: string[];
+  workOrderIds?: string[];
+  operatorIds?: string[];
+  partNumbers?: string[];
+  granularity: 'hour' | 'shift' | 'day' | 'week' | 'month';
+}
+
 export interface ProductionMetrics {
   oeeOverall: number;
   scheduleAdherence: number;
