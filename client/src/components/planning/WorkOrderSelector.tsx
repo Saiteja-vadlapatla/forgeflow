@@ -154,14 +154,23 @@ export function WorkOrderSelector({
     });
   }, [workOrders, filters]);
 
-  // Calculate total capacity impact
-  const capacityImpact = useMemo(() => {
+  // Calculate total capacity impact - split into separate memo to prevent unnecessary recalculation
+  const basicCapacityInfo = useMemo(() => {
     const selectedWOs = workOrders.filter(wo => selectedWorkOrders.includes(wo.id));
     const totalHours = selectedWOs.reduce((sum, wo) => sum + (wo.estimatedHours || 0), 0);
     const totalQuantity = selectedWOs.reduce((sum, wo) => sum + wo.quantity, 0);
     
-    // Group by operation type for resource requirements with machine utilization
-    const resourceRequirements = selectedWOs.reduce((acc, wo) => {
+    return {
+      selectedWOs,
+      totalHours,
+      totalQuantity,
+      workOrderCount: selectedWOs.length,
+    };
+  }, [selectedWorkOrders, workOrders]);
+
+  // Separate memo for resource requirements to stabilize object reference
+  const resourceRequirements = useMemo(() => {
+    return basicCapacityInfo.selectedWOs.reduce((acc, wo) => {
       const opType = wo.operationType;
       if (!acc[opType]) {
         acc[opType] = { count: 0, hours: 0, quantity: 0, capableMachines: [], utilizationByMachine: {} };
@@ -208,21 +217,19 @@ export function WorkOrderSelector({
       capableMachines: Machine[];
       utilizationByMachine: Record<string, { machineName: string; hours: number; workOrders: number }>;
     }>);
+  }, [basicCapacityInfo.selectedWOs, machines, machineCapabilities]);
 
-    return {
-      totalHours,
-      totalQuantity,
-      workOrderCount: selectedWOs.length,
-      resourceRequirements
-    };
-  }, [selectedWorkOrders, workOrders]);
+  const capacityImpact = useMemo(() => ({
+    ...basicCapacityInfo,
+    resourceRequirements
+  }), [basicCapacityInfo, resourceRequirements]);
 
-  // Notify parent of capacity changes (separate useEffect to prevent infinite loop)
+  // Notify parent of capacity changes with proper dependencies
   useEffect(() => {
     if (onCapacityChange) {
       onCapacityChange(capacityImpact.totalHours, capacityImpact.resourceRequirements);
     }
-  }, [capacityImpact.totalHours, capacityImpact.workOrderCount]); // Removed onCapacityChange and resourceRequirements from deps
+  }, [onCapacityChange, capacityImpact.totalHours, capacityImpact.workOrderCount, capacityImpact.resourceRequirements]);
 
   const handleWorkOrderToggle = (workOrderId: string) => {
     const newSelection = selectedWorkOrders.includes(workOrderId)

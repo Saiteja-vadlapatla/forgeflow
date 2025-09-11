@@ -13,7 +13,8 @@ import {
   DollarSign,
   Users,
   Zap,
-  BarChart3
+  BarChart3,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,7 +43,7 @@ import {
   ReferenceLine
 } from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { Scenario, InsertScenario, Machine, WorkOrder, Calendar } from "@shared/schema";
+import { Scenario, InsertScenario, Machine, WorkOrder } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 interface ScenarioFormData {

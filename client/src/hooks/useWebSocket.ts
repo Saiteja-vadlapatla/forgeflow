@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { RealtimeData } from '@shared/schema';
 
 interface WebSocketMessage {
@@ -18,6 +19,7 @@ export function useWebSocket(): UseWebSocketReturn {
   const [error, setError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const queryClient = useQueryClient();
 
   const connect = () => {
     try {
@@ -37,6 +39,28 @@ export function useWebSocket(): UseWebSocketReturn {
           const message: WebSocketMessage = JSON.parse(event.data);
           if (message.type === 'realtime_update') {
             setData(message.data);
+            
+            // Hydrate React Query caches with real-time data
+            if (message.data) {
+              // Update machines cache
+              if (message.data.machines) {
+                queryClient.setQueryData(['/api/machines'], message.data.machines);
+                queryClient.setQueryData(['/api/dashboard/realtime'], message.data);
+              }
+              
+              // Invalidate related queries to trigger refetch
+              queryClient.invalidateQueries({ queryKey: ['/api/work-orders'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/work-orders/active'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/inventory'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/alerts'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/alerts/unread'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/quality/records'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/production-logs'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/downtime-events'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/schedule/slots'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/analytics'] });
+              queryClient.invalidateQueries({ queryKey: ['/api/dashboard/kpis'] });
+            }
           }
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err);

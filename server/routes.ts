@@ -169,7 +169,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const record = await storage.createQualityRecord(parsed.data);
-      res.json(record);
+      
+      // Cross-module side-effects: quality impacts
+      if (record.result === 'fail' || record.result === 'rework') {
+        // Create alert for quality issue
+        await storage.createAlert({
+          type: "quality",
+          severity: record.result === 'fail' ? "high" : "medium",
+          title: `Quality Issue: ${record.result.toUpperCase()}`,
+          message: `Part ${record.partNumber} failed quality inspection: ${record.defectDescription || 'Quality standard not met'}. Machine: ${record.machineId}`,
+          source: "quality_inspection",
+          sourceId: record.machineId,
+          isRead: false
+        });
+
+        // Update work order quality statistics if available
+        if (record.workOrderId) {
+          const workOrder = await storage.getWorkOrder(record.workOrderId);
+          if (workOrder) {
+            // This would require extending work order schema for quality tracking
+            // For now, log the quality event for analytics aggregation
+            console.log(`Quality issue logged for work order ${record.workOrderId}: ${record.result}`);
+          }
+        }
+      }
+
+      res.status(201).json(record);
       
       // Broadcast update
       broadcastRealtimeData();
@@ -325,8 +350,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
-      // This would typically update inventory stock levels
-      res.json({ success: true });
+      
+      // Get current material to check stock levels
+      const materials = await storage.getRawMaterials();
+      const material = materials.find(m => m.id === id);
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+
+      const currentStock = material.currentStock || 0;
+      let newStock = currentStock;
+
+      if (adjustmentType === 'add') {
+        newStock = currentStock + adjustmentQuantity;
+      } else if (adjustmentType === 'remove') {
+        newStock = Math.max(0, currentStock - adjustmentQuantity);
+      } else if (adjustmentType === 'set') {
+        newStock = adjustmentQuantity;
+      }
+
+      // Update the stock in storage
+      await storage.updateRawMaterial(id, { currentStock: newStock });
+      
+      // Cross-module side-effects: inventory alerts
+      const minStockLevel = material.minStockLevel || 0;
+      if (newStock <= minStockLevel && newStock < currentStock) {
+        // Create low stock alert
+        await storage.createAlert({
+          type: "low_stock",
+          severity: newStock === 0 ? "critical" : "medium", 
+          title: `Low Stock Alert: ${material.name}`,
+          message: `Material ${material.name} is ${newStock === 0 ? 'out of stock' : `running low (${newStock} ${material.unit} remaining)`}. Reorder recommended.`,
+          source: "inventory_management",
+          sourceId: id,
+          isRead: false
+        });
+      }
+
+      res.json({ success: true, newStock, previousStock: currentStock });
       
       // Broadcast update
       broadcastRealtimeData();
@@ -364,8 +425,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
-      // This would typically update tool inventory stock levels
-      res.json({ success: true });
+      
+      // Get current tool to check stock levels
+      const tools = await storage.getInventoryTools();
+      const tool = tools.find(t => t.id === id);
+      if (!tool) {
+        return res.status(404).json({ error: "Tool not found" });
+      }
+
+      const currentStock = tool.currentStock || 0;
+      let newStock = currentStock;
+
+      if (adjustmentType === 'add') {
+        newStock = currentStock + adjustmentQuantity;
+      } else if (adjustmentType === 'remove') {
+        newStock = Math.max(0, currentStock - adjustmentQuantity);
+      } else if (adjustmentType === 'set') {
+        newStock = adjustmentQuantity;
+      }
+
+      // Update the stock in storage
+      await storage.updateInventoryTool(id, { currentStock: newStock });
+      
+      // Cross-module side-effects: inventory alerts
+      const minStockLevel = tool.minStockLevel || 0;
+      if (newStock <= minStockLevel && newStock < currentStock) {
+        // Create low stock alert
+        await storage.createAlert({
+          type: "low_stock",
+          severity: newStock === 0 ? "critical" : "medium", 
+          title: `Low Stock Alert: ${tool.name}`,
+          message: `Tool ${tool.name} is ${newStock === 0 ? 'out of stock' : `running low (${newStock} ${tool.unit} remaining)`}. Reorder recommended.`,
+          source: "inventory_management",
+          sourceId: id,
+          isRead: false
+        });
+      }
+
+      res.json({ success: true, newStock, previousStock: currentStock });
       
       // Broadcast update
       broadcastRealtimeData();
@@ -2233,10 +2330,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const log = await storage.createProductionLog(validation.data);
       
       // Cross-module side-effects: update work order completed quantity and machine runtime
-      if (log.workOrderId && log.actualQuantity) {
+      if (log.workOrderId && log.quantityProduced) {
         const workOrder = await storage.getWorkOrder(log.workOrderId);
         if (workOrder) {
-          const newCompletedQuantity = (workOrder.completedQuantity || 0) + log.actualQuantity;
+          const newCompletedQuantity = (workOrder.completedQuantity || 0) + log.quantityProduced;
           await storage.updateWorkOrder(log.workOrderId, { completedQuantity: newCompletedQuantity });
           
           // Update work order status if completed
@@ -2247,10 +2344,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update machine runtime
-      if (log.machineId && log.actualCycleTime) {
+      if (log.machineId && log.cycleTime) {
         const machine = await storage.getMachine(log.machineId);
         if (machine) {
-          const newRuntime = (machine.totalRuntime || 0) + log.actualCycleTime;
+          const newRuntime = (machine.totalRuntime || 0) + log.cycleTime;
           await storage.updateMachine(log.machineId, { totalRuntime: newRuntime });
         }
       }
@@ -2338,14 +2435,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Create alert for unplanned downtime
         if (event.reason.toLowerCase().includes('breakdown') || event.reason.toLowerCase().includes('failure')) {
           await storage.createAlert({
-            machineId: event.machineId,
             type: "breakdown",
             severity: "high",
             title: `Unplanned Downtime: ${event.reason}`,
             message: `Machine ${event.machineId} is experiencing unplanned downtime: ${event.reason}`,
-            isRead: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
+            source: "downtime_tracking",
+            sourceId: event.machineId,
+            isRead: false
           });
         }
       }

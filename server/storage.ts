@@ -93,10 +93,12 @@ export interface IStorage {
   // Raw Materials operations
   getRawMaterials(): Promise<any[]>;
   createRawMaterial(material: any): Promise<any>;
+  updateRawMaterial(id: string, updates: any): Promise<any>;
 
   // Inventory Tools operations
   getInventoryTools(): Promise<any[]>;
   createInventoryTool(tool: any): Promise<any>;
+  updateInventoryTool(id: string, updates: any): Promise<any>;
 
   // Production Planning operations
   getProductionPlans(): Promise<any[]>;
@@ -1905,6 +1907,19 @@ export class MemStorage implements IStorage {
     return newMaterial;
   }
 
+  async updateRawMaterial(id: string, updates: any): Promise<any> {
+    const material = this.rawMaterials.get(id);
+    if (!material) return undefined;
+    
+    const updatedMaterial = { 
+      ...material, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.rawMaterials.set(id, updatedMaterial);
+    return updatedMaterial;
+  }
+
   // Inventory Tools operations
   async getInventoryTools(): Promise<any[]> {
     return Array.from(this.inventoryTools.values());
@@ -1922,6 +1937,19 @@ export class MemStorage implements IStorage {
     };
     this.inventoryTools.set(id, newTool);
     return newTool;
+  }
+
+  async updateInventoryTool(id: string, updates: any): Promise<any> {
+    const tool = this.inventoryTools.get(id);
+    if (!tool) return undefined;
+    
+    const updatedTool = { 
+      ...tool, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.inventoryTools.set(id, updatedTool);
+    return updatedTool;
   }
 
   // Production Planning operations
