@@ -17,6 +17,7 @@ interface SchedulePreviewProps {
   schedulingPolicy: SchedulingPolicy;
   workOrders: WorkOrder[];
   machines: Machine[];
+  planType?: "daily" | "weekly" | "monthly";
 }
 
 interface ScheduleSlot {
@@ -62,7 +63,8 @@ export function SchedulePreview({
   endDate,
   schedulingPolicy,
   workOrders,
-  machines
+  machines,
+  planType = "weekly"
 }: SchedulePreviewProps) {
   const [scheduleData, setScheduleData] = useState<SchedulePreviewData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -74,9 +76,9 @@ export function SchedulePreview({
       startDate: string;
       endDate: string;
       policy: SchedulingPolicy;
-    }) => {
+    }): Promise<SchedulePreviewData> => {
       const response = await apiRequest("POST", "/api/scheduling/preview", data);
-      return response;
+      return response as unknown as SchedulePreviewData;
     },
     onSuccess: (data: SchedulePreviewData) => {
       setScheduleData(data);
@@ -138,6 +140,40 @@ export function SchedulePreview({
       case "medium": return "text-yellow-600 bg-yellow-50";
       case "low": return "text-blue-600 bg-blue-50";
       default: return "text-gray-600 bg-gray-50";
+    }
+  };
+
+  const getCapacityGroupKey = (date: string, planType: "daily" | "weekly" | "monthly") => {
+    const dateObj = new Date(date);
+    switch (planType) {
+      case "daily":
+        return date; // Keep individual dates
+      case "weekly":
+        const weekStart = new Date(dateObj);
+        const day = weekStart.getDay();
+        const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1); // Monday
+        weekStart.setDate(diff);
+        return `${weekStart.getFullYear()}-W${Math.ceil((weekStart.getTime() - new Date(weekStart.getFullYear(), 0, 1).getTime()) / (7 * 24 * 60 * 60 * 1000))}`;
+      case "monthly":
+        return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
+      default:
+        return date;
+    }
+  };
+
+  const formatGroupKey = (groupKey: string, planType: "daily" | "weekly" | "monthly") => {
+    switch (planType) {
+      case "daily":
+        return new Date(groupKey).toLocaleDateString();
+      case "weekly":
+        const [year, week] = groupKey.split('-W');
+        return `Week ${week}, ${year}`;
+      case "monthly":
+        const [monthYear, month] = groupKey.split('-');
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return `${monthNames[parseInt(month) - 1]} ${monthYear}`;
+      default:
+        return groupKey;
     }
   };
 
@@ -392,50 +428,99 @@ export function SchedulePreview({
             </Card>
           </TabsContent>
 
-          {/* Capacity Tab */}
+          {/* Enhanced Capacity Tab */}
           <TabsContent value="capacity" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Daily Capacity Overview</CardTitle>
+                <CardTitle className="flex items-center justify-between">
+                  <span>{planType.charAt(0).toUpperCase() + planType.slice(1)} Capacity Overview</span>
+                  <Badge className="text-xs">
+                    {Object.keys(scheduleData.capacityBuckets.reduce((acc, bucket) => {
+                      const groupKey = getCapacityGroupKey(bucket.date, planType);
+                      if (!acc[groupKey]) acc[groupKey] = [];
+                      acc[groupKey].push(bucket);
+                      return acc;
+                    }, {} as Record<string, CapacityBucket[]>)).length} {planType === 'daily' ? 'Days' : planType === 'weekly' ? 'Weeks' : 'Months'}
+                  </Badge>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-96">
                   <div className="space-y-4">
-                    {/* Group capacity buckets by date */}
                     {Object.entries(
                       scheduleData.capacityBuckets.reduce((acc, bucket) => {
-                        if (!acc[bucket.date]) acc[bucket.date] = [];
-                        acc[bucket.date].push(bucket);
+                        const groupKey = getCapacityGroupKey(bucket.date, planType);
+                        if (!acc[groupKey]) acc[groupKey] = [];
+                        acc[groupKey].push(bucket);
                         return acc;
                       }, {} as Record<string, CapacityBucket[]>)
-                    ).map(([date, buckets]) => (
-                      <div key={date} className="border rounded-lg p-4">
-                        <div className="font-medium mb-3">{new Date(date).toLocaleDateString()}</div>
-                        <div className="space-y-2">
-                          {buckets.map(bucket => {
-                            const machine = getMachineById(bucket.machineId);
-                            return (
-                              <div key={bucket.machineId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                <div className="font-medium">{machine?.name || 'Unknown'}</div>
-                                <div className="flex items-center space-x-2">
-                                  <div className="text-sm">
-                                    {formatDuration(bucket.plannedMinutes)} / {formatDuration(bucket.availableMinutes)}
-                                  </div>
-                                  <div className={`text-sm font-medium ${
-                                    bucket.isOverloaded ? 'text-red-600' : 'text-green-600'
-                                  }`}>
-                                    {bucket.utilization.toFixed(1)}%
-                                  </div>
-                                  {bucket.isOverloaded && (
-                                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                                  )}
-                                </div>
+                    ).map(([groupKey, buckets]) => {
+                      const totalPlanned = buckets.reduce((sum, b) => sum + b.plannedMinutes, 0);
+                      const totalAvailable = buckets.reduce((sum, b) => sum + b.availableMinutes, 0);
+                      const groupUtilization = totalAvailable > 0 ? (totalPlanned / totalAvailable) * 100 : 0;
+                      const hasOverload = buckets.some(b => b.isOverloaded);
+                      
+                      return (
+                        <div key={groupKey} className={`border rounded-lg p-4 ${hasOverload ? 'border-red-200 bg-red-50' : 'border-gray-200'}`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="font-medium">{formatGroupKey(groupKey, planType)}</div>
+                            <div className="flex items-center space-x-2">
+                              <div className={`text-sm font-medium ${
+                                hasOverload ? 'text-red-600' : groupUtilization > 90 ? 'text-orange-600' : 'text-green-600'
+                              }`}>
+                                {groupUtilization.toFixed(1)}% Overall
                               </div>
-                            );
-                          })}
+                              {hasOverload && <AlertTriangle className="h-4 w-4 text-red-500" />}
+                            </div>
+                          </div>
+                          
+                          {/* Group utilization bar */}
+                          <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                            <div 
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                hasOverload ? 'bg-red-500' : groupUtilization > 90 ? 'bg-orange-500' : 'bg-green-500'
+                              }`}
+                              style={{ width: `${Math.min(100, groupUtilization)}%` }}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {buckets.map(bucket => {
+                              const machine = getMachineById(bucket.machineId);
+                              return (
+                                <div key={`${bucket.date}-${bucket.machineId}`} className="flex items-center justify-between p-2 bg-white rounded border">
+                                  <div className="flex items-center space-x-2">
+                                    <Cpu className="h-4 w-4 text-gray-400" />
+                                    <span className="font-medium text-sm">{machine?.name || 'Unknown'}</span>
+                                  </div>
+                                  <div className="flex items-center space-x-3">
+                                    <div className="text-xs text-gray-600">
+                                      {formatDuration(bucket.plannedMinutes)} / {formatDuration(bucket.availableMinutes)}
+                                    </div>
+                                    <div className="w-16 bg-gray-200 rounded-full h-1.5">
+                                      <div 
+                                        className={`h-1.5 rounded-full ${
+                                          bucket.isOverloaded ? 'bg-red-500' : bucket.utilization > 90 ? 'bg-orange-500' : 'bg-green-500'
+                                        }`}
+                                        style={{ width: `${Math.min(100, bucket.utilization)}%` }}
+                                      />
+                                    </div>
+                                    <div className={`text-xs font-medium w-12 text-right ${
+                                      bucket.isOverloaded ? 'text-red-600' : bucket.utilization > 90 ? 'text-orange-600' : 'text-green-600'
+                                    }`}>
+                                      {bucket.utilization.toFixed(0)}%
+                                    </div>
+                                    {bucket.isOverloaded && (
+                                      <AlertTriangle className="h-3 w-3 text-red-500" />
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </ScrollArea>
               </CardContent>

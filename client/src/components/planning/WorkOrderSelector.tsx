@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { WorkOrder } from "@shared/schema";
+import { WorkOrder, Machine, MachineCapability } from "@shared/schema";
 
 interface WorkOrderSelectorProps {
   selectedWorkOrders: string[];
@@ -44,6 +44,14 @@ export function WorkOrderSelector({
 
   const { data: workOrders = [], isLoading } = useQuery<WorkOrder[]>({
     queryKey: ["/api/work-orders"],
+  });
+
+  const { data: machines = [] } = useQuery<Machine[]>({
+    queryKey: ["/api/machines"],
+  });
+
+  const { data: machineCapabilities = [] } = useQuery<MachineCapability[]>({
+    queryKey: ["/api/machine-capabilities"],
   });
 
   // Filter and sort work orders based on current filters
@@ -93,6 +101,37 @@ export function WorkOrderSelector({
         }
       }
 
+      // Machine capability filter
+      if (filters.machineType !== "all") {
+        const capableMachines = machineCapabilities.filter(cap => {
+          const machineTypes = cap.machineTypes as string[];
+          return machineTypes && machineTypes.includes(wo.operationType);
+        });
+        
+        if (filters.machineType === "available") {
+          // Filter to work orders that have at least one available machine capable of the operation
+          const availableMachineIds = machines
+            .filter(m => m.status !== "maintenance" && m.status !== "error")
+            .map(m => m.id);
+          
+          const hasAvailableCapableMachine = capableMachines.some(cap => 
+            availableMachineIds.includes(cap.machineId)
+          );
+          
+          if (!hasAvailableCapableMachine) return false;
+        } else {
+          // Filter by specific machine type
+          const machineWithType = machines.find(m => m.type === filters.machineType);
+          if (!machineWithType) return false;
+          
+          const hasCapableMachine = capableMachines.some(cap => 
+            cap.machineId === machineWithType.id
+          );
+          
+          if (!hasCapableMachine) return false;
+        }
+      }
+
       return true;
     });
 
@@ -121,17 +160,54 @@ export function WorkOrderSelector({
     const totalHours = selectedWOs.reduce((sum, wo) => sum + (wo.estimatedHours || 0), 0);
     const totalQuantity = selectedWOs.reduce((sum, wo) => sum + wo.quantity, 0);
     
-    // Group by operation type for resource requirements
+    // Group by operation type for resource requirements with machine utilization
     const resourceRequirements = selectedWOs.reduce((acc, wo) => {
       const opType = wo.operationType;
       if (!acc[opType]) {
-        acc[opType] = { count: 0, hours: 0, quantity: 0 };
+        acc[opType] = { count: 0, hours: 0, quantity: 0, capableMachines: [], utilizationByMachine: {} };
       }
       acc[opType].count += 1;
       acc[opType].hours += wo.estimatedHours || 0;
       acc[opType].quantity += wo.quantity;
+      
+      // Find machines capable of this operation
+      const capableMachineIds = machineCapabilities
+        .filter(cap => {
+          const machineTypes = cap.machineTypes as string[];
+          return machineTypes && machineTypes.includes(opType);
+        })
+        .map(cap => cap.machineId);
+      
+      const capableMachines = machines.filter(m => 
+        capableMachineIds.includes(m.id) && 
+        m.status !== "maintenance" && 
+        m.status !== "error"
+      );
+      
+      acc[opType].capableMachines = capableMachines;
+      
+      // Calculate utilization per machine (distribute hours equally for now)
+      const hoursPerMachine = capableMachines.length > 0 ? (wo.estimatedHours || 0) / capableMachines.length : 0;
+      capableMachines.forEach(machine => {
+        if (!acc[opType].utilizationByMachine[machine.id]) {
+          acc[opType].utilizationByMachine[machine.id] = {
+            machineName: machine.name,
+            hours: 0,
+            workOrders: 0
+          };
+        }
+        acc[opType].utilizationByMachine[machine.id].hours += hoursPerMachine;
+        acc[opType].utilizationByMachine[machine.id].workOrders += 1;
+      });
+      
       return acc;
-    }, {} as Record<string, { count: number; hours: number; quantity: number }>);
+    }, {} as Record<string, { 
+      count: number; 
+      hours: number; 
+      quantity: number; 
+      capableMachines: Machine[];
+      utilizationByMachine: Record<string, { machineName: string; hours: number; workOrders: number }>;
+    }>);
 
     return {
       totalHours,
@@ -382,6 +458,25 @@ export function WorkOrderSelector({
                   </SelectContent>
                 </Select>
               </div>
+
+              <div>
+                <Label htmlFor="machineType">Machine Capability</Label>
+                <Select 
+                  value={filters.machineType} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, machineType: value }))}
+                >
+                  <SelectTrigger data-testid="select-machine-filter">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Machines</SelectItem>
+                    <SelectItem value="available">Available Machines Only</SelectItem>
+                    {Array.from(new Set(machines.map(m => m.type))).map(type => (
+                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -504,6 +599,23 @@ export function WorkOrderSelector({
                     <div>Work Orders: {requirements.count}</div>
                     <div>Total Hours: {requirements.hours.toFixed(1)}h</div>
                     <div>Total Pieces: {requirements.quantity}</div>
+                    <div>Capable Machines: {requirements.capableMachines.length}</div>
+                    
+                    {requirements.capableMachines.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <div className="font-medium mb-1">Machine Utilization:</div>
+                        {Object.entries(requirements.utilizationByMachine).map(([machineId, util]) => (
+                          <div key={machineId} className="flex justify-between text-xs">
+                            <span>{util.machineName}:</span>
+                            <span>{util.hours.toFixed(1)}h ({util.workOrders} WO)</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {requirements.capableMachines.length === 0 && (
+                      <div className="text-red-600 text-xs font-medium">⚠ No capable machines available</div>
+                    )}
                   </div>
                 </div>
               ))}

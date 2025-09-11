@@ -63,7 +63,7 @@ export default function MachineOperationsPage() {
   };
 
   const getMachineTypeDetails = (type: string) => {
-    const details = {
+    const details: Record<string, { name: string; capabilities: string[] }> = {
       "CNC_TURNING": { name: "CNC Turning", capabilities: ["Facing", "Turning", "Threading", "Boring", "Grooving"] },
       "CONVENTIONAL_TURNING": { name: "Conv. Turning", capabilities: ["Facing", "Turning", "Threading", "Knurling"] },
       "CNC_MILLING": { name: "CNC Milling", capabilities: ["Face Mill", "End Mill", "Drilling", "Tapping", "Boring"] },
@@ -206,7 +206,7 @@ export default function MachineOperationsPage() {
                       <div>
                         <span className="text-gray-600 text-sm">Capabilities:</span>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {typeDetails.capabilities.slice(0, 3).map((capability, index) => (
+                          {typeDetails.capabilities.slice(0, 3).map((capability: string, index: number) => (
                             <Badge key={index} variant="outline" className="text-xs">
                               {capability}
                             </Badge>

@@ -21,14 +21,7 @@ import { TimelineManager } from "./TimelineManager";
 import { SchedulePreview } from "./SchedulePreview";
 
 // Enhanced form schema with work order selection and scheduling policy
-const enhancedProductionPlanFormSchema = z.object({
-  planName: z.string().min(1, "Plan name is required"),
-  planType: z.enum(["daily", "weekly", "monthly"]),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-  status: z.enum(["draft", "active", "completed"]),
-  notes: z.string().optional(),
-  createdBy: z.string(),
+const enhancedProductionPlanFormSchema = insertProductionPlanSchema.extend({
   workOrderIds: z.array(z.string()).min(1, "At least one work order must be selected"),
   schedulingPolicy: z.object({
     rule: z.enum(["EDD", "SPT", "CR", "FIFO", "PRIORITY"]),
@@ -37,6 +30,12 @@ const enhancedProductionPlanFormSchema = z.object({
     maxOverloadPercentage: z.number().optional(),
     rescheduleInterval: z.number().optional(),
   }),
+}).omit({
+  startDate: true,
+  endDate: true,
+}).extend({
+  startDate: z.string().min(1, "Start date is required"),
+  endDate: z.string().min(1, "End date is required"),
 });
 
 type EnhancedProductionPlanFormData = z.infer<typeof enhancedProductionPlanFormSchema>;
@@ -175,25 +174,9 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
         totalWorkOrders,
         completedWorkOrders: 0,
         efficiency: Math.round(estimatedEfficiency),
-        // Convert workOrderIds array to JSON for storage
-        workOrderIds: data.workOrderIds,
-        // Convert schedulingPolicy to JSON for storage
-        schedulingPolicy: data.schedulingPolicy,
       };
 
-      const response = await fetch("/api/production-plans", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(enhancedData),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to create production plan");
-      }
-      
-      return response.json();
+      return await apiRequest("POST", "/api/production-plans", enhancedData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/production-plans"] });
@@ -414,7 +397,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
         {/* Step 3: Scheduling Configuration */}
         {currentStep === 2 && startDate && endDate && (
           <TimelineManager
-            planType={planType}
+            planType={planType as "daily" | "weekly" | "monthly"}
             startDate={startDate}
             endDate={endDate}
             onTimelineChange={handleTimelineChange}

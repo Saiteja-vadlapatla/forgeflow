@@ -84,20 +84,66 @@ export function TimelineManager({
     };
   };
 
-  // Auto-suggest dates when plan type changes
+  // Normalize dates based on plan type constraints
+  const normalizeDatesForPlanType = (start: string, end: string, type: "daily" | "weekly" | "monthly") => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    
+    switch (type) {
+      case "daily":
+        // Force same date for daily plans
+        return {
+          start: start,
+          end: start
+        };
+      case "weekly":
+        // Normalize to Monday-Sunday range
+        const startOfWeek = new Date(startDate);
+        const dayOfWeek = startOfWeek.getDay();
+        const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, Monday = 1
+        startOfWeek.setDate(startOfWeek.getDate() - daysToMonday);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        
+        return {
+          start: startOfWeek.toISOString().split('T')[0],
+          end: endOfWeek.toISOString().split('T')[0]
+        };
+      case "monthly":
+        // Normalize to first-last day of month
+        const firstDay = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+        const lastDay = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+        
+        return {
+          start: firstDay.toISOString().split('T')[0],
+          end: lastDay.toISOString().split('T')[0]
+        };
+      default:
+        return { start, end };
+    }
+  };
+
+  // Auto-suggest dates when plan type changes and enforce date constraints
   useEffect(() => {
     if (!startDate || !endDate) {
       const suggested = getSuggestedDateRange(planType);
       onTimelineChange(suggested.start, suggested.end);
+    } else {
+      // Enforce plan type constraints on existing dates
+      const normalizedDates = normalizeDatesForPlanType(startDate, endDate, planType);
+      if (normalizedDates.start !== startDate || normalizedDates.end !== endDate) {
+        onTimelineChange(normalizedDates.start, normalizedDates.end);
+      }
     }
   }, [planType]);
 
-  // Validate capacity when timeline or work orders change
+  // Validate capacity when timeline, work orders, or scheduling policy changes
   useEffect(() => {
     if (startDate && endDate && selectedWorkOrders.length > 0) {
       validateCapacity();
     }
-  }, [startDate, endDate, selectedWorkOrders, totalEstimatedHours]);
+  }, [startDate, endDate, selectedWorkOrders, totalEstimatedHours, schedulingPolicy.allowOverload, schedulingPolicy.maxOverloadPercentage]);
 
   const validateCapacity = async () => {
     setIsValidating(true);
@@ -137,10 +183,20 @@ export function TimelineManager({
         }
       });
 
-      // Capacity warnings
-      if (utilizationPercentage > 100) {
-        warnings.push(`Overloaded: ${utilizationPercentage.toFixed(1)}% capacity utilization`);
+      // Capacity warnings with overload policy consideration
+      const maxAllowedUtilization = schedulingPolicy.allowOverload 
+        ? (schedulingPolicy.maxOverloadPercentage || 120)
+        : 100;
+        
+      if (utilizationPercentage > maxAllowedUtilization) {
+        warnings.push(`Exceeds capacity limit: ${utilizationPercentage.toFixed(1)}% (max allowed: ${maxAllowedUtilization}%)`);
         suggestions.push("Consider extending the timeline or reducing work orders");
+      } else if (utilizationPercentage > 100 && schedulingPolicy.allowOverload) {
+        warnings.push(`Overloaded but within policy: ${utilizationPercentage.toFixed(1)}% (max: ${maxAllowedUtilization}%)`);
+        suggestions.push("Overload scheduled - monitor machine performance closely");
+      } else if (utilizationPercentage > 100) {
+        warnings.push(`Overloaded: ${utilizationPercentage.toFixed(1)}% capacity utilization`);
+        suggestions.push("Enable overload policy or extend timeline/reduce work orders");
       } else if (utilizationPercentage > 90) {
         warnings.push(`High utilization: ${utilizationPercentage.toFixed(1)}% capacity`);
         suggestions.push("Schedule may be tight - monitor closely");
@@ -158,8 +214,11 @@ export function TimelineManager({
         warnings.push("Plan ends on weekend");
       }
 
+      // Determine if schedule is valid considering overload policy
+      const isCapacityValid = utilizationPercentage <= maxAllowedUtilization;
+      
       setCapacityValidation({
-        isValid: conflicts.length === 0 && utilizationPercentage <= 100,
+        isValid: conflicts.length === 0 && isCapacityValid,
         totalCapacityHours,
         utilizationPercentage,
         conflicts,
@@ -174,11 +233,12 @@ export function TimelineManager({
   };
 
   const handleDateChange = (field: "start" | "end", value: string) => {
-    if (field === "start") {
-      onTimelineChange(value, endDate);
-    } else {
-      onTimelineChange(startDate, value);
-    }
+    let newStart = field === "start" ? value : startDate;
+    let newEnd = field === "end" ? value : endDate;
+    
+    // Apply plan type constraints
+    const normalized = normalizeDatesForPlanType(newStart, newEnd, planType);
+    onTimelineChange(normalized.start, normalized.end);
   };
 
   const applyQuickDateRange = (type: "daily" | "weekly" | "monthly") => {
@@ -212,31 +272,37 @@ export function TimelineManager({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Quick Date Range Buttons */}
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => applyQuickDateRange("daily")}
-              data-testid="button-quick-daily"
-            >
-              Tomorrow
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => applyQuickDateRange("weekly")}
-              data-testid="button-quick-weekly"
-            >
-              Next Week
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => applyQuickDateRange("monthly")}
-              data-testid="button-quick-monthly"
-            >
-              Next Month
-            </Button>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">Quick Range Selection:</span>
+              <span className="text-xs text-gray-500">Plan Type: {planType.charAt(0).toUpperCase() + planType.slice(1)}</span>
+            </div>
+            <div className="flex space-x-2">
+              <Button
+                variant={planType === "daily" ? "default" : "outline"}
+                size="sm"
+                onClick={() => applyQuickDateRange("daily")}
+                data-testid="button-quick-daily"
+              >
+                {planType === "daily" ? "Today" : "Tomorrow"}
+              </Button>
+              <Button
+                variant={planType === "weekly" ? "default" : "outline"}
+                size="sm"
+                onClick={() => applyQuickDateRange("weekly")}
+                data-testid="button-quick-weekly"
+              >
+                {planType === "weekly" ? "This Week" : "Next Week"}
+              </Button>
+              <Button
+                variant={planType === "monthly" ? "default" : "outline"}
+                size="sm"
+                onClick={() => applyQuickDateRange("monthly")}
+                data-testid="button-quick-monthly"
+              >
+                {planType === "monthly" ? "This Month" : "Next Month"}
+              </Button>
+            </div>
           </div>
 
           {/* Date Range Inputs */}
@@ -265,29 +331,73 @@ export function TimelineManager({
             </div>
           </div>
 
-          {/* Timeline Duration Summary */}
+          {/* Enhanced Timeline Duration Summary */}
           {startDate && endDate && (
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <div className="text-sm text-gray-600">Duration</div>
-                  <div className="font-medium" data-testid="text-plan-duration">
-                    {Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} days
+            <div className="space-y-3">
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div>
+                    <div className="text-sm text-gray-600">Duration</div>
+                    <div className="font-medium" data-testid="text-plan-duration">
+                      {Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1} days
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Working Days</div>
-                  <div className="font-medium" data-testid="text-working-days">
-                    {Math.floor(((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1) * 5/7)}
+                  <div>
+                    <div className="text-sm text-gray-600">Working Days</div>
+                    <div className="font-medium" data-testid="text-working-days">
+                      {Math.floor(((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24) + 1) * 5/7)}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div className="text-sm text-gray-600">Work Orders</div>
-                  <div className="font-medium" data-testid="text-workorder-count">
-                    {selectedWorkOrders.length}
+                  <div>
+                    <div className="text-sm text-gray-600">Horizon Hours</div>
+                    <div className="font-medium" data-testid="text-horizon-hours">
+                      {schedulingPolicy.horizon}h
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-600">Work Orders</div>
+                    <div className="font-medium" data-testid="text-workorder-count">
+                      {selectedWorkOrders.length}
+                    </div>
                   </div>
                 </div>
               </div>
+              
+              {/* Capacity vs Load Display */}
+              {capacityValidation && (
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-blue-900">Capacity vs Load</span>
+                    <span className={`text-sm font-medium ${
+                      capacityValidation.utilizationPercentage > 100 ? 'text-red-600' :
+                      capacityValidation.utilizationPercentage > 90 ? 'text-orange-600' :
+                      'text-green-600'
+                    }`}>
+                      {capacityValidation.utilizationPercentage.toFixed(1)}% Utilized
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-3">
+                    <div 
+                      className={`h-3 rounded-full transition-all duration-300 ${
+                        capacityValidation.utilizationPercentage > 100 ? 'bg-red-500' :
+                        capacityValidation.utilizationPercentage > 90 ? 'bg-orange-500' :
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${Math.min(100, capacityValidation.utilizationPercentage)}%` }}
+                    />
+                    {capacityValidation.utilizationPercentage > 100 && (
+                      <div 
+                        className="h-3 bg-red-300 opacity-60 rounded-full -mt-3"
+                        style={{ width: `${Math.min(200, capacityValidation.utilizationPercentage)}%` }}
+                      />
+                    )}
+                  </div>
+                  <div className="flex justify-between text-xs text-blue-700 mt-1">
+                    <span>Required: {totalEstimatedHours.toFixed(1)}h</span>
+                    <span>Available: {capacityValidation.totalCapacityHours.toFixed(1)}h</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -326,20 +436,39 @@ export function TimelineManager({
 
             <div>
               <Label htmlFor="horizon">Planning Horizon (hours)</Label>
-              <Input
-                id="horizon"
-                type="number"
-                value={schedulingPolicy.horizon}
-                onChange={(e) => 
-                  onSchedulingPolicyChange({ 
-                    ...schedulingPolicy, 
-                    horizon: parseInt(e.target.value) || 168
-                  })
-                }
-                min="24"
-                max="8760"
-                data-testid="input-planning-horizon"
-              />
+              <div className="flex space-x-2">
+                <Input
+                  id="horizon"
+                  type="number"
+                  value={schedulingPolicy.horizon}
+                  onChange={(e) => 
+                    onSchedulingPolicyChange({ 
+                      ...schedulingPolicy, 
+                      horizon: parseInt(e.target.value) || 168
+                    })
+                  }
+                  min="24"
+                  max="8760"
+                  data-testid="input-planning-horizon"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const suggestedHorizon = planType === "daily" ? 24 : planType === "weekly" ? 168 : 720;
+                    onSchedulingPolicyChange({ 
+                      ...schedulingPolicy, 
+                      horizon: suggestedHorizon
+                    });
+                  }}
+                  data-testid="button-auto-horizon"
+                >
+                  Auto
+                </Button>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                Suggested: {planType === "daily" ? "24h" : planType === "weekly" ? "168h (1 week)" : "720h (1 month)"}
+              </div>
             </div>
           </div>
 
