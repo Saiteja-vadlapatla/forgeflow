@@ -11,7 +11,7 @@ A comprehensive Manufacturing Execution System specifically designed for mechani
 - **UI Framework**: shadcn/ui + Radix UI + Tailwind CSS
 - **State Management**: TanStack Query (React Query)
 - **Real-time**: WebSocket connections
-- **Deployment**: Replit Cloud Platform
+- **Deployment**: Multi-platform (Replit, Google Cloud, Local)
 
 ### Project Structure
 ```
@@ -55,8 +55,11 @@ aether-mes/
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+ (automatically provided in Replit)
-- PostgreSQL database (automatically provisioned in Replit)
+- **Node.js 18+** (LTS recommended)
+- **PostgreSQL database** (local installation, cloud instance, or managed service)
+- **Git** for version control
+- **Google Cloud SDK** (for Google Cloud deployment)
+- **Docker** (optional, for containerized deployment)
 
 ### Installation in Replit
 
@@ -91,44 +94,245 @@ The application will be available at `https://your-repl-name.your-username.repl.
 
 ## 🔧 Development Setup
 
-### Local Development (Outside Replit)
+### Local Development
 
-If you want to run this locally outside of Replit:
+#### 1. Clone and Setup
+```bash
+# Clone the repository
+git clone <repository-url>
+cd aether-mes
 
-1. **Clone the Repository**
+# Install dependencies
+npm install
+```
+
+#### 2. Local PostgreSQL Setup
+
+**Option A: Install PostgreSQL Locally**
+```bash
+# On macOS
+brew install postgresql
+brew services start postgresql
+
+# On Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+sudo systemctl start postgresql
+
+# On Windows
+# Download and install from https://www.postgresql.org/download/windows/
+```
+
+**Option B: Using Docker**
+```bash
+# Run PostgreSQL in Docker
+docker run --name aether-postgres \
+  -e POSTGRES_DB=aether_mes \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password \
+  -p 5432:5432 \
+  -d postgres:15
+```
+
+#### 3. Environment Configuration
+Create a `.env` file in the root directory:
+```bash
+# Database Configuration
+DATABASE_URL=postgresql://postgres:password@localhost:5432/aether_mes
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=password
+PGDATABASE=aether_mes
+
+# Application Configuration
+NODE_ENV=development
+PORT=5000
+
+# Optional: Enable debug logging
+DEBUG=true
+```
+
+#### 4. Database Schema Setup
+```bash
+# Initialize database schema
+npm run db:push
+
+# If you encounter issues, force push the schema
+npm run db:push --force
+```
+
+#### 5. Start Development Server
+```bash
+# Start both frontend and backend
+npm run dev
+
+# The application will be available at:
+# http://localhost:5000
+```
+
+## ☁️ Google Cloud Deployment
+
+### Prerequisites for Google Cloud
+1. Install [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
+2. Create a Google Cloud Project
+3. Enable required APIs:
    ```bash
-   git clone <repository-url>
-   cd aether-mes
+   gcloud services enable cloudbuild.googleapis.com
+   gcloud services enable run.googleapis.com
+   gcloud services enable sqladmin.googleapis.com
    ```
 
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+### 1. Setup Cloud SQL (PostgreSQL)
+```bash
+# Create Cloud SQL instance
+gcloud sql instances create aether-mes-db \
+  --database-version=POSTGRES_15 \
+  --tier=db-f1-micro \
+  --region=us-central1 \
+  --root-password=your-secure-password
 
-3. **Database Setup**
-   - Install PostgreSQL locally
-   - Create a database for the project
-   - Set up environment variables:
-   ```bash
-   # Create .env file
-   DATABASE_URL=postgresql://username:password@localhost:5432/aether_mes
-   PGHOST=localhost
-   PGPORT=5432
-   PGUSER=your_username
-   PGPASSWORD=your_password
-   PGDATABASE=aether_mes
-   ```
+# Create database
+gcloud sql databases create aether_mes --instance=aether-mes-db
 
-4. **Initialize Database Schema**
-   ```bash
-   npm run db:push
-   ```
+# Create user (optional)
+gcloud sql users create aether_user \
+  --instance=aether-mes-db \
+  --password=user-password
+```
 
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
+### 2. Create Dockerfile
+Create a `Dockerfile` in the root directory:
+```dockerfile
+# Multi-stage build for production optimization
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install ALL dependencies (needed for build)
+RUN npm ci
+
+# Copy application code
+COPY . .
+
+# Build the application
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS runner
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/shared ./shared
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nextjs -u 1001
+USER nextjs
+
+# Expose port
+EXPOSE 8080
+
+# Set environment to production
+ENV NODE_ENV=production
+ENV PORT=8080
+
+# Start the application
+CMD ["npm", "start"]
+```
+
+### 3. Create .dockerignore
+```
+node_modules
+.git
+.gitignore
+README.md
+.env
+.env.local
+npm-debug.log*
+.nyc_output
+```
+
+### 4. Setup IAM and Deploy to Cloud Run
+```bash
+# Create a service account for Cloud Run
+gcloud iam service-accounts create aether-mes-sa \
+  --display-name="Aether MES Service Account"
+
+# Grant Cloud SQL client role to the service account
+gcloud projects add-iam-policy-binding PROJECT_ID \
+  --member="serviceAccount:aether-mes-sa@PROJECT_ID.iam.gserviceaccount.com" \
+  --role="roles/cloudsql.client"
+
+# Build and deploy with Cloud SQL connection
+gcloud run deploy aether-mes \
+  --source . \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --service-account aether-mes-sa@PROJECT_ID.iam.gserviceaccount.com \
+  --add-cloudsql-instances PROJECT_ID:us-central1:aether-mes-db \
+  --set-env-vars NODE_ENV=production \
+  --set-env-vars DATABASE_URL="postgresql://postgres:your-password@/aether_mes?host=/cloudsql/PROJECT_ID:us-central1:aether-mes-db"
+```
+
+### 5. Environment Variables for Google Cloud
+Set the following environment variables in Cloud Run:
+```bash
+# Database Configuration
+DATABASE_URL=postgresql://postgres:password@/aether_mes?host=/cloudsql/PROJECT_ID:REGION:INSTANCE_NAME
+NODE_ENV=production
+PORT=8080
+
+# Set via gcloud command
+gcloud run services update aether-mes \
+  --set-env-vars DATABASE_URL="your-cloud-sql-connection-string" \
+  --set-env-vars NODE_ENV=production \
+  --region us-central1
+```
+
+### 6. Initialize Database Schema on Cloud
+```bash
+# Option A: Connect directly to Cloud SQL instance
+gcloud sql connect aether-mes-db --user=postgres
+
+# Option B: Use Cloud SQL Auth Proxy for local connection
+# Download and install Cloud SQL Auth Proxy
+curl -o cloud-sql-proxy https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/v2.8.0/cloud-sql-proxy.linux.amd64
+chmod +x cloud-sql-proxy
+
+# Start proxy connection
+./cloud-sql-proxy PROJECT_ID:us-central1:aether-mes-db --port 5432
+
+# In another terminal, set local connection and push schema
+export DATABASE_URL="postgresql://postgres:password@127.0.0.1:5432/aether_mes"
+npm run db:push
+
+# Verify the application binds to the correct PORT in production
+# Your server/index.ts should use: const port = process.env.PORT || 5000
+```
+
+### 7. Custom Domain (Optional)
+```bash
+# Map custom domain
+gcloud run domain-mappings create \
+  --service aether-mes \
+  --domain your-domain.com \
+  --region us-central1
+```
 
 ## 📝 Available Scripts
 
@@ -144,6 +348,11 @@ If you want to run this locally outside of Replit:
 ### Database Management
 - `npm run db:push` - Apply schema changes to database
 - `npm run db:push --force` - Force apply schema changes (use with caution)
+
+### Docker & Cloud Deployment
+- `docker build -t aether-mes .` - Build Docker image
+- `docker run -p 8080:8080 aether-mes` - Run Docker container locally
+- `gcloud run deploy` - Deploy to Google Cloud Run
 
 ## 🗄️ Database Schema
 
@@ -240,8 +449,37 @@ The system uses Drizzle ORM with PostgreSQL and includes the following core enti
 ## 🔧 Configuration
 
 ### Environment Variables
+
+#### Local Development (.env)
 ```bash
-# Database Configuration (automatically provided in Replit)
+# Database Configuration
+DATABASE_URL=postgresql://postgres:password@localhost:5432/aether_mes
+PGHOST=localhost
+PGPORT=5432
+PGUSER=postgres
+PGPASSWORD=password
+PGDATABASE=aether_mes
+
+# Application Configuration
+NODE_ENV=development
+PORT=5000
+DEBUG=true
+```
+
+#### Google Cloud Run
+```bash
+# Database Configuration (Cloud SQL)
+DATABASE_URL=postgresql://postgres:password@/aether_mes?host=/cloudsql/PROJECT_ID:REGION:INSTANCE_NAME
+NODE_ENV=production
+PORT=8080
+
+# Optional: Additional cloud configurations
+GOOGLE_CLOUD_PROJECT=your-project-id
+```
+
+#### Replit Environment
+```bash
+# Database Configuration (automatically provided)
 DATABASE_URL=postgresql://...
 PGHOST=...
 PGPORT=...
@@ -266,9 +504,10 @@ The application uses a custom Vite configuration with:
 - Responsive breakpoints optimized for industrial displays
 - Component-specific styling utilities
 
-## 🚀 Deployment
+## 🚀 Deployment Options
 
-### Replit Deployment (Recommended)
+### 1. Replit Deployment (Easiest)
+Perfect for quick prototyping and development:
 1. Click the "Deploy" button in your Replit
 2. Choose your deployment settings
 3. Application will be deployed with:
@@ -277,14 +516,108 @@ The application uses a custom Vite configuration with:
    - Built-in CDN
    - Health checks and monitoring
 
-### Manual Deployment
-1. Build the application:
-   ```bash
-   npm run build
-   ```
-2. Deploy the `dist/` directory to your hosting provider
-3. Set up environment variables on your hosting platform
-4. Configure PostgreSQL database connection
+### 2. Google Cloud Run (Production Recommended)
+Scalable serverless deployment with managed database:
+- **Automatic scaling** from 0 to thousands of instances
+- **Pay per use** - only charged when serving requests
+- **Integrated with Cloud SQL** for managed PostgreSQL
+- **Global CDN** and SSL certificates included
+- See detailed instructions in the [Google Cloud Deployment](#☁️-google-cloud-deployment) section above
+
+### 3. Other Cloud Platforms
+
+#### AWS (using Elastic Beanstalk or ECS)
+```bash
+# Build the application
+npm run build
+
+# Create deployment package
+zip -r aether-mes.zip . -x "node_modules/*"
+
+# Deploy to Elastic Beanstalk (configure RDS PostgreSQL separately)
+```
+
+#### Heroku
+```bash
+# Create Heroku app
+heroku create aether-mes
+
+# Add PostgreSQL addon
+heroku addons:create heroku-postgresql:mini
+
+# Deploy
+git push heroku main
+
+# Run database migrations
+heroku run npm run db:push
+```
+
+#### DigitalOcean App Platform
+```bash
+# Build and deploy
+doctl apps create --spec app-spec.yaml
+
+# app-spec.yaml example:
+name: aether-mes
+services:
+- name: api
+  source_dir: /
+  github:
+    repo: your-username/aether-mes
+    branch: main
+  run_command: npm start
+  environment_slug: node-js
+  instance_count: 1
+  instance_size_slug: basic-xxs
+  envs:
+  - key: DATABASE_URL
+    value: your-database-url
+  - key: NODE_ENV
+    value: production
+```
+
+### 4. Self-Hosted/VPS Deployment
+For on-premises or custom server deployment:
+
+```bash
+# On your server
+git clone <repository-url>
+cd aether-mes
+npm install
+npm run build
+
+# Install PM2 for process management
+npm install -g pm2
+
+# Start with PM2
+pm2 start npm --name "aether-mes" -- start
+pm2 startup
+pm2 save
+
+# Configure Nginx as reverse proxy (optional)
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**Nginx Configuration Example:**
+```nginx
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
 
 ## 🧪 Testing
 
@@ -306,40 +639,87 @@ While comprehensive testing is in development, you can:
 
 ### Common Issues
 
-1. **Database Connection Issues**
-   ```bash
-   # Check if DATABASE_URL is set
-   echo $DATABASE_URL
-   
-   # Reinitialize database schema
-   npm run db:push --force
-   ```
+#### 1. Database Connection Issues
+```bash
+# Local Development
+echo $DATABASE_URL
+npm run db:push --force
 
-2. **Build Errors**
-   ```bash
-   # Clear node modules and reinstall
-   rm -rf node_modules package-lock.json
-   npm install
-   ```
+# Google Cloud
+gcloud sql instances describe aether-mes-db
+gcloud sql connect aether-mes-db --user=postgres
 
-3. **WebSocket Connection Issues**
-   - Check browser console for WebSocket errors
-   - Verify REPLIT_DOMAINS environment variable
-   - Restart the Replit if connections fail
+# Check Cloud SQL connection string format
+# Should be: postgresql://user:pass@/dbname?host=/cloudsql/project:region:instance
+```
 
-4. **TypeScript Errors**
-   ```bash
-   # Run type checking
-   npm run check
-   
-   # Clear TypeScript cache
-   rm -rf .tsbuildinfo
-   ```
+#### 2. Build and Deployment Errors
+```bash
+# Clear dependencies and rebuild
+rm -rf node_modules package-lock.json dist/
+npm install
+npm run build
+
+# Google Cloud specific
+gcloud builds list --limit=5
+gcloud run services list
+```
+
+#### 3. Environment Variable Issues
+```bash
+# Local - check .env file
+cat .env
+
+# Google Cloud - check Cloud Run env vars
+gcloud run services describe aether-mes --region=us-central1
+
+# Replit - check secrets panel
+# Use the Secrets tab in Replit interface
+```
+
+#### 4. WebSocket Connection Issues
+- **Local**: Check if port 5000 is available
+- **Google Cloud**: Ensure WebSocket support is enabled (Cloud Run supports it by default)
+- **Replit**: Verify REPLIT_DOMAINS environment variable
+
+#### 5. TypeScript Errors
+```bash
+# Run type checking
+npm run check
+
+# Clear caches
+rm -rf .tsbuildinfo
+rm -rf node_modules/.cache
+```
+
+#### 6. Google Cloud Specific Issues
+```bash
+# Check service logs
+gcloud run services logs read aether-mes --region=us-central1
+
+# Check Cloud SQL connection
+gcloud sql operations list --instance=aether-mes-db
+
+# Test local connection to Cloud SQL
+./cloud_sql_proxy -instances=PROJECT_ID:REGION:INSTANCE_NAME=tcp:5432
+```
+
+#### 7. Port Configuration Issues
+- **Local**: Default port 5000
+- **Google Cloud Run**: Must use PORT environment variable (usually 8080)
+- **Replit**: Automatically handled
 
 ### Debug Mode
-Enable debug logging by setting:
 ```bash
+# Local Development
 NODE_ENV=development
+DEBUG=true
+
+# Google Cloud (check logs)
+gcloud run services logs read aether-mes --region=us-central1
+
+# Replit (check console)
+# Use browser developer tools console
 ```
 
 ## 📚 Additional Resources
