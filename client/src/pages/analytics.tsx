@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,92 +157,106 @@ export default function Analytics() {
 
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Build query parameters (moved before useEffect)
-  const queryParams = new URLSearchParams({
-    from: filters.dateRange.from.toISOString(),
-    to: filters.dateRange.to.toISOString(),
-    granularity: filters.granularity,
-    ...(filters.machineId && { machineId: filters.machineId }),
-    ...(filters.workOrderId && { workOrderId: filters.workOrderId })
-  });
+  // Memoize query parameters to prevent infinite re-renders
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams({
+      from: filters.dateRange.from.toISOString(),
+      to: filters.dateRange.to.toISOString(),
+      granularity: filters.granularity
+    });
+    if (filters.machineId) {
+      params.set('machineId', filters.machineId);
+    }
+    if (filters.workOrderId) {
+      params.set('workOrderId', filters.workOrderId);
+    }
+    return params.toString();
+  }, [filters.dateRange.from, filters.dateRange.to, filters.granularity, filters.machineId, filters.workOrderId]);
 
   // Handle WebSocket real-time data updates
   useEffect(() => {
-    if (wsData) {
-      const currentParams = queryParams.toString();
-      
-      // Update comprehensive analytics data immediately when WebSocket data arrives
-      if (wsData.analyticsKPIs) {
-        queryClient.setQueryData(['/api/analytics/kpis', currentParams], wsData.analyticsKPIs);
-      }
-      
-      if (wsData.oeeBreakdowns) {
-        queryClient.setQueryData(['/api/analytics/oee', currentParams], wsData.oeeBreakdowns);
-      }
-      
-      if (wsData.adherenceMetrics) {
-        queryClient.setQueryData(['/api/analytics/adherence', currentParams], wsData.adherenceMetrics);
-      }
-      
-      if (wsData.utilizationMetrics) {
-        queryClient.setQueryData(['/api/analytics/utilization', currentParams], wsData.utilizationMetrics);
-      }
-      
-      if (wsData.qualitySummary) {
-        queryClient.setQueryData(['/api/analytics/quality', currentParams], wsData.qualitySummary);
-      }
-      
-      if (wsData.machineOEESnapshots) {
-        queryClient.setQueryData(['/api/analytics/realtime-snapshots'], wsData.machineOEESnapshots);
-      }
-      
-      // Also update basic KPIs if available (for dashboard compatibility)
-      if (wsData.kpis) {
-        queryClient.setQueryData(['/api/dashboard/kpis'], wsData.kpis);
-      }
+    if (!wsData) return;
+    
+    // Update comprehensive analytics data immediately when WebSocket data arrives
+    if (wsData.analyticsKPIs) {
+      queryClient.setQueryData(['/api/analytics/kpis', queryParams], wsData.analyticsKPIs);
+    }
+    
+    if (wsData.oeeBreakdowns) {
+      queryClient.setQueryData(['/api/analytics/oee', queryParams], wsData.oeeBreakdowns);
+    }
+    
+    if (wsData.adherenceMetrics) {
+      queryClient.setQueryData(['/api/analytics/adherence', queryParams], wsData.adherenceMetrics);
+    }
+    
+    if (wsData.utilizationMetrics) {
+      queryClient.setQueryData(['/api/analytics/utilization', queryParams], wsData.utilizationMetrics);
+    }
+    
+    if (wsData.qualitySummary) {
+      queryClient.setQueryData(['/api/analytics/quality', queryParams], wsData.qualitySummary);
+    }
+    
+    if (wsData.machineOEESnapshots) {
+      queryClient.setQueryData(['/api/analytics/realtime-snapshots'], wsData.machineOEESnapshots);
+    }
+    
+    // Also update basic KPIs if available (for dashboard compatibility)
+    if (wsData.kpis) {
+      queryClient.setQueryData(['/api/dashboard/kpis'], wsData.kpis);
     }
   }, [wsData, queryClient, queryParams]);
 
+  // Memoize refresh interval to prevent query instability
+  const kpiRefreshInterval = useMemo(() => {
+    return wsConnected ? false : (autoRefresh ? 30000 : false);
+  }, [wsConnected, autoRefresh]);
+
+  const realtimeRefreshInterval = useMemo(() => {
+    return wsConnected ? false : 10000;
+  }, [wsConnected]);
+
   // Fetch analytics data - prefer WebSocket data when connected, fallback to HTTP when disconnected
   const { data: kpis, isLoading: kpisLoading, refetch: refetchKpis } = useQuery<AnalyticsKPIs>({
-    queryKey: ['/api/analytics/kpis', queryParams.toString()],
+    queryKey: ['/api/analytics/kpis', queryParams],
     enabled: !wsConnected || !wsData?.analyticsKPIs, // Only fetch via HTTP if WebSocket is disconnected or no data
-    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false), // Faster fallback polling
+    refetchInterval: kpiRefreshInterval, // Faster fallback polling
     initialData: wsData?.analyticsKPIs // Use WebSocket data as initial data
   });
 
   const { data: oeeData, isLoading: oeeLoading } = useQuery<OEEBreakdown[]>({
-    queryKey: ['/api/analytics/oee', queryParams.toString()],
+    queryKey: ['/api/analytics/oee', queryParams],
     enabled: !wsConnected || !wsData?.oeeBreakdowns,
-    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    refetchInterval: kpiRefreshInterval,
     initialData: wsData?.oeeBreakdowns
   });
 
   const { data: adherenceData, isLoading: adherenceLoading } = useQuery<AdherenceMetrics[]>({
-    queryKey: ['/api/analytics/adherence', queryParams.toString()],
+    queryKey: ['/api/analytics/adherence', queryParams],
     enabled: !wsConnected || !wsData?.adherenceMetrics,
-    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    refetchInterval: kpiRefreshInterval,
     initialData: wsData?.adherenceMetrics
   });
 
   const { data: utilizationData, isLoading: utilizationLoading } = useQuery<UtilizationMetrics[]>({
-    queryKey: ['/api/analytics/utilization', queryParams.toString()],
+    queryKey: ['/api/analytics/utilization', queryParams],
     enabled: !wsConnected || !wsData?.utilizationMetrics,
-    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    refetchInterval: kpiRefreshInterval,
     initialData: wsData?.utilizationMetrics
   });
 
   const { data: qualityData, isLoading: qualityLoading } = useQuery<QualitySummary>({
-    queryKey: ['/api/analytics/quality', queryParams.toString()],
+    queryKey: ['/api/analytics/quality', queryParams],
     enabled: !wsConnected || !wsData?.qualitySummary,
-    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    refetchInterval: kpiRefreshInterval,
     initialData: wsData?.qualitySummary
   });
 
   const { data: realtimeSnapshots, isLoading: snapshotsLoading } = useQuery<MachineOEESnapshot[]>({
     queryKey: ['/api/analytics/realtime-snapshots'],
     enabled: !wsConnected || !wsData?.machineOEESnapshots,
-    refetchInterval: wsConnected ? false : 10000, // Faster refresh for real-time data
+    refetchInterval: realtimeRefreshInterval, // Faster refresh for real-time data
     initialData: wsData?.machineOEESnapshots
   });
 
@@ -256,14 +270,15 @@ export default function Analytics() {
     queryKey: ['/api/work-orders']
   });
 
-  const handleRefresh = () => {
+  // Memoize event handlers to prevent unnecessary re-renders
+  const handleRefresh = useCallback(() => {
     refetchKpis();
-  };
+  }, [refetchKpis]);
 
-  const handleExport = () => {
+  const handleExport = useCallback(() => {
     // Export functionality would be implemented here
     console.log('Export analytics data');
-  };
+  }, []);
 
   if (kpisLoading) {
     return (
@@ -276,9 +291,18 @@ export default function Analytics() {
     );
   }
 
-  const averageOEE = oeeData ? oeeData.reduce((sum, item) => sum + item.oeeScore, 0) / (oeeData.length || 1) : 0;
-  const averageAdherence = adherenceData ? adherenceData.reduce((sum, item) => sum + item.adherenceScore, 0) / (adherenceData.length || 1) : 0;
-  const averageUtilization = utilizationData ? utilizationData.reduce((sum, item) => sum + item.utilizationRate, 0) / (utilizationData.length || 1) : 0;
+  // Memoize expensive calculations to prevent recalculation on every render
+  const averageOEE = useMemo(() => {
+    return oeeData ? oeeData.reduce((sum, item) => sum + item.oeeScore, 0) / (oeeData.length || 1) : 0;
+  }, [oeeData]);
+  
+  const averageAdherence = useMemo(() => {
+    return adherenceData ? adherenceData.reduce((sum, item) => sum + item.adherenceScore, 0) / (adherenceData.length || 1) : 0;
+  }, [adherenceData]);
+  
+  const averageUtilization = useMemo(() => {
+    return utilizationData ? utilizationData.reduce((sum, item) => sum + item.utilizationRate, 0) / (utilizationData.length || 1) : 0;
+  }, [utilizationData]);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
