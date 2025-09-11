@@ -7,7 +7,9 @@ import {
   insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema,
   insertSetupGroupSchema, insertOperatorSkillSchema, insertToolResourceSchema,
   insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema,
-  insertScheduleSlotSchema, insertOperationSchema
+  insertScheduleSlotSchema, insertOperationSchema,
+  insertShiftReportSchema, insertOperatorSessionSchema, insertReasonCodeSchema, insertScrapLogSchema,
+  insertProductionLogSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1448,6 +1450,410 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting schedule conflicts:', error);
       res.status(500).json({ error: "Failed to get schedule conflicts" });
+    }
+  });
+
+  // Data Entry Module API Routes
+
+  // Shift Reports endpoints
+  app.get("/api/data-entry/shifts", async (req, res) => {
+    try {
+      const shifts = await storage.getAllShiftReports();
+      res.json(shifts);
+    } catch (error) {
+      console.error('Error fetching shift reports:', error);
+      res.status(500).json({ error: "Failed to fetch shift reports" });
+    }
+  });
+
+  app.get("/api/data-entry/shifts/active", async (req, res) => {
+    try {
+      const shifts = await storage.getActiveShiftReports();
+      res.json(shifts);
+    } catch (error) {
+      console.error('Error fetching active shift reports:', error);
+      res.status(500).json({ error: "Failed to fetch active shift reports" });
+    }
+  });
+
+  app.get("/api/data-entry/shifts/:id", async (req, res) => {
+    try {
+      const shift = await storage.getShiftReport(req.params.id);
+      if (!shift) {
+        return res.status(404).json({ error: "Shift report not found" });
+      }
+      res.json(shift);
+    } catch (error) {
+      console.error('Error fetching shift report:', error);
+      res.status(500).json({ error: "Failed to fetch shift report" });
+    }
+  });
+
+  app.post("/api/data-entry/shifts", async (req, res) => {
+    try {
+      const validation = insertShiftReportSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid shift report data", details: validation.error });
+      }
+      
+      const shift = await storage.createShiftReport(validation.data);
+      res.status(201).json(shift);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error creating shift report:', error);
+      res.status(500).json({ error: "Failed to create shift report" });
+    }
+  });
+
+  app.patch("/api/data-entry/shifts/:id", async (req, res) => {
+    try {
+      const shift = await storage.updateShiftReport(req.params.id, req.body);
+      if (!shift) {
+        return res.status(404).json({ error: "Shift report not found" });
+      }
+      res.json(shift);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error updating shift report:', error);
+      res.status(500).json({ error: "Failed to update shift report" });
+    }
+  });
+
+  app.patch("/api/data-entry/shifts/:id/close", async (req, res) => {
+    try {
+      const { endTime } = req.body;
+      if (!endTime) {
+        return res.status(400).json({ error: "End time is required" });
+      }
+      
+      const shift = await storage.closeShiftReport(req.params.id, new Date(endTime));
+      if (!shift) {
+        return res.status(404).json({ error: "Shift report not found" });
+      }
+      res.json(shift);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error closing shift report:', error);
+      res.status(500).json({ error: "Failed to close shift report" });
+    }
+  });
+
+  app.get("/api/data-entry/shifts/:id/summary", async (req, res) => {
+    try {
+      const summary = await storage.getShiftSummary(req.params.id);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error fetching shift summary:', error);
+      res.status(500).json({ error: "Failed to fetch shift summary" });
+    }
+  });
+
+  // Operator Sessions endpoints
+  app.get("/api/data-entry/sessions", async (req, res) => {
+    try {
+      const sessions = await storage.getAllOperatorSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error fetching operator sessions:', error);
+      res.status(500).json({ error: "Failed to fetch operator sessions" });
+    }
+  });
+
+  app.get("/api/data-entry/sessions/active", async (req, res) => {
+    try {
+      const sessions = await storage.getActiveOperatorSessions();
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error fetching active operator sessions:', error);
+      res.status(500).json({ error: "Failed to fetch active operator sessions" });
+    }
+  });
+
+  app.get("/api/data-entry/sessions/:id", async (req, res) => {
+    try {
+      const session = await storage.getOperatorSession(req.params.id);
+      if (!session) {
+        return res.status(404).json({ error: "Operator session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      console.error('Error fetching operator session:', error);
+      res.status(500).json({ error: "Failed to fetch operator session" });
+    }
+  });
+
+  app.post("/api/data-entry/sessions", async (req, res) => {
+    try {
+      const validation = insertOperatorSessionSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid operator session data", details: validation.error });
+      }
+      
+      // Validate assignment
+      const isValidAssignment = await storage.validateOperatorSession(
+        validation.data.operatorId, 
+        validation.data.machineId, 
+        validation.data.workOrderId
+      );
+      
+      if (!isValidAssignment) {
+        return res.status(409).json({ error: "Invalid operator session assignment - conflicts detected" });
+      }
+      
+      const session = await storage.createOperatorSession(validation.data);
+      res.status(201).json(session);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error creating operator session:', error);
+      res.status(500).json({ error: "Failed to create operator session" });
+    }
+  });
+
+  app.patch("/api/data-entry/sessions/:id", async (req, res) => {
+    try {
+      const session = await storage.updateOperatorSession(req.params.id, req.body);
+      if (!session) {
+        return res.status(404).json({ error: "Operator session not found" });
+      }
+      res.json(session);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error updating operator session:', error);
+      res.status(500).json({ error: "Failed to update operator session" });
+    }
+  });
+
+  app.patch("/api/data-entry/sessions/:id/end", async (req, res) => {
+    try {
+      const { endTime } = req.body;
+      const session = await storage.endOperatorSession(req.params.id, new Date(endTime || new Date()));
+      if (!session) {
+        return res.status(404).json({ error: "Operator session not found" });
+      }
+      res.json(session);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error ending operator session:', error);
+      res.status(500).json({ error: "Failed to end operator session" });
+    }
+  });
+
+  // Production logs with enhanced validation
+  app.post("/api/data-entry/production", async (req, res) => {
+    try {
+      const validation = insertProductionLogSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid production log data", details: validation.error });
+      }
+      
+      // Validate quantity doesn't exceed work order limits
+      const quantityValidation = await storage.validateProductionQuantity(
+        validation.data.workOrderId,
+        validation.data.quantityProduced
+      );
+      
+      if (!quantityValidation.isValid) {
+        return res.status(409).json({ 
+          error: "Production quantity exceeds work order remaining quantity",
+          remainingQuantity: quantityValidation.remainingQuantity
+        });
+      }
+      
+      const log = await storage.createProductionLog(validation.data);
+      res.status(201).json(log);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error creating production log:', error);
+      res.status(500).json({ error: "Failed to create production log" });
+    }
+  });
+
+  // Reason Codes endpoints
+  app.get("/api/data-entry/reason-codes", async (req, res) => {
+    try {
+      const reasonCodes = await storage.getAllReasonCodes();
+      res.json(reasonCodes);
+    } catch (error) {
+      console.error('Error fetching reason codes:', error);
+      res.status(500).json({ error: "Failed to fetch reason codes" });
+    }
+  });
+
+  app.get("/api/data-entry/reason-codes/active", async (req, res) => {
+    try {
+      const reasonCodes = await storage.getActiveReasonCodes();
+      res.json(reasonCodes);
+    } catch (error) {
+      console.error('Error fetching active reason codes:', error);
+      res.status(500).json({ error: "Failed to fetch active reason codes" });
+    }
+  });
+
+  app.get("/api/data-entry/reason-codes/category/:category", async (req, res) => {
+    try {
+      const reasonCodes = await storage.getReasonCodesByCategory(req.params.category);
+      res.json(reasonCodes);
+    } catch (error) {
+      console.error('Error fetching reason codes by category:', error);
+      res.status(500).json({ error: "Failed to fetch reason codes by category" });
+    }
+  });
+
+  app.post("/api/data-entry/reason-codes", async (req, res) => {
+    try {
+      const validation = insertReasonCodeSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid reason code data", details: validation.error });
+      }
+      
+      const reasonCode = await storage.createReasonCode(validation.data);
+      res.status(201).json(reasonCode);
+    } catch (error) {
+      console.error('Error creating reason code:', error);
+      res.status(500).json({ error: "Failed to create reason code" });
+    }
+  });
+
+  app.patch("/api/data-entry/reason-codes/:id", async (req, res) => {
+    try {
+      const reasonCode = await storage.updateReasonCode(req.params.id, req.body);
+      if (!reasonCode) {
+        return res.status(404).json({ error: "Reason code not found" });
+      }
+      res.json(reasonCode);
+    } catch (error) {
+      console.error('Error updating reason code:', error);
+      res.status(500).json({ error: "Failed to update reason code" });
+    }
+  });
+
+  app.delete("/api/data-entry/reason-codes/:id", async (req, res) => {
+    try {
+      await storage.deleteReasonCode(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting reason code:', error);
+      res.status(500).json({ error: "Failed to delete reason code" });
+    }
+  });
+
+  // Scrap Logs endpoints
+  app.get("/api/data-entry/scrap", async (req, res) => {
+    try {
+      const scrapLogs = await storage.getAllScrapLogs();
+      res.json(scrapLogs);
+    } catch (error) {
+      console.error('Error fetching scrap logs:', error);
+      res.status(500).json({ error: "Failed to fetch scrap logs" });
+    }
+  });
+
+  app.get("/api/data-entry/scrap/work-order/:workOrderId", async (req, res) => {
+    try {
+      const scrapLogs = await storage.getScrapLogsByWorkOrder(req.params.workOrderId);
+      res.json(scrapLogs);
+    } catch (error) {
+      console.error('Error fetching scrap logs by work order:', error);
+      res.status(500).json({ error: "Failed to fetch scrap logs by work order" });
+    }
+  });
+
+  app.post("/api/data-entry/scrap", async (req, res) => {
+    try {
+      const validation = insertScrapLogSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid scrap log data", details: validation.error });
+      }
+      
+      const scrapLog = await storage.createScrapLog(validation.data);
+      res.status(201).json(scrapLog);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error creating scrap log:', error);
+      res.status(500).json({ error: "Failed to create scrap log" });
+    }
+  });
+
+  app.patch("/api/data-entry/scrap/:id/verify", async (req, res) => {
+    try {
+      const { verifiedBy } = req.body;
+      if (!verifiedBy) {
+        return res.status(400).json({ error: "verifiedBy is required" });
+      }
+      
+      const scrapLog = await storage.verifyScrapLog(req.params.id, verifiedBy);
+      if (!scrapLog) {
+        return res.status(404).json({ error: "Scrap log not found" });
+      }
+      res.json(scrapLog);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error verifying scrap log:', error);
+      res.status(500).json({ error: "Failed to verify scrap log" });
+    }
+  });
+
+  // Data Entry validation utilities
+  app.post("/api/data-entry/validate/work-order-assignment", async (req, res) => {
+    try {
+      const { workOrderId, machineId } = req.body;
+      if (!workOrderId || !machineId) {
+        return res.status(400).json({ error: "workOrderId and machineId are required" });
+      }
+      
+      const isValid = await storage.validateWorkOrderAssignment(workOrderId, machineId);
+      res.json({ isValid });
+    } catch (error) {
+      console.error('Error validating work order assignment:', error);
+      res.status(500).json({ error: "Failed to validate work order assignment" });
+    }
+  });
+
+  app.post("/api/data-entry/validate/operator-session", async (req, res) => {
+    try {
+      const { operatorId, machineId, workOrderId } = req.body;
+      if (!operatorId || !machineId || !workOrderId) {
+        return res.status(400).json({ error: "operatorId, machineId, and workOrderId are required" });
+      }
+      
+      const isValid = await storage.validateOperatorSession(operatorId, machineId, workOrderId);
+      res.json({ isValid });
+    } catch (error) {
+      console.error('Error validating operator session:', error);
+      res.status(500).json({ error: "Failed to validate operator session" });
+    }
+  });
+
+  app.post("/api/data-entry/validate/production-quantity", async (req, res) => {
+    try {
+      const { workOrderId, quantityToAdd } = req.body;
+      if (!workOrderId || quantityToAdd === undefined) {
+        return res.status(400).json({ error: "workOrderId and quantityToAdd are required" });
+      }
+      
+      const validation = await storage.validateProductionQuantity(workOrderId, quantityToAdd);
+      res.json(validation);
+    } catch (error) {
+      console.error('Error validating production quantity:', error);
+      res.status(500).json({ error: "Failed to validate production quantity" });
     }
   });
 

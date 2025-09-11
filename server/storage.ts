@@ -22,7 +22,11 @@ import {
   type ResourceReservation, type InsertResourceReservation,
   type Scenario, type InsertScenario,
   type SchedulingPolicy, type SchedulingConflict,
-  type ShiftDefinition
+  type ShiftDefinition,
+  type ShiftReport, type InsertShiftReport,
+  type OperatorSession, type InsertOperatorSession,
+  type ReasonCode, type InsertReasonCode,
+  type ScrapLog, type InsertScrapLog
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { ProductionScheduler } from "./scheduling";
@@ -195,6 +199,57 @@ export interface IStorage {
   getPublicScenarios(): Promise<Scenario[]>;
   runScenario(id: string): Promise<Scenario>;
   deleteScenario(id: string): Promise<void>;
+
+  // Data Entry Module operations
+  // Shift Reports operations
+  getAllShiftReports(): Promise<ShiftReport[]>;
+  getShiftReport(id: string): Promise<ShiftReport | undefined>;
+  createShiftReport(shift: InsertShiftReport): Promise<ShiftReport>;
+  updateShiftReport(id: string, updates: Partial<ShiftReport>): Promise<ShiftReport | undefined>;
+  getActiveShiftReports(): Promise<ShiftReport[]>;
+  getShiftReportsByDate(date: Date): Promise<ShiftReport[]>;
+  closeShiftReport(id: string, endTime: Date): Promise<ShiftReport | undefined>;
+
+  // Operator Sessions operations
+  getAllOperatorSessions(): Promise<OperatorSession[]>;
+  getOperatorSession(id: string): Promise<OperatorSession | undefined>;
+  createOperatorSession(session: InsertOperatorSession): Promise<OperatorSession>;
+  updateOperatorSession(id: string, updates: Partial<OperatorSession>): Promise<OperatorSession | undefined>;
+  getActiveOperatorSessions(): Promise<OperatorSession[]>;
+  getOperatorSessionsByShift(shiftId: string): Promise<OperatorSession[]>;
+  getOperatorSessionsByOperator(operatorId: string): Promise<OperatorSession[]>;
+  endOperatorSession(id: string, endTime: Date): Promise<OperatorSession | undefined>;
+
+  // Reason Codes operations
+  getAllReasonCodes(): Promise<ReasonCode[]>;
+  getReasonCode(id: string): Promise<ReasonCode | undefined>;
+  createReasonCode(reasonCode: InsertReasonCode): Promise<ReasonCode>;
+  updateReasonCode(id: string, updates: Partial<ReasonCode>): Promise<ReasonCode | undefined>;
+  getReasonCodesByCategory(category: string): Promise<ReasonCode[]>;
+  getActiveReasonCodes(): Promise<ReasonCode[]>;
+  deleteReasonCode(id: string): Promise<void>;
+
+  // Scrap Logs operations
+  getAllScrapLogs(): Promise<ScrapLog[]>;
+  getScrapLog(id: string): Promise<ScrapLog | undefined>;
+  createScrapLog(scrapLog: InsertScrapLog): Promise<ScrapLog>;
+  updateScrapLog(id: string, updates: Partial<ScrapLog>): Promise<ScrapLog | undefined>;
+  getScrapLogsByWorkOrder(workOrderId: string): Promise<ScrapLog[]>;
+  getScrapLogsByShift(shiftId: string): Promise<ScrapLog[]>;
+  getScrapLogsByOperator(operatorId: string): Promise<ScrapLog[]>;
+  verifyScrapLog(id: string, verifiedBy: string): Promise<ScrapLog | undefined>;
+
+  // Data Entry validation utilities
+  validateWorkOrderAssignment(workOrderId: string, machineId: string): Promise<boolean>;
+  validateOperatorSession(operatorId: string, machineId: string, workOrderId: string): Promise<boolean>;
+  validateProductionQuantity(workOrderId: string, quantityToAdd: number): Promise<{ isValid: boolean; remainingQuantity: number; }>;
+  getShiftSummary(shiftId: string): Promise<{
+    totalProduced: number;
+    totalScrap: number;
+    totalDowntime: number;
+    efficiency: number;
+    activeSessions: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {

@@ -134,10 +134,90 @@ export const productionLogs = pgTable("production_logs", {
   machineId: varchar("machine_id").notNull(),
   workOrderId: varchar("work_order_id").notNull(),
   quantityProduced: integer("quantity_produced").notNull(),
+  quantityScrap: integer("quantity_scrap").default(0),
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   shiftId: varchar("shift_id"),
   operatorId: varchar("operator_id").notNull(),
   cycleTime: real("cycle_time"), // in minutes
+  operatorSessionId: varchar("operator_session_id"),
+  batchNumber: text("batch_number"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Data Entry Module Tables
+export const shiftReports = pgTable("shift_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  shiftDate: timestamp("shift_date").notNull(),
+  shiftType: text("shift_type").notNull(), // day, evening, night
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  supervisorId: varchar("supervisor_id").notNull(),
+  operatorIds: jsonb("operator_ids").notNull(), // Array of operator IDs
+  machineIds: jsonb("machine_ids").notNull(), // Array of assigned machine IDs
+  workOrderIds: jsonb("work_order_ids"), // Array of work orders worked on
+  totalProduced: integer("total_produced").default(0),
+  totalScrap: integer("total_scrap").default(0),
+  totalDowntimeMinutes: integer("total_downtime_minutes").default(0),
+  efficiency: real("efficiency").default(0), // Calculated efficiency percentage
+  notes: text("notes"),
+  status: text("status").notNull().default("active"), // active, completed, archived
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const operatorSessions = pgTable("operator_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: varchar("operator_id").notNull(),
+  machineId: varchar("machine_id").notNull(),
+  workOrderId: varchar("work_order_id").notNull(),
+  shiftId: varchar("shift_id").notNull(),
+  sessionStart: timestamp("session_start").notNull(),
+  sessionEnd: timestamp("session_end"),
+  setupTime: integer("setup_time_minutes").default(0),
+  runTime: integer("run_time_minutes").default(0),
+  downTime: integer("down_time_minutes").default(0),
+  quantityProduced: integer("quantity_produced").default(0),
+  quantityScrap: integer("quantity_scrap").default(0),
+  avgCycleTime: real("avg_cycle_time"), // in minutes
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const reasonCodes = pgTable("reason_codes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  code: text("code").notNull().unique(), // Short code like "BRK", "MAT", "QUA"
+  category: text("category").notNull(), // downtime, scrap, quality, setup
+  subcategory: text("subcategory"), // specific type within category
+  description: text("description").notNull(),
+  requiresComment: boolean("requires_comment").default(false),
+  isActive: boolean("is_active").default(true),
+  severity: text("severity").default("medium"), // low, medium, high, critical
+  impactType: text("impact_type").notNull(), // availability, performance, quality
+  createdBy: varchar("created_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const scrapLogs = pgTable("scrap_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  workOrderId: varchar("work_order_id").notNull(),
+  machineId: varchar("machine_id").notNull(),
+  operatorId: varchar("operator_id").notNull(),
+  operatorSessionId: varchar("operator_session_id"),
+  shiftId: varchar("shift_id"),
+  quantity: integer("quantity").notNull(),
+  reasonCodeId: varchar("reason_code_id").notNull(),
+  reasonComment: text("reason_comment"),
+  partStage: text("part_stage"), // raw, in_progress, finished
+  recoverable: boolean("recoverable").default(false),
+  cost: real("cost"), // Estimated scrap cost
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  reportedBy: varchar("reported_by").notNull(),
+  verifiedBy: varchar("verified_by"),
+  verifiedAt: timestamp("verified_at"),
+  disposition: text("disposition"), // scrap, rework, return_to_vendor
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -200,6 +280,29 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
   createdAt: true,
 });
 
+// Data Entry Module Insert Schemas
+export const insertShiftReportSchema = createInsertSchema(shiftReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOperatorSessionSchema = createInsertSchema(operatorSessions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertReasonCodeSchema = createInsertSchema(reasonCodes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertScrapLogSchema = createInsertSchema(scrapLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 
 
 // Types
@@ -226,6 +329,19 @@ export type InsertProductionLog = z.infer<typeof insertProductionLogSchema>;
 
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
+
+// Data Entry Module Types
+export type ShiftReport = typeof shiftReports.$inferSelect;
+export type InsertShiftReport = z.infer<typeof insertShiftReportSchema>;
+
+export type OperatorSession = typeof operatorSessions.$inferSelect;
+export type InsertOperatorSession = z.infer<typeof insertOperatorSessionSchema>;
+
+export type ReasonCode = typeof reasonCodes.$inferSelect;
+export type InsertReasonCode = z.infer<typeof insertReasonCodeSchema>;
+
+export type ScrapLog = typeof scrapLogs.$inferSelect;
+export type InsertScrapLog = z.infer<typeof insertScrapLogSchema>;
 
 
 
