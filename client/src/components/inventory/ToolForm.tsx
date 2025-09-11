@@ -9,16 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { insertInventoryToolSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 const toolFormSchema = insertInventoryToolSchema.omit({ 
-  id: true, 
-  sku: true, 
-  createdAt: true, 
-  updatedAt: true 
+  sku: true 
 });
 
 type ToolFormData = z.infer<typeof toolFormSchema>;
@@ -458,14 +456,14 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
         </Card>
       </div>
 
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onSuccess}>
+      <ScrollableDialogFooter>
+        <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
           Cancel
         </Button>
-        <Button type="submit" disabled={mutation.isPending}>
+        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
           {mutation.isPending ? "Adding..." : "Add Tool"}
         </Button>
-      </div>
+      </ScrollableDialogFooter>
     </form>
   );
 }

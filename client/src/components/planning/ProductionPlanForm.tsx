@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
@@ -437,7 +438,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
         )}
 
         {/* Navigation Footer */}
-        <div className="flex items-center justify-between pt-6 border-t">
+        <ScrollableDialogFooter className="flex items-center justify-between pt-6 border-t">
           <div className="flex space-x-2">
             <Button
               type="button"
@@ -504,7 +505,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
               )}
             </div>
           </div>
-        </div>
+        </ScrollableDialogFooter>
       </form>
     </div>
   );

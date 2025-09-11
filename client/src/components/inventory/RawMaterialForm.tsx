@@ -9,16 +9,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { insertRawMaterialSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { GeometryCalculator } from "./GeometryCalculator";
 
 const rawMaterialFormSchema = insertRawMaterialSchema.omit({ 
-  id: true, 
-  sku: true, 
-  createdAt: true, 
-  updatedAt: true 
+  sku: true 
 });
 
 type RawMaterialFormData = z.infer<typeof rawMaterialFormSchema>;
@@ -88,7 +86,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
     const formData = {
       ...data,
       sku,
-      currentStock: 0, // New inventory starts with 0 stock
+      currentStock: 0 // New inventory starts with 0 stock
     };
     mutation.mutate(formData);
   };
@@ -393,10 +391,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       <GeometryCalculator
         shape={form.watch("shape")}
         materialType={form.watch("materialType")}
-        diameter={form.watch("diameter")}
-        thickness={form.watch("thickness")}
-        width={form.watch("width")}
-        length={form.watch("length")}
+        diameter={form.watch("diameter") || 0}
+        thickness={form.watch("thickness") || 0}
+        width={form.watch("width") || 0}
+        length={form.watch("length") || 0}
         quantity={1}
       />
 
@@ -502,14 +500,14 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
         </Card>
       </div>
 
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline" onClick={onSuccess}>
+      <ScrollableDialogFooter>
+        <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
           Cancel
         </Button>
-        <Button type="submit" disabled={mutation.isPending}>
+        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
           {mutation.isPending ? "Adding..." : "Add Material"}
         </Button>
-      </div>
+      </ScrollableDialogFooter>
     </form>
   );
 }

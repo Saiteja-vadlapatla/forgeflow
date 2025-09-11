@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollableDialog, ScrollableDialogContent, ScrollableDialogHeader, ScrollableDialogTitle, ScrollableDialogTrigger } from "@/components/ui/scrollable-dialog";
 import { ProductionPlan, CapacityPlanning, Machine } from "@shared/schema";
 import { ProductionPlanForm } from "@/components/planning/ProductionPlanForm";
 import { CapacityPlanningChart } from "@/components/planning/CapacityPlanningChart";
 import { SchedulingModule } from "@/components/planning/SchedulingModule";
+import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 
 interface CapacityData {
   machineId: string;
@@ -105,27 +106,28 @@ export function ProductionPlanningPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <ResponsiveLayout isConnected={true}>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Production Planning</h1>
           <p className="text-gray-600">Plan and optimize manufacturing schedules and capacity</p>
         </div>
-        <Dialog open={isCreatingPlan} onOpenChange={setIsCreatingPlan}>
-          <DialogTrigger asChild>
-            <Button>
+        <ScrollableDialog open={isCreatingPlan} onOpenChange={setIsCreatingPlan}>
+          <ScrollableDialogTrigger asChild>
+            <Button data-testid="button-create-plan">
               <Plus className="h-4 w-4 mr-2" />
               Create Plan
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl">
-            <DialogHeader>
-              <DialogTitle>Create Production Plan</DialogTitle>
-            </DialogHeader>
+          </ScrollableDialogTrigger>
+          <ScrollableDialogContent className="max-w-4xl">
+            <ScrollableDialogHeader>
+              <ScrollableDialogTitle>Create Production Plan</ScrollableDialogTitle>
+            </ScrollableDialogHeader>
             <ProductionPlanForm onSuccess={() => setIsCreatingPlan(false)} />
-          </DialogContent>
-        </Dialog>
+          </ScrollableDialogContent>
+        </ScrollableDialog>
       </div>
 
       {/* Overview Cards */}
@@ -376,6 +378,7 @@ export function ProductionPlanningPage() {
           <SchedulingModule />
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </ResponsiveLayout>
   );
 }

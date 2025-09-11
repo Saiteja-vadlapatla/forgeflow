@@ -61,6 +61,8 @@ const ScrollableDialogContent = React.forwardRef<
         <div className="flex-1 overflow-y-auto px-6">
           <div className="min-h-0">
             {children}
+            {/* Add default description for accessibility if none provided */}
+            <DefaultDialogDescription />
           </div>
         </div>
         
@@ -148,6 +150,13 @@ const ScrollableDialogDescription = React.forwardRef<
   />
 ))
 ScrollableDialogDescription.displayName = DialogPrimitive.Description.displayName
+
+// Default hidden description for accessibility
+const DefaultDialogDescription = () => (
+  <ScrollableDialogDescription className="sr-only">
+    Dialog content
+  </ScrollableDialogDescription>
+)
 
 export {
   ScrollableDialog,

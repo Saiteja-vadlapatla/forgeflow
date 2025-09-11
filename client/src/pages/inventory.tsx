@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollableDialog, ScrollableDialogContent, ScrollableDialogHeader, ScrollableDialogTitle, ScrollableDialogTrigger } from "@/components/ui/scrollable-dialog";
 import { RawMaterial, InventoryTool } from "@shared/schema";
 import { RawMaterialForm } from "@/components/inventory/RawMaterialForm";
 import { ToolForm } from "@/components/inventory/ToolForm";
 import { InventoryUpdateDialog } from "@/components/inventory/InventoryUpdateDialog";
+import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 
 export function InventoryPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,7 +56,8 @@ export function InventoryPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <ResponsiveLayout isConnected={true}>
+      <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -121,20 +123,20 @@ export function InventoryPage() {
         <TabsContent value="materials" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Raw Materials Inventory</h2>
-            <Dialog open={isAddingMaterial} onOpenChange={setIsAddingMaterial}>
-              <DialogTrigger asChild>
-                <Button>
+            <ScrollableDialog open={isAddingMaterial} onOpenChange={setIsAddingMaterial}>
+              <ScrollableDialogTrigger asChild>
+                <Button data-testid="button-add-material">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Material
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add Raw Material</DialogTitle>
-                </DialogHeader>
+              </ScrollableDialogTrigger>
+              <ScrollableDialogContent className="max-w-4xl">
+                <ScrollableDialogHeader>
+                  <ScrollableDialogTitle>Add Raw Material</ScrollableDialogTitle>
+                </ScrollableDialogHeader>
                 <RawMaterialForm onSuccess={() => setIsAddingMaterial(false)} />
-              </DialogContent>
-            </Dialog>
+              </ScrollableDialogContent>
+            </ScrollableDialog>
           </div>
 
           {materialsLoading ? (
@@ -217,20 +219,20 @@ export function InventoryPage() {
         <TabsContent value="tools" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Tools Inventory</h2>
-            <Dialog open={isAddingTool} onOpenChange={setIsAddingTool}>
-              <DialogTrigger asChild>
-                <Button>
+            <ScrollableDialog open={isAddingTool} onOpenChange={setIsAddingTool}>
+              <ScrollableDialogTrigger asChild>
+                <Button data-testid="button-add-tool">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Tool
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Add Tool</DialogTitle>
-                </DialogHeader>
+              </ScrollableDialogTrigger>
+              <ScrollableDialogContent className="max-w-4xl">
+                <ScrollableDialogHeader>
+                  <ScrollableDialogTitle>Add Tool</ScrollableDialogTitle>
+                </ScrollableDialogHeader>
                 <ToolForm onSuccess={() => setIsAddingTool(false)} />
-              </DialogContent>
-            </Dialog>
+              </ScrollableDialogContent>
+            </ScrollableDialog>
           </div>
 
           {toolsLoading ? (
@@ -321,6 +323,7 @@ export function InventoryPage() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </ResponsiveLayout>
   );
 }
