@@ -9,6 +9,7 @@ import MachineOperationsPage from "@/pages/machine-operations";
 import QualityControlPage from "@/pages/quality-control";
 import { InventoryPage } from "@/pages/inventory";
 import { ProductionPlanningPage } from "@/pages/production-planning";
+import { CapacityPlanningPage } from "@/pages/capacity-planning";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/quality-control" component={QualityControlPage} />
       <Route path="/inventory" component={InventoryPage} />
       <Route path="/production-planning" component={ProductionPlanningPage} />
+      <Route path="/capacity-planning" component={CapacityPlanningPage} />
       <Route component={NotFound} />
     </Switch>
   );

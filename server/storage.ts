@@ -15,6 +15,12 @@ import {
   type SetupMatrix, type InsertSetupMatrix,
   type CapacityBucket, type InsertCapacityBucket,
   type ShiftEntry, type InsertShiftEntry,
+  type SetupGroup, type InsertSetupGroup,
+  type OperatorSkill, type InsertOperatorSkill,
+  type ToolResource, type InsertToolResource,
+  type MaterialAvailability, type InsertMaterialAvailability,
+  type ResourceReservation, type InsertResourceReservation,
+  type Scenario, type InsertScenario,
   type SchedulingPolicy, type SchedulingConflict,
   type ShiftDefinition
 } from "@shared/schema";
@@ -131,6 +137,60 @@ export interface IStorage {
     scheduleSlots: ScheduleSlot[],
     conflicts: SchedulingConflict[]
   }>;
+
+  // Setup Groups operations
+  getAllSetupGroups(): Promise<SetupGroup[]>;
+  getSetupGroup(id: string): Promise<SetupGroup | undefined>;
+  createSetupGroup(setupGroup: InsertSetupGroup): Promise<SetupGroup>;
+  updateSetupGroup(id: string, updates: Partial<SetupGroup>): Promise<SetupGroup | undefined>;
+  deleteSetupGroup(id: string): Promise<void>;
+
+  // Operator Skills operations  
+  getAllOperatorSkills(): Promise<OperatorSkill[]>;
+  getOperatorSkill(id: string): Promise<OperatorSkill | undefined>;
+  createOperatorSkill(skill: InsertOperatorSkill): Promise<OperatorSkill>;
+  updateOperatorSkill(id: string, updates: Partial<OperatorSkill>): Promise<OperatorSkill | undefined>;
+  getOperatorSkillsByOperator(operatorId: string): Promise<OperatorSkill[]>;
+  getOperatorsBySkillType(skillType: string): Promise<OperatorSkill[]>;
+  deleteOperatorSkill(id: string): Promise<void>;
+
+  // Tool Resources operations
+  getAllToolResources(): Promise<ToolResource[]>;
+  getToolResource(id: string): Promise<ToolResource | undefined>;
+  createToolResource(resource: InsertToolResource): Promise<ToolResource>;
+  updateToolResource(id: string, updates: Partial<ToolResource>): Promise<ToolResource | undefined>;
+  getToolResourcesByLocation(location: string): Promise<ToolResource[]>;
+  getAvailableToolResources(toolId: string): Promise<ToolResource[]>;
+  deleteToolResource(id: string): Promise<void>;
+
+  // Material Availability operations
+  getAllMaterialAvailability(): Promise<MaterialAvailability[]>;
+  getMaterialAvailability(id: string): Promise<MaterialAvailability | undefined>;
+  createMaterialAvailability(availability: InsertMaterialAvailability): Promise<MaterialAvailability>;
+  updateMaterialAvailability(id: string, updates: Partial<MaterialAvailability>): Promise<MaterialAvailability | undefined>;
+  getMaterialAvailabilityByWorkOrder(workOrderId: string): Promise<MaterialAvailability[]>;
+  getMaterialAvailabilityByMaterial(materialId: string): Promise<MaterialAvailability[]>;
+  deleteMaterialAvailability(id: string): Promise<void>;
+
+  // Resource Reservations operations
+  getAllResourceReservations(): Promise<ResourceReservation[]>;
+  getResourceReservation(id: string): Promise<ResourceReservation | undefined>;
+  createResourceReservation(reservation: InsertResourceReservation): Promise<ResourceReservation>;
+  updateResourceReservation(id: string, updates: Partial<ResourceReservation>): Promise<ResourceReservation | undefined>;
+  getResourceReservationsByWorkOrder(workOrderId: string): Promise<ResourceReservation[]>;
+  getResourceReservationsByResource(resourceType: string, resourceId: string): Promise<ResourceReservation[]>;
+  getActiveResourceReservations(): Promise<ResourceReservation[]>;
+  deleteResourceReservation(id: string): Promise<void>;
+
+  // Scenarios operations
+  getAllScenarios(): Promise<Scenario[]>;
+  getScenario(id: string): Promise<Scenario | undefined>;
+  createScenario(scenario: InsertScenario): Promise<Scenario>;
+  updateScenario(id: string, updates: Partial<Scenario>): Promise<Scenario | undefined>;
+  getScenariosByCreator(creatorId: string): Promise<Scenario[]>;
+  getPublicScenarios(): Promise<Scenario[]>;
+  runScenario(id: string): Promise<Scenario>;
+  deleteScenario(id: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -154,6 +214,14 @@ export class MemStorage implements IStorage {
   private setupMatrix: Map<string, SetupMatrix>;
   private capacityBuckets: Map<string, CapacityBucket>;
   private shiftEntries: Map<string, ShiftEntry>;
+  
+  // New capacity planning storage
+  private setupGroups: Map<string, SetupGroup>;
+  private operatorSkills: Map<string, OperatorSkill>;
+  private toolResources: Map<string, ToolResource>;
+  private materialAvailability: Map<string, MaterialAvailability>;
+  private resourceReservations: Map<string, ResourceReservation>;
+  private scenarios: Map<string, Scenario>;
 
   constructor() {
     this.users = new Map();
@@ -176,6 +244,14 @@ export class MemStorage implements IStorage {
     this.setupMatrix = new Map();
     this.capacityBuckets = new Map();
     this.shiftEntries = new Map();
+    
+    // Initialize new capacity planning storage
+    this.setupGroups = new Map();
+    this.operatorSkills = new Map();
+    this.toolResources = new Map();
+    this.materialAvailability = new Map();
+    this.resourceReservations = new Map();
+    this.scenarios = new Map();
 
     this.initializeTestData();
   }
@@ -816,6 +892,413 @@ export class MemStorage implements IStorage {
       },
     ];
     operations.forEach(op => this.operations.set(op.id, op));
+
+    // Sample Operator Skills
+    const operatorSkills: OperatorSkill[] = [
+      {
+        id: "skill-1",
+        operatorId: "op-001",
+        operatorName: "John Smith",
+        skillType: "CNC_OPERATOR",
+        skillLevel: 4,
+        certificationDate: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000),
+        expirationDate: new Date(Date.now() + 540 * 24 * 60 * 60 * 1000),
+        trainerId: "trainer-001",
+        notes: "Certified on Mazak and Haas machines",
+        isActive: true,
+        hourlyRate: 28.50,
+        maxHoursPerWeek: 40,
+        shiftPreference: "day",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "skill-2",
+        operatorId: "op-002",
+        operatorName: "Sarah Johnson",
+        skillType: "CNC_OPERATOR",
+        skillLevel: 5,
+        certificationDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000),
+        expirationDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        trainerId: "trainer-001",
+        notes: "Expert level - can train others",
+        isActive: true,
+        hourlyRate: 32.00,
+        maxHoursPerWeek: 50,
+        shiftPreference: "day",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "skill-3",
+        operatorId: "op-003",
+        operatorName: "Mike Chen",
+        skillType: "EDM_OPERATOR",
+        skillLevel: 3,
+        certificationDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000),
+        expirationDate: new Date(Date.now() + 630 * 24 * 60 * 60 * 1000),
+        trainerId: "trainer-002",
+        notes: "Specialized in wire EDM operations",
+        isActive: true,
+        hourlyRate: 30.00,
+        maxHoursPerWeek: 40,
+        shiftPreference: "evening",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "skill-4",
+        operatorId: "op-004",
+        operatorName: "Lisa Brown",
+        skillType: "GRINDING_OPERATOR",
+        skillLevel: 4,
+        certificationDate: new Date(Date.now() - 200 * 24 * 60 * 60 * 1000),
+        expirationDate: new Date(Date.now() + 520 * 24 * 60 * 60 * 1000),
+        trainerId: "trainer-003",
+        notes: "Surface and cylindrical grinding certified",
+        isActive: true,
+        hourlyRate: 26.00,
+        maxHoursPerWeek: 40,
+        shiftPreference: "day",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    operatorSkills.forEach(skill => this.operatorSkills.set(skill.id, skill));
+
+    // Sample Tool Resources
+    const toolResources: ToolResource[] = [
+      {
+        id: "tool-res-1",
+        toolId: "T001",
+        toolDescription: "Rough Turning Insert CNMG-432",
+        location: "Tool Crib A",
+        totalQuantity: 50,
+        availableQuantity: 35,
+        reservedQuantity: 10,
+        minimumQuantity: 15,
+        unitCost: 12.50,
+        supplierName: "Sandvik",
+        supplierPartNumber: "CNMG 12 04 08-PM 4315",
+        expectedDeliveryDays: 5,
+        lastInventoryDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        status: "available",
+        machineCompatibility: ["machine-1", "machine-2"],
+        notes: "Standard carbide inserts for steel",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "tool-res-2",
+        toolId: "M012",
+        toolDescription: "End Mill 12mm 4-Flute Carbide",
+        location: "Tool Crib A",
+        totalQuantity: 25,
+        availableQuantity: 12,
+        reservedQuantity: 8,
+        minimumQuantity: 10,
+        unitCost: 45.00,
+        supplierName: "Kennametal",
+        supplierPartNumber: "B4C12050040",
+        expectedDeliveryDays: 3,
+        lastInventoryDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        status: "low_stock",
+        machineCompatibility: ["machine-2"],
+        notes: "High-performance end mills for aluminum",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "tool-res-3",
+        toolId: "WIRE-0.25",
+        toolDescription: "EDM Wire 0.25mm Brass",
+        location: "EDM Area",
+        totalQuantity: 500,
+        availableQuantity: 275,
+        reservedQuantity: 100,
+        minimumQuantity: 100,
+        unitCost: 1.25,
+        supplierName: "Berkenhoff",
+        supplierPartNumber: "BEDRA-25",
+        expectedDeliveryDays: 10,
+        lastInventoryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        status: "available",
+        machineCompatibility: ["machine-4"],
+        notes: "Premium brass wire for precision cutting",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    toolResources.forEach(tool => this.toolResources.set(tool.id, tool));
+
+    // Sample Material Availability
+    const materialAvailability: MaterialAvailability[] = [
+      {
+        id: "mat-avail-1",
+        workOrderId: "wo-1",
+        materialId: "STL-4140-50X150X300",
+        materialDescription: "Steel 4140 Bar 50x150x300mm",
+        requiredQuantity: 5,
+        availableQuantity: 12,
+        reservedQuantity: 3,
+        shortfallQuantity: 0,
+        unitOfMeasure: "pieces",
+        estimatedArrivalDate: null,
+        supplierName: "Steel Supply Co",
+        status: "available",
+        location: "Warehouse A-1",
+        lastUpdated: now,
+        notes: "Standard steel bar stock",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "mat-avail-2",
+        workOrderId: "wo-2",
+        materialId: "ALU-6061-60X80X220",
+        materialDescription: "Aluminum 6061-T6 Block 60x80x220mm",
+        requiredQuantity: 3,
+        availableQuantity: 1,
+        reservedQuantity: 1,
+        shortfallQuantity: 2,
+        unitOfMeasure: "pieces",
+        estimatedArrivalDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        supplierName: "Aluminum Plus",
+        status: "shortage",
+        location: "Warehouse A-2",
+        lastUpdated: now,
+        notes: "Rush order placed for additional stock",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "mat-avail-3",
+        workOrderId: "wo-3",
+        materialId: "D2-25X100X150",
+        materialDescription: "Tool Steel D2 Plate 25x100x150mm",
+        requiredQuantity: 2,
+        availableQuantity: 8,
+        reservedQuantity: 2,
+        shortfallQuantity: 0,
+        unitOfMeasure: "pieces",
+        estimatedArrivalDate: null,
+        supplierName: "Specialty Steels",
+        status: "available",
+        location: "Tool Steel Storage",
+        lastUpdated: now,
+        notes: "Premium tool steel for EDM operations",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    materialAvailability.forEach(mat => this.materialAvailability.set(mat.id, mat));
+
+    // Sample Resource Reservations
+    const resourceReservations: ResourceReservation[] = [
+      {
+        id: "res-1",
+        resourceType: "operator",
+        resourceId: "op-001",
+        workOrderId: "wo-1",
+        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        quantity: 1,
+        priority: "normal",
+        status: "active",
+        conflictResolution: null,
+        notes: "John Smith assigned to HSK turning operation",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "res-2",
+        resourceType: "tool",
+        resourceId: "tool-res-1",
+        workOrderId: "wo-1",
+        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        quantity: 10,
+        priority: "normal",
+        status: "active",
+        conflictResolution: null,
+        notes: "CNMG inserts reserved for turning operation",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "res-3",
+        resourceType: "material",
+        resourceId: "mat-avail-1",
+        workOrderId: "wo-1",
+        startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        quantity: 3,
+        priority: "normal",
+        status: "active",
+        conflictResolution: null,
+        notes: "Steel bar stock reserved for work order",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "res-4",
+        resourceType: "operator",
+        resourceId: "op-003",
+        workOrderId: "wo-3",
+        startDate: new Date(Date.now() + 12 * 60 * 60 * 1000),
+        endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+        quantity: 1,
+        priority: "high",
+        status: "pending",
+        conflictResolution: null,
+        notes: "Mike Chen scheduled for EDM operation",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    resourceReservations.forEach(res => this.resourceReservations.set(res.id, res));
+
+    // Sample Setup Groups
+    const setupGroups: SetupGroup[] = [
+      {
+        id: "setup-group-1",
+        groupName: "Steel Turning Family",
+        description: "Operations that can share setups for steel turning",
+        machineTypes: ["CNC_TURNING", "CONVENTIONAL_TURNING"],
+        operationFamilies: ["TURNING_STEEL"],
+        setupTimeReduction: 75,
+        batchSizeMultiplier: 1.2,
+        priority: 100,
+        isActive: true,
+        constraints: {
+          maxBatchSize: 50,
+          materialCompatibility: ["Steel", "Stainless Steel"],
+          toolingCompatibility: ["CNMG", "TNMG"]
+        },
+        notes: "Standard steel turning operations can be batched together",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "setup-group-2",
+        groupName: "Aluminum Milling Family",
+        description: "Milling operations optimized for aluminum",
+        machineTypes: ["CNC_MILLING"],
+        operationFamilies: ["MILLING_ALUMINUM"],
+        setupTimeReduction: 60,
+        batchSizeMultiplier: 1.5,
+        priority: 90,
+        isActive: true,
+        constraints: {
+          maxBatchSize: 25,
+          materialCompatibility: ["Aluminum", "Aluminum Alloy"],
+          toolingCompatibility: ["End Mill", "Face Mill"]
+        },
+        notes: "Aluminum operations benefit from dedicated coolant setup",
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: "setup-group-3",
+        groupName: "EDM Precision Group",
+        description: "High-precision EDM operations",
+        machineTypes: ["WIRE_CUT", "SINK_EDM"],
+        operationFamilies: ["EDM_STEEL", "EDM_CARBIDE"],
+        setupTimeReduction: 45,
+        batchSizeMultiplier: 1.1,
+        priority: 110,
+        isActive: true,
+        constraints: {
+          maxBatchSize: 10,
+          materialCompatibility: ["Tool Steel", "Carbide"],
+          toolingCompatibility: ["Wire", "Graphite Electrode"]
+        },
+        notes: "Precision EDM requires stable setup conditions",
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    setupGroups.forEach(group => this.setupGroups.set(group.id, group));
+
+    // Sample Capacity Buckets - Generate realistic capacity data for testing
+    this.generateSampleCapacityBuckets();
+  }
+
+  private generateSampleCapacityBuckets() {
+    const now = new Date();
+    const startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+    const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000); // 14 days ahead
+    const machineIds = ["machine-1", "machine-2", "machine-3", "machine-4"];
+
+    // Generate capacity buckets for each machine for the date range
+    for (const machineId of machineIds) {
+      for (let date = new Date(startDate); date <= endDate; date.setDate(date.getDate() + 1)) {
+        const machine = Array.from(this.machines.values()).find(m => m.id === machineId);
+        const currentDate = new Date(date);
+        
+        // Skip weekends for most machines (except machine-4 which runs 24/7)
+        const dayOfWeek = currentDate.getDay();
+        if (machineId !== "machine-4" && (dayOfWeek === 0 || dayOfWeek === 6)) {
+          continue;
+        }
+
+        // Generate different scenarios based on machine status and work orders
+        let availableMinutes = 480; // 8 hours default
+        let plannedMinutes = 0;
+        let actualMinutes = 0;
+        let isOverloaded = false;
+        let overloadPercentage = 0;
+
+        if (machineId === "machine-4") { // 24/7 operation
+          availableMinutes = 1440; // 24 hours
+        }
+
+        // Simulate realistic capacity scenarios
+        if (machine?.status === "maintenance") {
+          availableMinutes = 0;
+          plannedMinutes = 0;
+          actualMinutes = 0;
+        } else if (machine?.status === "running" || machine?.status === "setup") {
+          // Past dates - show actual utilization
+          if (currentDate < now) {
+            plannedMinutes = Math.floor(availableMinutes * (0.6 + Math.random() * 0.3)); // 60-90% planned
+            actualMinutes = Math.floor(plannedMinutes * (0.85 + Math.random() * 0.15)); // 85-100% of planned
+          } else {
+            // Future dates - show planned utilization
+            plannedMinutes = Math.floor(availableMinutes * (0.4 + Math.random() * 0.5)); // 40-90% planned
+            actualMinutes = 0; // No actuals for future
+            
+            // Some machines are overloaded for demonstration
+            if (Math.random() > 0.7 && machineId !== "machine-3") {
+              plannedMinutes = Math.floor(availableMinutes * (1.1 + Math.random() * 0.2)); // 110-130% overload
+              isOverloaded = true;
+              overloadPercentage = ((plannedMinutes / availableMinutes) - 1) * 100;
+            }
+          }
+        }
+
+        const utilization = availableMinutes > 0 ? (plannedMinutes / availableMinutes) * 100 : 0;
+        const actualUtilization = availableMinutes > 0 ? (actualMinutes / availableMinutes) * 100 : 0;
+
+        const bucket: CapacityBucket = {
+          id: `bucket-${machineId}-${currentDate.getFullYear()}-${currentDate.getMonth() + 1}-${currentDate.getDate()}`,
+          machineId,
+          date: currentDate.toISOString().split('T')[0],
+          hour: null, // Daily buckets
+          availableMinutes,
+          plannedMinutes,
+          actualMinutes,
+          utilization,
+          actualUtilization,
+          isOverloaded,
+          overloadPercentage,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        this.capacityBuckets.set(bucket.id, bucket);
+      }
+    }
   }
 
   // User operations
@@ -1289,8 +1772,82 @@ export class MemStorage implements IStorage {
   }
 
   async getCapacityPlanning(): Promise<any[]> {
-    // Return mock capacity planning data for demonstration
-    return [];
+    // Generate meaningful capacity planning data based on current machines and work orders
+    const machines = Array.from(this.machines.values());
+    const workOrders = Array.from(this.workOrders.values());
+    const capabilities = Array.from(this.machineCapabilities.values());
+    
+    const capacityData = machines.map(machine => {
+      const machineWorkOrders = workOrders.filter(wo => wo.assignedMachineId === machine.id);
+      const capability = capabilities.find(cap => cap.machineId === machine.id);
+      
+      // Calculate utilization over next 30 days
+      const utilizationData = [];
+      const today = new Date();
+      
+      for (let i = 0; i < 30; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        
+        // Simulate varying utilization based on machine status and work orders
+        let utilization = 0;
+        if (machine.status === "running") {
+          utilization = 75 + Math.random() * 20; // 75-95%
+        } else if (machine.status === "setup") {
+          utilization = 20 + Math.random() * 30; // 20-50%
+        } else if (machine.status === "maintenance") {
+          utilization = 0;
+        } else {
+          utilization = 30 + Math.random() * 40; // 30-70%
+        }
+        
+        utilizationData.push({
+          date: date.toISOString().split('T')[0],
+          utilization: Math.round(utilization * 10) / 10,
+          availableHours: 24,
+          plannedHours: Math.round((utilization / 100) * 24 * 10) / 10,
+          efficiency: capability?.efficiency || 0.85
+        });
+      }
+      
+      return {
+        machineId: machine.id,
+        machineName: machine.name,
+        machineType: machine.type,
+        currentStatus: machine.status,
+        currentEfficiency: machine.efficiency || 0,
+        assignedWorkOrders: machineWorkOrders.length,
+        completedWorkOrders: machineWorkOrders.filter(wo => wo.status === "completed").length,
+        utilizationForecast: utilizationData,
+        constraints: [
+          ...(machine.status === "maintenance" ? [{
+            type: "maintenance",
+            severity: "high",
+            description: "Machine under maintenance",
+            estimatedResolution: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+          }] : []),
+          ...(machineWorkOrders.length > 5 ? [{
+            type: "overload",
+            severity: "medium", 
+            description: `${machineWorkOrders.length} work orders assigned`,
+            estimatedResolution: null
+          }] : [])
+        ],
+        recommendations: [
+          ...(machine.efficiency && machine.efficiency < 70 ? [
+            "Consider maintenance to improve efficiency"
+          ] : []),
+          ...(machineWorkOrders.length === 0 ? [
+            "Available for new work orders"
+          ] : []),
+          ...(machine.status === "running" && machineWorkOrders.length > 3 ? [
+            "High utilization - monitor for potential overload"
+          ] : [])
+        ]
+      };
+    });
+    
+    return capacityData;
   }
 
   // Operations methods
@@ -1604,6 +2161,381 @@ export class MemStorage implements IStorage {
       console.error('Error in scheduleProduction:', error);
       throw new Error(`Failed to schedule production: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  // Setup Groups operations
+  async getAllSetupGroups(): Promise<SetupGroup[]> {
+    return Array.from(this.setupGroups.values());
+  }
+
+  async getSetupGroup(id: string): Promise<SetupGroup | undefined> {
+    return this.setupGroups.get(id);
+  }
+
+  async createSetupGroup(setupGroup: InsertSetupGroup): Promise<SetupGroup> {
+    const id = randomUUID();
+    const now = new Date();
+    const newSetupGroup: SetupGroup = {
+      ...setupGroup,
+      description: setupGroup.description ?? null,
+      toolConfiguration: setupGroup.toolConfiguration ?? null,
+      fixtures: setupGroup.fixtures ?? null,
+      workholding: setupGroup.workholding ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.setupGroups.set(id, newSetupGroup);
+    return newSetupGroup;
+  }
+
+  async updateSetupGroup(id: string, updates: Partial<SetupGroup>): Promise<SetupGroup | undefined> {
+    const setupGroup = this.setupGroups.get(id);
+    if (!setupGroup) return undefined;
+    
+    const updatedSetupGroup: SetupGroup = {
+      ...setupGroup,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.setupGroups.set(id, updatedSetupGroup);
+    return updatedSetupGroup;
+  }
+
+  async deleteSetupGroup(id: string): Promise<void> {
+    this.setupGroups.delete(id);
+  }
+
+  // Operator Skills operations
+  async getAllOperatorSkills(): Promise<OperatorSkill[]> {
+    return Array.from(this.operatorSkills.values());
+  }
+
+  async getOperatorSkill(id: string): Promise<OperatorSkill | undefined> {
+    return this.operatorSkills.get(id);
+  }
+
+  async createOperatorSkill(skill: InsertOperatorSkill): Promise<OperatorSkill> {
+    const id = randomUUID();
+    const now = new Date();
+    const newSkill: OperatorSkill = {
+      ...skill,
+      machineTypes: skill.machineTypes ?? null,
+      operationTypes: skill.operationTypes ?? null,
+      certificationDate: skill.certificationDate ?? null,
+      expirationDate: skill.expirationDate ?? null,
+      certifyingAuthority: skill.certifyingAuthority ?? null,
+      hourlyRate: skill.hourlyRate ?? null,
+      availability: skill.availability ?? null,
+      notes: skill.notes ?? null,
+      isActive: skill.isActive ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.operatorSkills.set(id, newSkill);
+    return newSkill;
+  }
+
+  async updateOperatorSkill(id: string, updates: Partial<OperatorSkill>): Promise<OperatorSkill | undefined> {
+    const skill = this.operatorSkills.get(id);
+    if (!skill) return undefined;
+    
+    const updatedSkill: OperatorSkill = {
+      ...skill,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.operatorSkills.set(id, updatedSkill);
+    return updatedSkill;
+  }
+
+  async getOperatorSkillsByOperator(operatorId: string): Promise<OperatorSkill[]> {
+    return Array.from(this.operatorSkills.values())
+      .filter(skill => skill.operatorId === operatorId);
+  }
+
+  async getOperatorsBySkillType(skillType: string): Promise<OperatorSkill[]> {
+    return Array.from(this.operatorSkills.values())
+      .filter(skill => skill.skillType === skillType && skill.isActive);
+  }
+
+  async deleteOperatorSkill(id: string): Promise<void> {
+    this.operatorSkills.delete(id);
+  }
+
+  // Tool Resources operations
+  async getAllToolResources(): Promise<ToolResource[]> {
+    return Array.from(this.toolResources.values());
+  }
+
+  async getToolResource(id: string): Promise<ToolResource | undefined> {
+    return this.toolResources.get(id);
+  }
+
+  async createToolResource(resource: InsertToolResource): Promise<ToolResource> {
+    const id = randomUUID();
+    const now = new Date();
+    const newResource: ToolResource = {
+      ...resource,
+      reservedQuantity: resource.reservedQuantity ?? null,
+      inUseQuantity: resource.inUseQuantity ?? null,
+      maintenanceQuantity: resource.maintenanceQuantity ?? null,
+      condition: resource.condition ?? null,
+      lastInspectionDate: resource.lastInspectionDate ?? null,
+      nextInspectionDue: resource.nextInspectionDue ?? null,
+      usageTracking: resource.usageTracking ?? null,
+      costCenter: resource.costCenter ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.toolResources.set(id, newResource);
+    return newResource;
+  }
+
+  async updateToolResource(id: string, updates: Partial<ToolResource>): Promise<ToolResource | undefined> {
+    const resource = this.toolResources.get(id);
+    if (!resource) return undefined;
+    
+    const updatedResource: ToolResource = {
+      ...resource,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.toolResources.set(id, updatedResource);
+    return updatedResource;
+  }
+
+  async getToolResourcesByLocation(location: string): Promise<ToolResource[]> {
+    return Array.from(this.toolResources.values())
+      .filter(resource => resource.location === location);
+  }
+
+  async getAvailableToolResources(toolId: string): Promise<ToolResource[]> {
+    return Array.from(this.toolResources.values())
+      .filter(resource => resource.toolId === toolId && resource.availableQuantity > 0);
+  }
+
+  async deleteToolResource(id: string): Promise<void> {
+    this.toolResources.delete(id);
+  }
+
+  // Material Availability operations
+  async getAllMaterialAvailability(): Promise<MaterialAvailability[]> {
+    return Array.from(this.materialAvailability.values());
+  }
+
+  async getMaterialAvailability(id: string): Promise<MaterialAvailability | undefined> {
+    return this.materialAvailability.get(id);
+  }
+
+  async createMaterialAvailability(availability: InsertMaterialAvailability): Promise<MaterialAvailability> {
+    const id = randomUUID();
+    const now = new Date();
+    const newAvailability: MaterialAvailability = {
+      ...availability,
+      workOrderId: availability.workOrderId ?? null,
+      allocatedQuantity: availability.allocatedQuantity ?? null,
+      reservedQuantity: availability.reservedQuantity ?? null,
+      availableDate: availability.availableDate ?? null,
+      expirationDate: availability.expirationDate ?? null,
+      supplier: availability.supplier ?? null,
+      purchaseOrderNumber: availability.purchaseOrderNumber ?? null,
+      unitCost: availability.unitCost ?? null,
+      totalCost: availability.totalCost ?? null,
+      deliveryStatus: availability.deliveryStatus ?? null,
+      qualityStatus: availability.qualityStatus ?? null,
+      location: availability.location ?? null,
+      batchLotNumber: availability.batchLotNumber ?? null,
+      notes: availability.notes ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.materialAvailability.set(id, newAvailability);
+    return newAvailability;
+  }
+
+  async updateMaterialAvailability(id: string, updates: Partial<MaterialAvailability>): Promise<MaterialAvailability | undefined> {
+    const availability = this.materialAvailability.get(id);
+    if (!availability) return undefined;
+    
+    const updatedAvailability: MaterialAvailability = {
+      ...availability,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.materialAvailability.set(id, updatedAvailability);
+    return updatedAvailability;
+  }
+
+  async getMaterialAvailabilityByWorkOrder(workOrderId: string): Promise<MaterialAvailability[]> {
+    return Array.from(this.materialAvailability.values())
+      .filter(availability => availability.workOrderId === workOrderId);
+  }
+
+  async getMaterialAvailabilityByMaterial(materialId: string): Promise<MaterialAvailability[]> {
+    return Array.from(this.materialAvailability.values())
+      .filter(availability => availability.materialId === materialId);
+  }
+
+  async deleteMaterialAvailability(id: string): Promise<void> {
+    this.materialAvailability.delete(id);
+  }
+
+  // Resource Reservations operations
+  async getAllResourceReservations(): Promise<ResourceReservation[]> {
+    return Array.from(this.resourceReservations.values());
+  }
+
+  async getResourceReservation(id: string): Promise<ResourceReservation | undefined> {
+    return this.resourceReservations.get(id);
+  }
+
+  async createResourceReservation(reservation: InsertResourceReservation): Promise<ResourceReservation> {
+    const id = randomUUID();
+    const now = new Date();
+    const newReservation: ResourceReservation = {
+      ...reservation,
+      operationId: reservation.operationId ?? null,
+      scheduleSlotId: reservation.scheduleSlotId ?? null,
+      quantity: reservation.quantity ?? null,
+      reservationType: reservation.reservationType ?? null,
+      priority: reservation.priority ?? null,
+      status: reservation.status ?? null,
+      conflictResolution: reservation.conflictResolution ?? null,
+      notes: reservation.notes ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.resourceReservations.set(id, newReservation);
+    return newReservation;
+  }
+
+  async updateResourceReservation(id: string, updates: Partial<ResourceReservation>): Promise<ResourceReservation | undefined> {
+    const reservation = this.resourceReservations.get(id);
+    if (!reservation) return undefined;
+    
+    const updatedReservation: ResourceReservation = {
+      ...reservation,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.resourceReservations.set(id, updatedReservation);
+    return updatedReservation;
+  }
+
+  async getResourceReservationsByWorkOrder(workOrderId: string): Promise<ResourceReservation[]> {
+    return Array.from(this.resourceReservations.values())
+      .filter(reservation => reservation.workOrderId === workOrderId);
+  }
+
+  async getResourceReservationsByResource(resourceType: string, resourceId: string): Promise<ResourceReservation[]> {
+    return Array.from(this.resourceReservations.values())
+      .filter(reservation => reservation.resourceType === resourceType && reservation.resourceId === resourceId);
+  }
+
+  async getActiveResourceReservations(): Promise<ResourceReservation[]> {
+    return Array.from(this.resourceReservations.values())
+      .filter(reservation => reservation.status === 'active');
+  }
+
+  async deleteResourceReservation(id: string): Promise<void> {
+    this.resourceReservations.delete(id);
+  }
+
+  // Scenarios operations
+  async getAllScenarios(): Promise<Scenario[]> {
+    return Array.from(this.scenarios.values());
+  }
+
+  async getScenario(id: string): Promise<Scenario | undefined> {
+    return this.scenarios.get(id);
+  }
+
+  async createScenario(scenario: InsertScenario): Promise<Scenario> {
+    const id = randomUUID();
+    const now = new Date();
+    const newScenario: Scenario = {
+      ...scenario,
+      description: scenario.description ?? null,
+      baselineDate: scenario.baselineDate ?? now,
+      overrides: scenario.overrides ?? null,
+      workOrderScope: scenario.workOrderScope ?? null,
+      dateRange: scenario.dateRange ?? null,
+      results: scenario.results ?? null,
+      metrics: scenario.metrics ?? null,
+      status: scenario.status ?? null,
+      lastRunAt: scenario.lastRunAt ?? null,
+      runtime: scenario.runtime ?? null,
+      version: scenario.version ?? null,
+      isPublic: scenario.isPublic ?? null,
+      tags: scenario.tags ?? null,
+      notes: scenario.notes ?? null,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.scenarios.set(id, newScenario);
+    return newScenario;
+  }
+
+  async updateScenario(id: string, updates: Partial<Scenario>): Promise<Scenario | undefined> {
+    const scenario = this.scenarios.get(id);
+    if (!scenario) return undefined;
+    
+    const updatedScenario: Scenario = {
+      ...scenario,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.scenarios.set(id, updatedScenario);
+    return updatedScenario;
+  }
+
+  async getScenariosByCreator(creatorId: string): Promise<Scenario[]> {
+    return Array.from(this.scenarios.values())
+      .filter(scenario => scenario.createdBy === creatorId);
+  }
+
+  async getPublicScenarios(): Promise<Scenario[]> {
+    return Array.from(this.scenarios.values())
+      .filter(scenario => scenario.isPublic);
+  }
+
+  async runScenario(id: string): Promise<Scenario> {
+    const scenario = this.scenarios.get(id);
+    if (!scenario) throw new Error(`Scenario ${id} not found`);
+    
+    const now = new Date();
+    const updatedScenario: Scenario = {
+      ...scenario,
+      status: 'running',
+      lastRunAt: now,
+      updatedAt: now,
+    };
+    
+    // TODO: Implement actual scenario computation logic
+    // For now, just mark as completed
+    setTimeout(async () => {
+      const completedScenario: Scenario = {
+        ...updatedScenario,
+        status: 'completed',
+        runtime: 1,
+        results: { message: "Scenario computation completed" },
+        updatedAt: new Date(),
+      };
+      this.scenarios.set(id, completedScenario);
+    }, 100);
+    
+    this.scenarios.set(id, updatedScenario);
+    return updatedScenario;
+  }
+
+  async deleteScenario(id: string): Promise<void> {
+    this.scenarios.delete(id);
   }
 }
 

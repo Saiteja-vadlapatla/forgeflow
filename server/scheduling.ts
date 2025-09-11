@@ -2,7 +2,8 @@ import {
   Operation, WorkOrder, Machine, ScheduleSlot, CapacityBucket, 
   SetupMatrix, Calendar, MachineCapability, ShiftDefinition,
   SchedulingPolicy, SchedulingConflict, InsertScheduleSlot,
-  InsertCapacityBucket
+  InsertCapacityBucket, OperatorSkill, ToolResource, MaterialAvailability,
+  ResourceReservation, SetupGroup
 } from "@shared/schema";
 
 // Industry-standard scheduling algorithms implementation

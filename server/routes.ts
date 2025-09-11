@@ -2,7 +2,12 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
-import { insertWorkOrderSchema, insertMachineSchema, insertQualityRecordSchema, insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema } from "@shared/schema";
+import { 
+  insertWorkOrderSchema, insertMachineSchema, insertQualityRecordSchema, 
+  insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema,
+  insertSetupGroupSchema, insertOperatorSkillSchema, insertToolResourceSchema,
+  insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema
+} from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -477,6 +482,811 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: "Failed to optimize schedule" });
+    }
+  });
+
+  // Capacity Planning Endpoints
+
+  // Setup Groups endpoints
+  app.get("/api/capacity/setup-groups", async (req, res) => {
+    try {
+      const setupGroups = await storage.getAllSetupGroups();
+      res.json(setupGroups);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setup groups" });
+    }
+  });
+
+  app.get("/api/capacity/setup-groups/:id", async (req, res) => {
+    try {
+      const setupGroup = await storage.getSetupGroup(req.params.id);
+      if (!setupGroup) {
+        return res.status(404).json({ error: "Setup group not found" });
+      }
+      res.json(setupGroup);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch setup group" });
+    }
+  });
+
+  app.post("/api/capacity/setup-groups", async (req, res) => {
+    try {
+      const validation = insertSetupGroupSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid setup group data", details: validation.error });
+      }
+      
+      const setupGroup = await storage.createSetupGroup(validation.data);
+      res.status(201).json(setupGroup);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create setup group" });
+    }
+  });
+
+  app.patch("/api/capacity/setup-groups/:id", async (req, res) => {
+    try {
+      const setupGroup = await storage.updateSetupGroup(req.params.id, req.body);
+      if (!setupGroup) {
+        return res.status(404).json({ error: "Setup group not found" });
+      }
+      res.json(setupGroup);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update setup group" });
+    }
+  });
+
+  app.delete("/api/capacity/setup-groups/:id", async (req, res) => {
+    try {
+      await storage.deleteSetupGroup(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete setup group" });
+    }
+  });
+
+  // Operator Skills endpoints
+  app.get("/api/capacity/operator-skills", async (req, res) => {
+    try {
+      const { operatorId, skillType } = req.query;
+      
+      if (operatorId) {
+        const skills = await storage.getOperatorSkillsByOperator(operatorId as string);
+        res.json(skills);
+      } else if (skillType) {
+        const operators = await storage.getOperatorsBySkillType(skillType as string);
+        res.json(operators);
+      } else {
+        const skills = await storage.getAllOperatorSkills();
+        res.json(skills);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch operator skills" });
+    }
+  });
+
+  app.get("/api/capacity/operator-skills/:id", async (req, res) => {
+    try {
+      const skill = await storage.getOperatorSkill(req.params.id);
+      if (!skill) {
+        return res.status(404).json({ error: "Operator skill not found" });
+      }
+      res.json(skill);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch operator skill" });
+    }
+  });
+
+  app.post("/api/capacity/operator-skills", async (req, res) => {
+    try {
+      const validation = insertOperatorSkillSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid operator skill data", details: validation.error });
+      }
+      
+      const skill = await storage.createOperatorSkill(validation.data);
+      res.status(201).json(skill);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create operator skill" });
+    }
+  });
+
+  app.patch("/api/capacity/operator-skills/:id", async (req, res) => {
+    try {
+      const skill = await storage.updateOperatorSkill(req.params.id, req.body);
+      if (!skill) {
+        return res.status(404).json({ error: "Operator skill not found" });
+      }
+      res.json(skill);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update operator skill" });
+    }
+  });
+
+  app.delete("/api/capacity/operator-skills/:id", async (req, res) => {
+    try {
+      await storage.deleteOperatorSkill(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete operator skill" });
+    }
+  });
+
+  // Tool Resources endpoints
+  app.get("/api/capacity/tool-resources", async (req, res) => {
+    try {
+      const { location, toolId } = req.query;
+      
+      if (location) {
+        const resources = await storage.getToolResourcesByLocation(location as string);
+        res.json(resources);
+      } else if (toolId) {
+        const resources = await storage.getAvailableToolResources(toolId as string);
+        res.json(resources);
+      } else {
+        const resources = await storage.getAllToolResources();
+        res.json(resources);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tool resources" });
+    }
+  });
+
+  app.get("/api/capacity/tool-resources/:id", async (req, res) => {
+    try {
+      const resource = await storage.getToolResource(req.params.id);
+      if (!resource) {
+        return res.status(404).json({ error: "Tool resource not found" });
+      }
+      res.json(resource);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tool resource" });
+    }
+  });
+
+  app.post("/api/capacity/tool-resources", async (req, res) => {
+    try {
+      const validation = insertToolResourceSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid tool resource data", details: validation.error });
+      }
+      
+      const resource = await storage.createToolResource(validation.data);
+      res.status(201).json(resource);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create tool resource" });
+    }
+  });
+
+  app.patch("/api/capacity/tool-resources/:id", async (req, res) => {
+    try {
+      const resource = await storage.updateToolResource(req.params.id, req.body);
+      if (!resource) {
+        return res.status(404).json({ error: "Tool resource not found" });
+      }
+      res.json(resource);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update tool resource" });
+    }
+  });
+
+  app.delete("/api/capacity/tool-resources/:id", async (req, res) => {
+    try {
+      await storage.deleteToolResource(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete tool resource" });
+    }
+  });
+
+  // Material Availability endpoints
+  app.get("/api/capacity/material-availability", async (req, res) => {
+    try {
+      const { workOrderId, materialId } = req.query;
+      
+      if (workOrderId) {
+        const availability = await storage.getMaterialAvailabilityByWorkOrder(workOrderId as string);
+        res.json(availability);
+      } else if (materialId) {
+        const availability = await storage.getMaterialAvailabilityByMaterial(materialId as string);
+        res.json(availability);
+      } else {
+        const availability = await storage.getAllMaterialAvailability();
+        res.json(availability);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch material availability" });
+    }
+  });
+
+  app.get("/api/capacity/material-availability/:id", async (req, res) => {
+    try {
+      const availability = await storage.getMaterialAvailability(req.params.id);
+      if (!availability) {
+        return res.status(404).json({ error: "Material availability not found" });
+      }
+      res.json(availability);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch material availability" });
+    }
+  });
+
+  app.post("/api/capacity/material-availability", async (req, res) => {
+    try {
+      const validation = insertMaterialAvailabilitySchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid material availability data", details: validation.error });
+      }
+      
+      const availability = await storage.createMaterialAvailability(validation.data);
+      res.status(201).json(availability);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create material availability" });
+    }
+  });
+
+  app.patch("/api/capacity/material-availability/:id", async (req, res) => {
+    try {
+      const availability = await storage.updateMaterialAvailability(req.params.id, req.body);
+      if (!availability) {
+        return res.status(404).json({ error: "Material availability not found" });
+      }
+      res.json(availability);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update material availability" });
+    }
+  });
+
+  app.delete("/api/capacity/material-availability/:id", async (req, res) => {
+    try {
+      await storage.deleteMaterialAvailability(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete material availability" });
+    }
+  });
+
+  // Resource Reservations endpoints
+  app.get("/api/capacity/resource-reservations", async (req, res) => {
+    try {
+      const { workOrderId, resourceType, resourceId } = req.query;
+      
+      if (workOrderId) {
+        const reservations = await storage.getResourceReservationsByWorkOrder(workOrderId as string);
+        res.json(reservations);
+      } else if (resourceType && resourceId) {
+        const reservations = await storage.getResourceReservationsByResource(resourceType as string, resourceId as string);
+        res.json(reservations);
+      } else {
+        const reservations = await storage.getAllResourceReservations();
+        res.json(reservations);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch resource reservations" });
+    }
+  });
+
+  app.get("/api/capacity/resource-reservations/active", async (req, res) => {
+    try {
+      const reservations = await storage.getActiveResourceReservations();
+      res.json(reservations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch active resource reservations" });
+    }
+  });
+
+  app.get("/api/capacity/resource-reservations/:id", async (req, res) => {
+    try {
+      const reservation = await storage.getResourceReservation(req.params.id);
+      if (!reservation) {
+        return res.status(404).json({ error: "Resource reservation not found" });
+      }
+      res.json(reservation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch resource reservation" });
+    }
+  });
+
+  app.post("/api/capacity/resource-reservations", async (req, res) => {
+    try {
+      const validation = insertResourceReservationSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid resource reservation data", details: validation.error });
+      }
+      
+      const reservation = await storage.createResourceReservation(validation.data);
+      res.status(201).json(reservation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create resource reservation" });
+    }
+  });
+
+  app.patch("/api/capacity/resource-reservations/:id", async (req, res) => {
+    try {
+      const reservation = await storage.updateResourceReservation(req.params.id, req.body);
+      if (!reservation) {
+        return res.status(404).json({ error: "Resource reservation not found" });
+      }
+      res.json(reservation);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update resource reservation" });
+    }
+  });
+
+  app.delete("/api/capacity/resource-reservations/:id", async (req, res) => {
+    try {
+      await storage.deleteResourceReservation(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete resource reservation" });
+    }
+  });
+
+  // Scenarios endpoints
+  app.get("/api/capacity/scenarios", async (req, res) => {
+    try {
+      const { creatorId, isPublic } = req.query;
+      
+      if (creatorId) {
+        const scenarios = await storage.getScenariosByCreator(creatorId as string);
+        res.json(scenarios);
+      } else if (isPublic === 'true') {
+        const scenarios = await storage.getPublicScenarios();
+        res.json(scenarios);
+      } else {
+        const scenarios = await storage.getAllScenarios();
+        res.json(scenarios);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch scenarios" });
+    }
+  });
+
+  app.get("/api/capacity/scenarios/:id", async (req, res) => {
+    try {
+      const scenario = await storage.getScenario(req.params.id);
+      if (!scenario) {
+        return res.status(404).json({ error: "Scenario not found" });
+      }
+      res.json(scenario);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch scenario" });
+    }
+  });
+
+  app.post("/api/capacity/scenarios", async (req, res) => {
+    try {
+      const validation = insertScenarioSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ error: "Invalid scenario data", details: validation.error });
+      }
+      
+      const scenario = await storage.createScenario(validation.data);
+      res.status(201).json(scenario);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create scenario" });
+    }
+  });
+
+  app.patch("/api/capacity/scenarios/:id", async (req, res) => {
+    try {
+      const scenario = await storage.updateScenario(req.params.id, req.body);
+      if (!scenario) {
+        return res.status(404).json({ error: "Scenario not found" });
+      }
+      res.json(scenario);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update scenario" });
+    }
+  });
+
+  app.post("/api/capacity/scenarios/:id/run", async (req, res) => {
+    try {
+      const scenario = await storage.runScenario(req.params.id);
+      res.json(scenario);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to run scenario" });
+    }
+  });
+
+  app.delete("/api/capacity/scenarios/:id", async (req, res) => {
+    try {
+      await storage.deleteScenario(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete scenario" });
+    }
+  });
+
+  // Advanced Compute Endpoints for Capacity Analysis
+
+  // Capacity Buckets Analysis - Analyze machine capacity utilization over time
+  app.get("/api/capacity/buckets", async (req, res) => {
+    try {
+      const { machineId, startDate, endDate, granularity = 'daily' } = req.query;
+      
+      // Parse date parameters
+      const start = startDate ? new Date(startDate as string) : new Date();
+      const end = endDate ? new Date(endDate as string) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      
+      // Get capacity buckets for the specified parameters
+      let buckets;
+      if (machineId) {
+        buckets = await storage.getCapacityBuckets(machineId as string, start, end);
+      } else {
+        buckets = await storage.getCapacityBuckets(undefined, start, end);
+      }
+      
+      // Group buckets by machine and calculate utilization metrics
+      const capacityAnalysis = new Map();
+      
+      for (const bucket of buckets) {
+        if (!capacityAnalysis.has(bucket.machineId)) {
+          capacityAnalysis.set(bucket.machineId, {
+            machineId: bucket.machineId,
+            totalAvailable: 0,
+            totalPlanned: 0,
+            totalActual: 0,
+            averageUtilization: 0,
+            averageActualUtilization: 0,
+            overloadedPeriods: 0,
+            buckets: [],
+            constraints: []
+          });
+        }
+        
+        const analysis = capacityAnalysis.get(bucket.machineId);
+        analysis.totalAvailable += bucket.availableMinutes;
+        analysis.totalPlanned += bucket.plannedMinutes;
+        analysis.totalActual += bucket.actualMinutes;
+        if (bucket.isOverloaded) analysis.overloadedPeriods++;
+        analysis.buckets.push(bucket);
+      }
+      
+      // Calculate averages and identify constraints
+      for (const [machineId, analysis] of Array.from(capacityAnalysis.entries())) {
+        analysis.averageUtilization = analysis.totalAvailable > 0 
+          ? (analysis.totalPlanned / analysis.totalAvailable) * 100 
+          : 0;
+        analysis.averageActualUtilization = analysis.totalAvailable > 0 
+          ? (analysis.totalActual / analysis.totalAvailable) * 100 
+          : 0;
+          
+        // Check for resource constraints
+        const machine = await storage.getMachine(machineId);
+        if (machine) {
+          const skills = await storage.getOperatorsBySkillType(machine.type);
+          const toolResources = await storage.getAllToolResources();
+          
+          if (skills.length === 0) {
+            analysis.constraints.push({
+              type: 'operator_shortage',
+              description: `No operators certified for ${machine.type}`,
+              severity: 'high'
+            });
+          }
+          
+          if (analysis.averageUtilization > 90) {
+            analysis.constraints.push({
+              type: 'capacity_overload',
+              description: `Machine utilization at ${analysis.averageUtilization.toFixed(1)}%`,
+              severity: 'critical'
+            });
+          }
+        }
+      }
+      
+      const result = {
+        dateRange: { startDate: start, endDate: end },
+        granularity,
+        machineAnalysis: Array.from(capacityAnalysis.values()),
+        summary: {
+          totalMachines: capacityAnalysis.size,
+          overloadedMachines: Array.from(capacityAnalysis.values()).filter(a => a.overloadedPeriods > 0).length,
+          avgUtilization: Array.from(capacityAnalysis.values()).reduce((sum, a) => sum + a.averageUtilization, 0) / capacityAnalysis.size,
+          criticalConstraints: Array.from(capacityAnalysis.values()).flatMap(a => a.constraints).filter(c => c.severity === 'critical').length
+        }
+      };
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Capacity buckets analysis error:', error);
+      res.status(500).json({ error: "Failed to analyze capacity buckets" });
+    }
+  });
+
+  // Capacity Preview - Preview capacity impact of scheduling new work orders
+  app.post("/api/capacity/preview", async (req, res) => {
+    try {
+      const { workOrderIds, schedulingPolicy, dateRange } = req.body;
+      
+      if (!workOrderIds || !Array.isArray(workOrderIds)) {
+        return res.status(400).json({ error: "workOrderIds array is required" });
+      }
+      
+      // Get work orders and their operations
+      const workOrders = [];
+      const operations = [];
+      
+      for (const workOrderId of workOrderIds) {
+        const workOrder = await storage.getWorkOrder(workOrderId);
+        if (workOrder) {
+          workOrders.push(workOrder);
+          const workOrderOps = await storage.getOperationsByWorkOrder(workOrderId);
+          operations.push(...workOrderOps);
+        }
+      }
+      
+      if (operations.length === 0) {
+        return res.status(400).json({ error: "No operations found for specified work orders" });
+      }
+      
+      // Get current capacity state
+      const machines = await storage.getAllMachines();
+      const capabilities = await storage.getAllMachineCapabilities();
+      const setupMatrix = await storage.getAllSetupMatrix();
+      const defaultCalendar = await storage.getDefaultCalendar();
+      
+      if (!defaultCalendar) {
+        return res.status(500).json({ error: "No default calendar found" });
+      }
+      
+      // Simulate capacity impact
+      const capacityPreview = {
+        workOrderIds,
+        dateRange: dateRange || {
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        },
+        machineImpact: [],
+        resourceConstraints: [],
+        schedulingConflicts: [],
+        recommendations: []
+      };
+      
+      // Analyze each machine's capacity impact
+      for (const machine of machines) {
+        const machineOps = operations.filter(op => 
+          op.assignedMachineId === machine.id || 
+          (op.machineTypes as string[])?.includes(machine.type)
+        );
+        
+        if (machineOps.length === 0) continue;
+        
+        const totalSetupTime = machineOps.reduce((sum, op) => sum + (op.setupTimeMinutes || 0), 0);
+        const totalRunTime = machineOps.reduce((sum, op) => 
+          sum + ((op.runTimeMinutesPerUnit || 0) * (op.batchSize || 1)), 0);
+        const totalDemand = totalSetupTime + totalRunTime;
+        
+        // Get current capacity buckets for this machine
+        const startDate = new Date(capacityPreview.dateRange.startDate);
+        const endDate = new Date(capacityPreview.dateRange.endDate);
+        const buckets = await storage.getCapacityBuckets(machine.id, startDate, endDate);
+        
+        const totalAvailable = buckets.reduce((sum, bucket) => sum + bucket.availableMinutes, 0);
+        const currentPlanned = buckets.reduce((sum, bucket) => sum + (bucket.plannedMinutes || 0), 0);
+        const remainingCapacity = totalAvailable - currentPlanned;
+        
+        const impact = {
+          machineId: machine.id,
+          machineName: machine.name,
+          currentUtilization: totalAvailable > 0 ? (currentPlanned / totalAvailable) * 100 : 0,
+          additionalDemand: totalDemand,
+          projectedUtilization: totalAvailable > 0 ? ((currentPlanned + totalDemand) / totalAvailable) * 100 : 0,
+          capacityShortfall: Math.max(0, totalDemand - remainingCapacity),
+          operationsCount: machineOps.length,
+          requiresOverload: totalDemand > remainingCapacity
+        };
+        
+        (capacityPreview.machineImpact as any[]).push(impact);
+        
+        // Check for overload
+        if (impact.requiresOverload) {
+          (capacityPreview.schedulingConflicts as any[]).push({
+            type: 'capacity_overload',
+            severity: 'high',
+            machineId: machine.id,
+            description: `Machine ${machine.name} would be overloaded by ${impact.capacityShortfall} minutes`,
+            affectedOperations: machineOps.map(op => op.id),
+            suggestedResolution: `Consider distributing work to alternative machines or extending timeline`
+          });
+        }
+        
+        // Check resource constraints
+        const requiredSkills = Array.from(new Set(machineOps.flatMap(op => op.requiredSkills as string[] || [])));
+        for (const skillType of requiredSkills) {
+          const availableOperators = await storage.getOperatorsBySkillType(skillType);
+          if (availableOperators.length === 0) {
+            (capacityPreview.resourceConstraints as any[]).push({
+              type: 'operator_shortage',
+              resourceType: 'skill',
+              resourceId: skillType,
+              description: `No operators available with skill: ${skillType}`,
+              severity: 'critical',
+              affectedOperations: machineOps.filter(op => 
+                (op.requiredSkills as string[])?.includes(skillType)
+              ).map(op => op.id)
+            });
+          }
+        }
+        
+        // Generate recommendations
+        if (impact.projectedUtilization > 95) {
+          (capacityPreview.recommendations as any[]).push({
+            type: 'capacity_optimization',
+            priority: 'high',
+            description: `Consider alternative machines for ${machine.name} to reduce overload`,
+            suggestedActions: [
+              'Evaluate machine substitution options',
+              'Consider extending production timeline',
+              'Split large operations across multiple machines'
+            ]
+          });
+        }
+      }
+      
+      // Calculate summary metrics
+      const summary = {
+        totalOperations: operations.length,
+        machinesAffected: capacityPreview.machineImpact.length,
+        criticalConstraints: (capacityPreview.resourceConstraints as any[]).filter((c: any) => c.severity === 'critical').length,
+        overloadedMachines: (capacityPreview.machineImpact as any[]).filter((m: any) => m.requiresOverload).length,
+        feasibilityScore: Math.max(0, 100 - (capacityPreview.schedulingConflicts.length * 20))
+      };
+      
+      res.json({ ...capacityPreview, summary });
+    } catch (error) {
+      console.error('Capacity preview error:', error);
+      res.status(500).json({ error: "Failed to generate capacity preview" });
+    }
+  });
+
+  // Scenario Simulation - Run comprehensive what-if analysis
+  app.post("/api/scenarios/:id/simulate", async (req, res) => {
+    try {
+      const scenarioId = req.params.id;
+      const scenario = await storage.getScenario(scenarioId);
+      
+      if (!scenario) {
+        return res.status(404).json({ error: "Scenario not found" });
+      }
+      
+      // Mark scenario as running
+      await storage.updateScenario(scenarioId, { status: 'running', lastRunAt: new Date() });
+      
+      const simulationStart = Date.now();
+      
+      // Extract scenario parameters
+      const { 
+        machineOverrides = {},
+        calendarOverrides = {},
+        workOrderScope = [],
+        additionalConstraints = []
+      } = scenario.parameters as any;
+      
+      // Get baseline data
+      const workOrders = workOrderScope.length > 0 
+        ? await Promise.all(workOrderScope.map((id: string) => storage.getWorkOrder(id)))
+        : await storage.getAllWorkOrders();
+      
+      const machines = await storage.getAllMachines();
+      const operations = await storage.getAllOperations();
+      const capabilities = await storage.getAllMachineCapabilities();
+      const setupMatrix = await storage.getAllSetupMatrix();
+      const defaultCalendar = await storage.getDefaultCalendar();
+      
+      if (!defaultCalendar) {
+        return res.status(500).json({ error: "No default calendar found for simulation" });
+      }
+      
+      // Apply overrides to machines (efficiency, capacity, etc.)
+      const modifiedMachines = machines.map(machine => {
+        const override = machineOverrides[machine.id];
+        return override ? { ...machine, ...override } : machine;
+      });
+      
+      // Apply calendar overrides (shift changes, maintenance windows)
+      const modifiedCalendar = calendarOverrides.shifts 
+        ? { ...defaultCalendar, shifts: calendarOverrides.shifts }
+        : defaultCalendar;
+      
+      // Run simulation with different scenarios
+      const simulationResults = {
+        scenarioId,
+        baselineMetrics: {},
+        scenarioMetrics: {},
+        comparison: {},
+        bottleneckAnalysis: {},
+        resourceUtilization: {},
+        recommendedActions: []
+      };
+      
+      // Calculate baseline metrics (current state)
+      const baselineSchedule = await storage.scheduleProduction('baseline', {
+        rule: 'EDD',
+        horizon: 168,
+        allowOverload: false,
+        maxOverloadPercentage: 10
+      });
+      
+      // Calculate scenario metrics with overrides
+      // This would involve complex scheduling simulation logic
+      const scenarioMetrics = {
+        totalMakespan: 0,
+        averageUtilization: 0,
+        resourceConstraints: 0,
+        setupTimeReduction: 0,
+        throughputImprovement: 0
+      };
+      
+      // Identify bottlenecks in the scenario
+      const bottlenecks = [];
+      for (const machine of modifiedMachines) {
+        const machineOps = operations.filter(op => op.assignedMachineId === machine.id);
+        const totalTime = machineOps.reduce((sum, op) => 
+          sum + (op.setupTimeMinutes || 0) + ((op.runTimeMinutesPerUnit || 0) * (op.batchSize || 1)), 0);
+        
+        if (totalTime > 0) {
+          bottlenecks.push({
+            machineId: machine.id,
+            machineName: machine.name,
+            utilization: Math.min(100, (totalTime / (8 * 60)) * 100), // Assuming 8-hour shifts
+            criticalPath: totalTime > 8 * 60,
+            recommendedActions: totalTime > 8 * 60 
+              ? ['Consider parallel processing', 'Optimize setup times', 'Add capacity']
+              : []
+          });
+        }
+      }
+      
+      simulationResults.bottleneckAnalysis = {
+        identifiedBottlenecks: bottlenecks.filter(b => b.criticalPath),
+        utilizationProfile: bottlenecks,
+        criticalMachines: bottlenecks.filter(b => b.utilization > 90).map(b => b.machineId)
+      };
+      
+      // Generate recommendations based on simulation
+      if (bottlenecks.some(b => b.criticalPath)) {
+        (simulationResults.recommendedActions as any[]).push({
+          category: 'bottleneck_resolution',
+          priority: 'high',
+          description: 'Address critical bottlenecks to improve overall throughput',
+          specificActions: [
+            'Implement parallel processing where possible',
+            'Invest in setup time reduction initiatives',
+            'Consider additional capacity for bottleneck operations'
+          ]
+        });
+      }
+      
+      // Calculate runtime and update scenario
+      const runtime = Math.floor((Date.now() - simulationStart) / 1000);
+      
+      const updatedScenario = await storage.updateScenario(scenarioId, {
+        status: 'completed',
+        results: simulationResults,
+        runtime,
+        metrics: {
+          makespan: scenarioMetrics.totalMakespan,
+          utilization: scenarioMetrics.averageUtilization,
+          throughput: scenarioMetrics.throughputImprovement,
+          bottlenecks: (simulationResults.bottleneckAnalysis as any)?.identifiedBottlenecks?.length || 0
+        }
+      });
+      
+      res.json({
+        scenario: updatedScenario,
+        simulationResults,
+        executionTime: runtime
+      });
+      
+    } catch (error) {
+      console.error('Scenario simulation error:', error);
+      // Mark scenario as failed
+      await storage.updateScenario(req.params.id, { 
+        status: 'draft',
+        results: { error: error instanceof Error ? error.message : 'Simulation failed' }
+      });
+      res.status(500).json({ error: "Failed to simulate scenario" });
     }
   });
 

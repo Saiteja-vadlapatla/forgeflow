@@ -543,6 +543,128 @@ export const shiftEntries = pgTable("shift_entries", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Setup Groups for Similar Operations
+export const setupGroups = pgTable("setup_groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  machineTypes: jsonb("machine_types").notNull(), // Array of machine types this setup group applies to
+  operationFamilies: jsonb("operation_families").notNull(), // Array of operation families in this group
+  standardSetupMinutes: real("standard_setup_minutes").notNull(),
+  toolConfiguration: jsonb("tool_configuration"), // Standard tool setup for this group
+  fixtures: jsonb("fixtures"), // Required fixtures
+  workholding: text("workholding"), // Chuck, vise, collet, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Operator Skills and Certifications
+export const operatorSkills = pgTable("operator_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  operatorId: varchar("operator_id").notNull().references(() => users.id),
+  skillType: text("skill_type").notNull(), // TURNING, MILLING, GRINDING, SETUP, INSPECTION, etc.
+  skillLevel: integer("skill_level").notNull(), // 1-5 skill rating
+  certificationDate: timestamp("certification_date"),
+  expirationDate: timestamp("expiration_date"),
+  certifyingAuthority: text("certifying_authority"),
+  machineTypes: jsonb("machine_types"), // Array of machine types certified for
+  operationTypes: jsonb("operation_types"), // Array of operations certified for
+  hourlyRate: real("hourly_rate"), // Hourly rate for this skill level
+  availability: jsonb("availability"), // Working hours/shifts available
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Tool Resource Availability
+export const toolResources = pgTable("tool_resources", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  toolId: varchar("tool_id").notNull().references(() => inventoryTools.id),
+  totalQuantity: integer("total_quantity").notNull(),
+  availableQuantity: integer("available_quantity").notNull(),
+  reservedQuantity: integer("reserved_quantity").default(0),
+  inUseQuantity: integer("in_use_quantity").default(0),
+  maintenanceQuantity: integer("maintenance_quantity").default(0),
+  location: text("location").notNull(), // Tool crib, machine carousel, etc.
+  condition: text("condition").default("good"), // good, fair, needs_maintenance, worn_out
+  lastInspectionDate: timestamp("last_inspection_date"),
+  nextInspectionDue: timestamp("next_inspection_due"),
+  usageTracking: jsonb("usage_tracking"), // Track usage hours, cycles, etc.
+  costCenter: text("cost_center"), // For accounting
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Material Availability Constraints
+export const materialAvailability = pgTable("material_availability", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  materialId: varchar("material_id").notNull().references(() => rawMaterials.id),
+  workOrderId: varchar("work_order_id").references(() => workOrders.id),
+  requiredQuantity: real("required_quantity").notNull(),
+  allocatedQuantity: real("allocated_quantity").default(0),
+  reservedQuantity: real("reserved_quantity").default(0),
+  availableDate: timestamp("available_date"), // When material will be available
+  expirationDate: timestamp("expiration_date"), // Material shelf life
+  supplier: text("supplier"),
+  purchaseOrderNumber: text("purchase_order_number"),
+  unitCost: real("unit_cost"),
+  totalCost: real("total_cost"),
+  deliveryStatus: text("delivery_status").default("pending"), // pending, in_transit, received, delayed
+  qualityStatus: text("quality_status").default("approved"), // approved, hold, rejected
+  location: text("location"), // Warehouse location
+  batchLotNumber: text("batch_lot_number"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Resource Reservations
+export const resourceReservations = pgTable("resource_reservations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  resourceType: text("resource_type").notNull(), // machine, operator, tool, material
+  resourceId: varchar("resource_id").notNull(), // ID of the resource being reserved
+  workOrderId: varchar("work_order_id").notNull().references(() => workOrders.id),
+  operationId: varchar("operation_id").references(() => operations.id),
+  scheduleSlotId: varchar("schedule_slot_id").references(() => scheduleSlots.id),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time").notNull(),
+  quantity: real("quantity").default(1), // For materials/tools
+  reservationType: text("reservation_type").default("hard"), // hard, soft, preference
+  priority: integer("priority").default(100), // Lower number = higher priority
+  status: text("status").default("active"), // active, cancelled, expired, fulfilled
+  conflictResolution: text("conflict_resolution"), // How conflicts should be resolved
+  reservedBy: varchar("reserved_by").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// What-If Scenarios
+export const scenarios = pgTable("scenarios", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  baselineDate: timestamp("baseline_date").defaultNow().notNull(),
+  scenarioType: text("scenario_type").notNull(), // capacity_what_if, schedule_optimization, constraint_analysis
+  parameters: jsonb("parameters").notNull(), // Scenario-specific parameters
+  overrides: jsonb("overrides"), // Machine capacity, calendar, efficiency overrides
+  workOrderScope: jsonb("work_order_scope"), // Array of work order IDs to include
+  dateRange: jsonb("date_range"), // {startDate, endDate} for scenario
+  results: jsonb("results"), // Computed results when scenario is run
+  metrics: jsonb("metrics"), // Performance metrics for comparison
+  status: text("status").default("draft"), // draft, running, completed, archived
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  lastRunAt: timestamp("last_run_at"),
+  runtime: integer("runtime"), // Computation time in seconds
+  version: integer("version").default(1), // Scenario version for change tracking
+  isPublic: boolean("is_public").default(false), // Can other users view this scenario
+  tags: jsonb("tags"), // Array of tags for organization
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Manufacturing-specific types
 export interface ManufacturingOperation {
   id: string;
@@ -638,6 +760,36 @@ export const insertShiftEntrySchema = createInsertSchema(shiftEntries).omit({
   createdAt: true,
   updatedAt: true,
 });
+export const insertSetupGroupSchema = createInsertSchema(setupGroups).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertOperatorSkillSchema = createInsertSchema(operatorSkills).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertToolResourceSchema = createInsertSchema(toolResources).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertMaterialAvailabilitySchema = createInsertSchema(materialAvailability).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertResourceReservationSchema = createInsertSchema(resourceReservations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertScenarioSchema = createInsertSchema(scenarios).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 
 // Type exports - Complete with new planning types
 export type Operation = typeof operations.$inferSelect;
@@ -670,6 +822,18 @@ export type CapacityBucket = typeof capacityBuckets.$inferSelect;
 export type InsertCapacityBucket = z.infer<typeof insertCapacityBucketSchema>;
 export type ShiftEntry = typeof shiftEntries.$inferSelect;
 export type InsertShiftEntry = z.infer<typeof insertShiftEntrySchema>;
+export type SetupGroup = typeof setupGroups.$inferSelect;
+export type InsertSetupGroup = z.infer<typeof insertSetupGroupSchema>;
+export type OperatorSkill = typeof operatorSkills.$inferSelect;
+export type InsertOperatorSkill = z.infer<typeof insertOperatorSkillSchema>;
+export type ToolResource = typeof toolResources.$inferSelect;
+export type InsertToolResource = z.infer<typeof insertToolResourceSchema>;
+export type MaterialAvailability = typeof materialAvailability.$inferSelect;
+export type InsertMaterialAvailability = z.infer<typeof insertMaterialAvailabilitySchema>;
+export type ResourceReservation = typeof resourceReservations.$inferSelect;
+export type InsertResourceReservation = z.infer<typeof insertResourceReservationSchema>;
+export type Scenario = typeof scenarios.$inferSelect;
+export type InsertScenario = z.infer<typeof insertScenarioSchema>;
 
 // Extended interfaces for production planning
 export interface SchedulingPolicy {

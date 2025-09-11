@@ -6,7 +6,8 @@ import {
   ClipboardCheck, 
   Package, 
   Calendar, 
-  BarChart3 
+  BarChart3,
+  Activity 
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -21,6 +22,7 @@ export function SideNavigation() {
     { path: "/oee-analytics", icon: TrendingUp, label: "OEE Analytics" },
     { path: "/inventory", icon: Package, label: "Inventory" },
     { path: "/production-planning", icon: Calendar, label: "Production Planning" },
+    { path: "/capacity-planning", icon: Activity, label: "Capacity Planning" },
     { path: "/reports", icon: BarChart3, label: "Reports" },
   ];
 
