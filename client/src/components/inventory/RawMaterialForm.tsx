@@ -44,6 +44,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       thickness: 0,
       width: 0,
       length: 0,
+      specifications: "",
     },
   });
 
@@ -81,12 +82,16 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
   });
 
   const onSubmit = (data: RawMaterialFormData) => {
+    console.log('Form submitted with data:', data);
+    console.log('Form validation errors:', form.formState.errors);
+    
     // Generate SKU based on material properties
     const sku = generateSKU(data);
     const formData = {
       ...data,
       sku,
     };
+    console.log('Final form data with SKU:', formData);
     mutation.mutate(formData);
   };
 
@@ -302,7 +307,13 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form id="raw-material-form" onSubmit={(e) => {
+      console.log('Form submit event triggered');
+      console.log('Current form values:', form.getValues());
+      console.log('Form errors before submit:', form.formState.errors);
+      console.log('Form is valid:', form.formState.isValid);
+      return form.handleSubmit(onSubmit)(e);
+    }} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>
@@ -314,7 +325,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
               <Label htmlFor="materialType">Material Type</Label>
               <Select 
                 value={form.watch("materialType")} 
-                onValueChange={(value) => form.setValue("materialType", value)}
+                onValueChange={(value) => {
+                  form.setValue("materialType", value);
+                  form.trigger("materialType"); // Trigger validation
+                }}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select material type" />
@@ -353,7 +367,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
               <Label htmlFor="shape">Shape</Label>
               <Select 
                 value={form.watch("shape")} 
-                onValueChange={(value) => form.setValue("shape", value)}
+                onValueChange={(value) => {
+                  form.setValue("shape", value);
+                  form.trigger("shape"); // Trigger validation
+                }}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select shape" />
@@ -409,7 +426,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
               <Label htmlFor="supplier">Supplier</Label>
               <Select 
                 value={form.watch("supplier")} 
-                onValueChange={(value) => form.setValue("supplier", value)}
+                onValueChange={(value) => {
+                  form.setValue("supplier", value);
+                  form.trigger("supplier"); // Trigger validation
+                }}
               >
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="Select supplier" />
@@ -490,6 +510,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
               <Label htmlFor="specifications">Additional Specifications</Label>
               <Textarea
                 id="specifications"
+                {...form.register("specifications")}
                 placeholder="Heat treatment, surface finish, certifications, etc."
                 className="mt-1 resize-none"
                 rows={3}
@@ -503,7 +524,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
         <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
           Cancel
         </Button>
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
+        <Button type="submit" form="raw-material-form" disabled={mutation.isPending} data-testid="button-submit">
           {mutation.isPending ? "Adding..." : "Add Material"}
         </Button>
       </ScrollableDialogFooter>
