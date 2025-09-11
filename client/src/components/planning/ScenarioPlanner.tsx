@@ -333,7 +333,7 @@ export function ScenarioPlanner() {
         description: "Scenario update not yet implemented",
       });
     } else {
-      createScenarioMutation.mutate(scenarioData);
+      createScenarioMutation.mutate(scenarioData as any);
     }
   };
 
@@ -552,14 +552,14 @@ export function ScenarioPlanner() {
                       </div>
                       
                       {/* Show overrides */}
-                      {scenario.overrides && (scenario.overrides as ScenarioOverride[]).length > 0 && (
+                      {scenario.overrides && Array.isArray(scenario.overrides) && (scenario.overrides as any[]).length > 0 ? (
                         <div className="mt-4 pt-3 border-t">
                           <p className="text-sm font-medium text-gray-700 mb-2">Overrides:</p>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                             {(scenario.overrides as ScenarioOverride[]).map((override, idx) => (
                               <div key={idx} className="flex items-center space-x-2 text-sm">
-                                {getOverrideTypeIcon(override.type)}
-                                <span>{override.type.replace('_', ' ')}: {override.value}</span>
+                                {getOverrideTypeIcon(String(override.type || 'overtime'))}
+                                <span>{String(override.type || 'unknown').replace('_', ' ')}: {String(override.value || '')}</span>
                                 {override.machineId && (
                                   <Badge variant="secondary" className="text-xs">
                                     {machines.find(m => m.id === override.machineId)?.name || override.machineId}
@@ -569,7 +569,7 @@ export function ScenarioPlanner() {
                             ))}
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </CardContent>
                   </Card>
                 ))}

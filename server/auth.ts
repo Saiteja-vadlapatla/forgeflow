@@ -1,7 +1,7 @@
 // Authentication module based on javascript_auth_all_persistance blueprint
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request, Response, NextFunction } from "express";
 import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
@@ -143,7 +143,7 @@ export function setupAuth(app: Express) {
 }
 
 // Middleware to require authentication
-export function requireAuth(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
   if (req.isAuthenticated()) {
     next();
   } else {
@@ -153,7 +153,7 @@ export function requireAuth(req: Express.Request, res: Express.Response, next: E
 
 // Middleware to require specific role
 export function requireRole(role: string) {
-  return (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Authentication required" });
     }

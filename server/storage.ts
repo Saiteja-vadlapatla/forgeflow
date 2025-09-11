@@ -1205,12 +1205,16 @@ export class MemStorage implements IStorage {
         resourceType: "operator",
         resourceId: "op-001",
         workOrderId: "wo-1",
+        operationId: "op-wo-1-1",
+        scheduleSlotId: null,
         startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
         endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
         quantity: 1,
+        reservationType: "hard",
         priority: 100,
         status: "active",
         conflictResolution: null,
+        reservedBy: "scheduler-system",
         notes: "John Smith assigned to HSK turning operation",
         createdAt: now,
         updatedAt: now,
@@ -1220,12 +1224,16 @@ export class MemStorage implements IStorage {
         resourceType: "tool",
         resourceId: "tool-res-1",
         workOrderId: "wo-1",
+        operationId: "op-wo-1-1",
+        scheduleSlotId: null,
         startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
         endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
         quantity: 10,
+        reservationType: "hard",
         priority: 100,
         status: "active",
         conflictResolution: null,
+        reservedBy: "scheduler-system",
         notes: "CNMG inserts reserved for turning operation",
         createdAt: now,
         updatedAt: now,
@@ -1235,12 +1243,16 @@ export class MemStorage implements IStorage {
         resourceType: "material",
         resourceId: "mat-avail-1",
         workOrderId: "wo-1",
+        operationId: "op-wo-1-1",
+        scheduleSlotId: null,
         startTime: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
         endTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
         quantity: 3,
+        reservationType: "hard",
         priority: 100,
         status: "active",
         conflictResolution: null,
+        reservedBy: "scheduler-system",
         notes: "Steel bar stock reserved for work order",
         createdAt: now,
         updatedAt: now,
@@ -1250,12 +1262,16 @@ export class MemStorage implements IStorage {
         resourceType: "operator",
         resourceId: "op-003",
         workOrderId: "wo-3",
+        operationId: "op-wo-3-1",
+        scheduleSlotId: null,
         startTime: new Date(Date.now() + 12 * 60 * 60 * 1000),
         endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
         quantity: 1,
+        reservationType: "hard",
         priority: 50,
         status: "pending",
         conflictResolution: null,
+        reservedBy: "scheduler-system",
         notes: "Mike Chen scheduled for EDM operation",
         createdAt: now,
         updatedAt: now,
@@ -1653,6 +1669,19 @@ export class MemStorage implements IStorage {
     return event;
   }
 
+  async updateDowntimeEvent(id: string, updates: Partial<DowntimeEvent>): Promise<DowntimeEvent | undefined> {
+    const event = this.downtimeEvents.get(id);
+    if (!event) return undefined;
+    
+    const updatedEvent = { ...event, ...updates };
+    this.downtimeEvents.set(id, updatedEvent);
+    return updatedEvent;
+  }
+
+  async deleteDowntimeEvent(id: string): Promise<void> {
+    this.downtimeEvents.delete(id);
+  }
+
   async getActiveDowntimeEvents(): Promise<DowntimeEvent[]> {
     return Array.from(this.downtimeEvents.values())
       .filter(event => !event.endTime);
@@ -1667,14 +1696,35 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const log: ProductionLog = { 
       ...insertLog,
+      notes: insertLog.notes || null,
       timestamp: insertLog.timestamp || new Date(),
       shiftId: insertLog.shiftId || null,
       cycleTime: insertLog.cycleTime || null,
+      quantityScrap: insertLog.quantityScrap ?? null,
+      operatorSessionId: insertLog.operatorSessionId || null,
+      batchNumber: insertLog.batchNumber || null,
       id,
       createdAt: new Date(),
     };
     this.productionLogs.set(id, log);
     return log;
+  }
+
+  async getProductionLog(id: string): Promise<ProductionLog | undefined> {
+    return this.productionLogs.get(id);
+  }
+
+  async updateProductionLog(id: string, updates: Partial<ProductionLog>): Promise<ProductionLog | undefined> {
+    const log = this.productionLogs.get(id);
+    if (!log) return undefined;
+    
+    const updatedLog = { ...log, ...updates };
+    this.productionLogs.set(id, updatedLog);
+    return updatedLog;
+  }
+
+  async deleteProductionLog(id: string): Promise<void> {
+    this.productionLogs.delete(id);
   }
 
   async getProductionLogsByMachine(machineId: string): Promise<ProductionLog[]> {
@@ -2621,6 +2671,36 @@ export class MemStorage implements IStorage {
     return setup;
   }
 
+  async getSetupMatrixEntry(fromOperationType: string, toOperationType: string): Promise<SetupMatrix | undefined> {
+    return Array.from(this.setupMatrix.values())
+      .find(setup => setup.fromFamily === fromOperationType && setup.toFamily === toOperationType);
+  }
+
+  async getSetupMatrixByMachine(machineId: string): Promise<SetupMatrix[]> {
+    return Array.from(this.setupMatrix.values())
+      .filter(setup => setup.machineType === machineId);
+  }
+
+  async createSetupMatrixEntry(insertSetup: InsertSetupMatrix): Promise<SetupMatrix> {
+    return this.createSetupMatrix(insertSetup);
+  }
+
+  async updateSetupMatrixEntry(id: string, updates: Partial<SetupMatrix>): Promise<SetupMatrix | undefined> {
+    const existing = this.setupMatrix.get(id);
+    if (!existing) return undefined;
+    
+    const updated: SetupMatrix = {
+      ...existing,
+      ...updates,
+    };
+    this.setupMatrix.set(id, updated);
+    return updated;
+  }
+
+  async deleteSetupMatrixEntry(id: string): Promise<void> {
+    this.setupMatrix.delete(id);
+  }
+
   // Capacity Buckets methods
   async getCapacityBuckets(machineId?: string, startDate?: Date, endDate?: Date): Promise<CapacityBucket[]> {
     let buckets = Array.from(this.capacityBuckets.values());
@@ -3151,18 +3231,14 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const newShiftReport: ShiftReport = {
       ...shift,
-      supervisor: shift.supervisor ?? null,
-      totalProduced: shift.totalProduced ?? null,
-      totalScrap: shift.totalScrap ?? null,
-      totalDowntime: shift.totalDowntime ?? null,
-      efficiency: shift.efficiency ?? null,
-      notes: shift.notes ?? null,
-      status: shift.status ?? 'active',
-      issues: shift.issues ?? null,
-      achievements: shift.achievements ?? null,
-      attendanceCount: shift.attendanceCount ?? null,
-      safetyIncidents: shift.safetyIncidents ?? null,
-      maintenancePerformed: shift.maintenancePerformed ?? null,
+      endTime: shift.endTime || null,
+      workOrderIds: shift.workOrderIds || [],
+      totalProduced: shift.totalProduced || 0,
+      totalScrap: shift.totalScrap || 0,
+      totalDowntimeMinutes: shift.totalDowntimeMinutes || 0,
+      efficiency: shift.efficiency || 0,
+      notes: shift.notes || null,
+      status: shift.status || 'active',
       id,
       createdAt: now,
       updatedAt: now,
@@ -3223,19 +3299,17 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const newSession: OperatorSession = {
       ...session,
-      setupTime: session.setupTime ?? null,
-      runTime: session.runTime ?? null,
-      breakTime: session.breakTime ?? null,
-      downtimeMinutes: session.downtimeMinutes ?? null,
-      partCount: session.partCount ?? null,
-      scrapCount: session.scrapCount ?? null,
-      qualityIssues: session.qualityIssues ?? null,
-      notes: session.notes ?? null,
-      endTime: session.endTime ?? null,
-      status: session.status ?? 'active',
+      sessionEnd: session.sessionEnd || null,
+      setupTime: session.setupTime || 0,
+      runTime: session.runTime || 0,
+      downTime: session.downTime || 0,
+      quantityProduced: session.quantityProduced || 0,
+      quantityScrap: session.quantityScrap || 0,
+      avgCycleTime: session.avgCycleTime || null,
+      isActive: session.isActive ?? true,
+      notes: session.notes || null,
       id,
       createdAt: now,
-      updatedAt: now,
     };
     this.operatorSessions.set(id, newSession);
     return newSession;
@@ -3248,7 +3322,6 @@ export class MemStorage implements IStorage {
     const updatedSession: OperatorSession = {
       ...session,
       ...updates,
-      updatedAt: new Date(),
     };
     this.operatorSessions.set(id, updatedSession);
     return updatedSession;
@@ -3256,7 +3329,7 @@ export class MemStorage implements IStorage {
 
   async getActiveOperatorSessions(): Promise<OperatorSession[]> {
     return Array.from(this.operatorSessions.values())
-      .filter(session => session.status === 'active');
+      .filter(session => session.isActive === true);
   }
 
   async getOperatorSessionsByShift(shiftId: string): Promise<OperatorSession[]> {
@@ -3275,9 +3348,8 @@ export class MemStorage implements IStorage {
     
     const updatedSession: OperatorSession = {
       ...session,
-      endTime,
-      status: 'completed',
-      updatedAt: new Date(),
+      sessionEnd: endTime,
+      isActive: false,
     };
     this.operatorSessions.set(id, updatedSession);
     return updatedSession;
@@ -3297,14 +3369,10 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const newReasonCode: ReasonCode = {
       ...reasonCode,
-      description: reasonCode.description ?? null,
-      category: reasonCode.category ?? null,
-      subcategory: reasonCode.subcategory ?? null,
-      impactLevel: reasonCode.impactLevel ?? 'low',
+      subcategory: reasonCode.subcategory || null,
+      requiresComment: reasonCode.requiresComment ?? false,
       isActive: reasonCode.isActive ?? true,
-      color: reasonCode.color ?? null,
-      sortOrder: reasonCode.sortOrder ?? null,
-      parentCode: reasonCode.parentCode ?? null,
+      severity: reasonCode.severity || "medium",
       id,
       createdAt: now,
       updatedAt: now,
@@ -3354,18 +3422,18 @@ export class MemStorage implements IStorage {
     const now = new Date();
     const newScrapLog: ScrapLog = {
       ...scrapLog,
-      reasonCodeId: scrapLog.reasonCodeId ?? null,
-      description: scrapLog.description ?? null,
-      materialCost: scrapLog.materialCost ?? null,
-      laborCost: scrapLog.laborCost ?? null,
-      batchNumber: scrapLog.batchNumber ?? null,
-      notes: scrapLog.notes ?? null,
-      verifiedBy: scrapLog.verifiedBy ?? null,
-      verifiedAt: scrapLog.verifiedAt ?? null,
-      status: scrapLog.status ?? 'pending',
+      operatorSessionId: scrapLog.operatorSessionId || null,
+      shiftId: scrapLog.shiftId || null,
+      reasonComment: scrapLog.reasonComment || null,
+      partStage: scrapLog.partStage || null,
+      recoverable: scrapLog.recoverable ?? false,
+      cost: scrapLog.cost || null,
+      timestamp: scrapLog.timestamp || now,
+      verifiedBy: scrapLog.verifiedBy || null,
+      verifiedAt: scrapLog.verifiedAt || null,
+      disposition: scrapLog.disposition || null,
       id,
       createdAt: now,
-      updatedAt: now,
     };
     this.scrapLogs.set(id, newScrapLog);
     return newScrapLog;
@@ -3378,7 +3446,6 @@ export class MemStorage implements IStorage {
     const updatedScrapLog: ScrapLog = {
       ...scrapLog,
       ...updates,
-      updatedAt: new Date(),
     };
     this.scrapLogs.set(id, updatedScrapLog);
     return updatedScrapLog;
@@ -3407,8 +3474,6 @@ export class MemStorage implements IStorage {
       ...scrapLog,
       verifiedBy,
       verifiedAt: new Date(),
-      status: 'verified',
-      updatedAt: new Date(),
     };
     this.scrapLogs.set(id, updatedScrapLog);
     return updatedScrapLog;
@@ -3489,10 +3554,10 @@ export class MemStorage implements IStorage {
     const sessions = await this.getOperatorSessionsByShift(shiftId);
     const scrapLogs = await this.getScrapLogsByShift(shiftId);
     
-    const totalProduced = sessions.reduce((sum, session) => sum + (session.partCount || 0), 0);
+    const totalProduced = sessions.reduce((sum, session) => sum + (session.quantityProduced || 0), 0);
     const totalScrap = scrapLogs.reduce((sum, log) => sum + log.quantity, 0);
-    const totalDowntime = sessions.reduce((sum, session) => sum + (session.downtimeMinutes || 0), 0);
-    const activeSessions = sessions.filter(session => session.status === 'active').length;
+    const totalDowntime = sessions.reduce((sum, session) => sum + (session.downTime || 0), 0);
+    const activeSessions = sessions.filter(session => session.isActive === true).length;
     
     const totalRunTime = sessions.reduce((sum, session) => sum + (session.runTime || 0), 0);
     const totalTime = totalRunTime + totalDowntime;
@@ -3519,6 +3584,8 @@ export class MemStorage implements IStorage {
     const qualityRecords = Array.from(this.qualityRecords.values());
     const scheduleSlots = Array.from(this.scheduleSlots.values());
     
+    const operatorSessions = Array.from(this.operatorSessions.values());
+    
     return AnalyticsEngine.calculateAnalyticsKPIs(
       machines,
       workOrders,
@@ -3526,6 +3593,7 @@ export class MemStorage implements IStorage {
       downtimeEvents,
       qualityRecords,
       scheduleSlots,
+      operatorSessions,
       filters.dateRange
     );
   }
@@ -3658,7 +3726,23 @@ export class MemStorage implements IStorage {
         event.startTime <= filters.dateRange.to
       );
     
-    return AnalyticsEngine.generateDowntimePareto(downtimeEvents, filters.dateRange);
+    // Use a simple pareto calculation since generateDowntimePareto is private
+    const reasonCounts: Record<string, number> = {};
+    
+    downtimeEvents.forEach(event => {
+      const key = event.reason || 'Unknown';
+      reasonCounts[key] = (reasonCounts[key] || 0) + (event.duration || 0);
+    });
+    
+    const total = Object.values(reasonCounts).reduce((sum, count) => sum + count, 0);
+    
+    return Object.entries(reasonCounts)
+      .map(([category, value]) => ({
+        category,
+        value,
+        percentage: total > 0 ? Math.round((value / total) * 10000) / 100 : 0
+      }))
+      .sort((a, b) => b.value - a.value);
   }
 }
 

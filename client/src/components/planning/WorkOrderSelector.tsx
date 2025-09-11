@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Search, Filter, Calendar, Clock, Wrench, Package, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -224,29 +224,34 @@ export function WorkOrderSelector({
     resourceRequirements
   }), [basicCapacityInfo, resourceRequirements]);
 
-  // Notify parent of capacity changes with proper dependencies
+  // Notify parent of capacity changes with proper dependencies - use ref to prevent infinite loops
+  const previousCapacity = useMemo(() => ({
+    totalHours: capacityImpact.totalHours,
+    workOrderCount: capacityImpact.workOrderCount
+  }), [capacityImpact.totalHours, capacityImpact.workOrderCount]);
+
   useEffect(() => {
     if (onCapacityChange) {
       onCapacityChange(capacityImpact.totalHours, capacityImpact.resourceRequirements);
     }
-  }, [onCapacityChange, capacityImpact.totalHours, capacityImpact.workOrderCount, capacityImpact.resourceRequirements]);
+  }, [onCapacityChange, previousCapacity.totalHours, previousCapacity.workOrderCount]);
 
-  const handleWorkOrderToggle = (workOrderId: string) => {
+  const handleWorkOrderToggle = useCallback((workOrderId: string) => {
     const newSelection = selectedWorkOrders.includes(workOrderId)
       ? selectedWorkOrders.filter(id => id !== workOrderId)
       : [...selectedWorkOrders, workOrderId];
     
     onSelectionChange(newSelection);
-  };
+  }, [selectedWorkOrders, onSelectionChange]);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     const allFilteredIds = filteredWorkOrders.map(wo => wo.id);
     onSelectionChange(allFilteredIds);
-  };
+  }, [filteredWorkOrders, onSelectionChange]);
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     onSelectionChange([]);
-  };
+  }, [onSelectionChange]);
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
@@ -478,8 +483,8 @@ export function WorkOrderSelector({
                   <SelectContent>
                     <SelectItem value="all">All Machines</SelectItem>
                     <SelectItem value="available">Available Machines Only</SelectItem>
-                    {Array.from(new Set(machines.map(m => m.type))).map(type => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
+                    {Array.from(new Set(machines.map(m => m.type))).filter(Boolean).map(type => (
+                      <SelectItem key={`machine-type-${type}`} value={type}>{type}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -599,28 +604,28 @@ export function WorkOrderSelector({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {Object.entries(capacityImpact.resourceRequirements).map(([opType, requirements]) => (
-                <div key={opType} className="p-3 bg-gray-50 rounded-lg">
+              {Object.entries(capacityImpact.resourceRequirements || {}).map(([opType, requirements]) => (
+                <div key={`resource-req-${opType}`} className="p-3 bg-gray-50 rounded-lg">
                   <div className="font-medium text-sm mb-2">{opType}</div>
                   <div className="space-y-1 text-xs text-gray-600">
-                    <div>Work Orders: {requirements.count}</div>
-                    <div>Total Hours: {requirements.hours.toFixed(1)}h</div>
-                    <div>Total Pieces: {requirements.quantity}</div>
-                    <div>Capable Machines: {requirements.capableMachines.length}</div>
+                    <div>Work Orders: {requirements?.count || 0}</div>
+                    <div>Total Hours: {(requirements?.hours || 0).toFixed(1)}h</div>
+                    <div>Total Pieces: {requirements?.quantity || 0}</div>
+                    <div>Capable Machines: {requirements?.capableMachines?.length || 0}</div>
                     
-                    {requirements.capableMachines.length > 0 && (
+                    {(requirements?.capableMachines?.length || 0) > 0 && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
                         <div className="font-medium mb-1">Machine Utilization:</div>
-                        {Object.entries(requirements.utilizationByMachine).map(([machineId, util]) => (
-                          <div key={machineId} className="flex justify-between text-xs">
-                            <span>{util.machineName}:</span>
-                            <span>{util.hours.toFixed(1)}h ({util.workOrders} WO)</span>
+                        {Object.entries(requirements?.utilizationByMachine || {}).map(([machineId, util]) => (
+                          <div key={`machine-util-${machineId}`} className="flex justify-between text-xs">
+                            <span>{util?.machineName || 'Unknown'}:</span>
+                            <span>{(util?.hours || 0).toFixed(1)}h ({util?.workOrders || 0} WO)</span>
                           </div>
                         ))}
                       </div>
                     )}
                     
-                    {requirements.capableMachines.length === 0 && (
+                    {(requirements?.capableMachines?.length || 0) === 0 && (
                       <div className="text-red-600 text-xs font-medium">⚠ No capable machines available</div>
                     )}
                   </div>

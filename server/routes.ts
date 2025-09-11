@@ -2653,9 +2653,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/setup-matrix/:id", async (req, res) => {
+  app.get("/api/setup-matrix/:fromType/:toType", async (req, res) => {
     try {
-      const entry = await storage.getSetupMatrixEntry?.(req.params.id);
+      const entry = await storage.getSetupMatrixEntry?.(req.params.fromType, req.params.toType);
       if (!entry) {
         return res.status(404).json({ error: "Setup matrix entry not found" });
       }
