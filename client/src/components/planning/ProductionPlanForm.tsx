@@ -337,7 +337,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                     <Label htmlFor="planType">Plan Type</Label>
                     <Select 
                       value={form.watch("planType")} 
-                      onValueChange={(value) => form.setValue("planType", value)}
+                      onValueChange={(value) => form.setValue("planType", value as "daily" | "weekly" | "monthly")}
                     >
                       <SelectTrigger data-testid="select-plan-type">
                         <SelectValue />
