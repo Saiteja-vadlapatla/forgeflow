@@ -991,7 +991,7 @@ export function ScenarioPlanner() {
                           <SelectValue placeholder="Select machine (optional)" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Machines</SelectItem>
+                          <SelectItem value="all">All Machines</SelectItem>
                           {machines.map((machine) => (
                             <SelectItem key={machine.id} value={machine.id}>
                               {machine.name}

@@ -33,6 +33,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { ProductionScheduler } from "./scheduling";
+import { AnalyticsEngine } from "./analytics";
 
 export interface IStorage {
   // User operations
@@ -1773,16 +1774,116 @@ export class MemStorage implements IStorage {
       timestamp: new Date(now - (23 - i) * 60 * 60 * 1000).toISOString(),
       value: Math.floor(Math.random() * 5) + 95,
     }));
-    
-    return {
-      kpis,
-      machines,
-      activeWorkOrders,
-      alerts,
-      productionData,
-      oeeData,
-      qualityTrends,
-    };
+
+    // Add comprehensive analytics data for real-time analytics dashboard
+    try {
+      const period = { 
+        from: new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+        to: new Date() 
+      };
+
+      const [
+        allMachines,
+        allWorkOrders,
+        productionLogs,
+        downtimeEvents,
+        qualityRecords,
+        scheduleSlots,
+        operatorSessions
+      ] = await Promise.all([
+        this.getAllMachines(),
+        this.getAllWorkOrders(),
+        this.getAllProductionLogs(),
+        this.getAllDowntimeEvents(),
+        this.getAllQualityRecords(),
+        this.getAllScheduleSlots(),
+        this.getAllOperatorSessions()
+      ]);
+
+      // Calculate comprehensive analytics KPIs
+      const analyticsKPIs = AnalyticsEngine.calculateAnalyticsKPIs(
+        allMachines,
+        allWorkOrders,
+        productionLogs,
+        downtimeEvents,
+        qualityRecords,
+        scheduleSlots,
+        operatorSessions,
+        period
+      );
+
+      // Calculate real-time machine OEE snapshots
+      const machineOEESnapshots = AnalyticsEngine.getRealtimeMachineOEE(
+        allMachines,
+        productionLogs,
+        downtimeEvents,
+        qualityRecords,
+        allWorkOrders
+      );
+
+      // Calculate OEE breakdowns for all machines
+      const oeeBreakdowns = allMachines.map(machine => 
+        AnalyticsEngine.calculateOEE(
+          machine,
+          productionLogs.filter(log => log.machineId === machine.id),
+          downtimeEvents.filter(event => event.machineId === machine.id),
+          qualityRecords.filter(record => record.machineId === machine.id),
+          scheduleSlots.filter(slot => slot.machineId === machine.id),
+          period
+        )
+      );
+
+      // Calculate schedule adherence metrics
+      const adherenceMetrics = AnalyticsEngine.calculateScheduleAdherence(
+        allWorkOrders, 
+        scheduleSlots, 
+        period
+      );
+
+      // Calculate utilization metrics
+      const utilizationMetrics = AnalyticsEngine.calculateUtilizationMetrics(
+        allMachines,
+        productionLogs,
+        downtimeEvents,
+        operatorSessions,
+        period
+      );
+
+      // Calculate quality summary
+      const qualitySummary = AnalyticsEngine.calculateQualitySummary(
+        qualityRecords,
+        period
+      );
+
+      return {
+        kpis,
+        machines,
+        activeWorkOrders,
+        alerts,
+        productionData,
+        oeeData,
+        qualityTrends,
+        // Enhanced analytics data
+        analyticsKPIs,
+        machineOEESnapshots,
+        oeeBreakdowns,
+        adherenceMetrics,
+        utilizationMetrics,
+        qualitySummary,
+      };
+    } catch (error) {
+      console.error('Error calculating real-time analytics:', error);
+      // Return basic data if analytics calculation fails
+      return {
+        kpis,
+        machines,
+        activeWorkOrders,
+        alerts,
+        productionData,
+        oeeData,
+        qualityTrends,
+      };
+    }
   }
 
   // Raw Materials operations

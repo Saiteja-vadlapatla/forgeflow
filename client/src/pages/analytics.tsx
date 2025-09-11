@@ -169,49 +169,81 @@ export default function Analytics() {
   // Handle WebSocket real-time data updates
   useEffect(() => {
     if (wsData) {
-      // Update real-time snapshots immediately when WebSocket data arrives
-      queryClient.setQueryData(['/api/analytics/realtime-snapshots'], wsData.machines || []);
+      const currentParams = queryParams.toString();
       
-      // If KPIs are available in WebSocket data, update the cache
-      if (wsData.kpis) {
-        const currentParams = queryParams.toString();
-        queryClient.setQueryData(['/api/analytics/kpis', currentParams], wsData.kpis);
+      // Update comprehensive analytics data immediately when WebSocket data arrives
+      if (wsData.analyticsKPIs) {
+        queryClient.setQueryData(['/api/analytics/kpis', currentParams], wsData.analyticsKPIs);
       }
       
-      // Invalidate and refetch analytics data to get latest results
-      queryClient.invalidateQueries({ queryKey: ['/api/analytics'] });
+      if (wsData.oeeBreakdowns) {
+        queryClient.setQueryData(['/api/analytics/oee', currentParams], wsData.oeeBreakdowns);
+      }
+      
+      if (wsData.adherenceMetrics) {
+        queryClient.setQueryData(['/api/analytics/adherence', currentParams], wsData.adherenceMetrics);
+      }
+      
+      if (wsData.utilizationMetrics) {
+        queryClient.setQueryData(['/api/analytics/utilization', currentParams], wsData.utilizationMetrics);
+      }
+      
+      if (wsData.qualitySummary) {
+        queryClient.setQueryData(['/api/analytics/quality', currentParams], wsData.qualitySummary);
+      }
+      
+      if (wsData.machineOEESnapshots) {
+        queryClient.setQueryData(['/api/analytics/realtime-snapshots'], wsData.machineOEESnapshots);
+      }
+      
+      // Also update basic KPIs if available (for dashboard compatibility)
+      if (wsData.kpis) {
+        queryClient.setQueryData(['/api/dashboard/kpis'], wsData.kpis);
+      }
     }
   }, [wsData, queryClient, queryParams]);
 
-  // Fetch analytics data (reduced polling since WebSocket provides real-time updates)
+  // Fetch analytics data - prefer WebSocket data when connected, fallback to HTTP when disconnected
   const { data: kpis, isLoading: kpisLoading, refetch: refetchKpis } = useQuery<AnalyticsKPIs>({
     queryKey: ['/api/analytics/kpis', queryParams.toString()],
-    refetchInterval: wsConnected ? false : (autoRefresh ? 60000 : false) // Only poll if WebSocket disconnected
+    enabled: !wsConnected || !wsData?.analyticsKPIs, // Only fetch via HTTP if WebSocket is disconnected or no data
+    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false), // Faster fallback polling
+    initialData: wsData?.analyticsKPIs // Use WebSocket data as initial data
   });
 
   const { data: oeeData, isLoading: oeeLoading } = useQuery<OEEBreakdown[]>({
     queryKey: ['/api/analytics/oee', queryParams.toString()],
-    refetchInterval: wsConnected ? false : (autoRefresh ? 60000 : false)
+    enabled: !wsConnected || !wsData?.oeeBreakdowns,
+    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    initialData: wsData?.oeeBreakdowns
   });
 
   const { data: adherenceData, isLoading: adherenceLoading } = useQuery<AdherenceMetrics[]>({
     queryKey: ['/api/analytics/adherence', queryParams.toString()],
-    refetchInterval: wsConnected ? false : (autoRefresh ? 60000 : false)
+    enabled: !wsConnected || !wsData?.adherenceMetrics,
+    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    initialData: wsData?.adherenceMetrics
   });
 
   const { data: utilizationData, isLoading: utilizationLoading } = useQuery<UtilizationMetrics[]>({
     queryKey: ['/api/analytics/utilization', queryParams.toString()],
-    refetchInterval: wsConnected ? false : (autoRefresh ? 60000 : false)
+    enabled: !wsConnected || !wsData?.utilizationMetrics,
+    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    initialData: wsData?.utilizationMetrics
   });
 
   const { data: qualityData, isLoading: qualityLoading } = useQuery<QualitySummary>({
     queryKey: ['/api/analytics/quality', queryParams.toString()],
-    refetchInterval: wsConnected ? false : (autoRefresh ? 60000 : false)
+    enabled: !wsConnected || !wsData?.qualitySummary,
+    refetchInterval: wsConnected ? false : (autoRefresh ? 30000 : false),
+    initialData: wsData?.qualitySummary
   });
 
   const { data: realtimeSnapshots, isLoading: snapshotsLoading } = useQuery<MachineOEESnapshot[]>({
     queryKey: ['/api/analytics/realtime-snapshots'],
-    refetchInterval: wsConnected ? false : 5000 // WebSocket handles real-time updates
+    enabled: !wsConnected || !wsData?.machineOEESnapshots,
+    refetchInterval: wsConnected ? false : 10000, // Faster refresh for real-time data
+    initialData: wsData?.machineOEESnapshots
   });
 
   // Fetch machines for filtering

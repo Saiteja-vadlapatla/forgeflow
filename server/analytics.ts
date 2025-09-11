@@ -242,6 +242,7 @@ export class AnalyticsEngine {
     downtimeEvents: DowntimeEvent[],
     qualityRecords: QualityRecord[],
     scheduleSlots: ScheduleSlot[],
+    operatorSessions: OperatorSession[],
     period: { from: Date; to: Date }
   ): AnalyticsKPIs {
     // Calculate overall OEE across all machines
@@ -280,7 +281,7 @@ export class AnalyticsEngine {
 
     // Calculate utilization rate
     const utilizationMetrics = this.calculateUtilizationMetrics(
-      machines, productionLogs, downtimeEvents, [], period
+      machines, productionLogs, downtimeEvents, operatorSessions, period
     );
     const utilizationRate = utilizationMetrics.length > 0
       ? utilizationMetrics.reduce((sum, metric) => sum + metric.utilizationRate, 0) / utilizationMetrics.length

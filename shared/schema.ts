@@ -456,6 +456,13 @@ export interface RealtimeData {
   productionData: { timestamp: string; value: number }[];
   oeeData: { timestamp: string; value: number }[];
   qualityTrends: { timestamp: string; value: number }[];
+  // Enhanced analytics data for real-time WebSocket updates
+  analyticsKPIs?: AnalyticsKPIs;
+  machineOEESnapshots?: MachineOEESnapshot[];
+  oeeBreakdowns?: OEEBreakdown[];
+  adherenceMetrics?: AdherenceMetrics[];
+  utilizationMetrics?: UtilizationMetrics[];
+  qualitySummary?: QualitySummary;
 }
 
 // Inventory Management Tables
