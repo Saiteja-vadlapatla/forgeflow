@@ -16,8 +16,7 @@ import { insertInventoryToolSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 const toolFormSchema = insertInventoryToolSchema.omit({ 
-  sku: true,
-  currentStock: true
+  sku: true
 });
 
 type ToolFormData = z.infer<typeof toolFormSchema>;
