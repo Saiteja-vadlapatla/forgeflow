@@ -4,7 +4,7 @@ import { Play, Pause, Square, Settings, AlertTriangle, Clock, Wrench } from "luc
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -29,10 +29,7 @@ export default function MachineOperationsPage() {
 
   const updateMachineStatus = useMutation({
     mutationFn: async ({ machineId, status }: { machineId: string; status: string }) => {
-      return apiRequest(`/api/machines/${machineId}`, {
-        method: "PATCH",
-        body: { status }
-      });
+      return apiRequest("PATCH", `/api/machines/${machineId}`, { status });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/machines"] });
@@ -290,6 +287,9 @@ export default function MachineOperationsPage() {
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Machine Control - {selectedMachine.name}</DialogTitle>
+                  <DialogDescription>
+                    Change the status of the selected machine to control its operation
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>

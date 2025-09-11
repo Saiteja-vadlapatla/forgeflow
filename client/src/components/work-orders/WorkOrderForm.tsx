@@ -73,7 +73,7 @@ export function WorkOrderForm({ onSuccess, machines }: WorkOrderFormProps) {
         plannedStartDate: data.plannedStartDate ? new Date(data.plannedStartDate) : null,
         plannedEndDate: data.plannedEndDate ? new Date(data.plannedEndDate) : null,
       };
-      return apiRequest("/api/work-orders", { method: "POST", body: payload });
+      return apiRequest("POST", "/api/work-orders", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/work-orders"] });

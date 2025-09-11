@@ -146,7 +146,7 @@ export function WorkOrderSelector({
     if (onCapacityChange) {
       onCapacityChange(capacityImpact.totalHours, capacityImpact.resourceRequirements);
     }
-  }, [capacityImpact.totalHours, capacityImpact.resourceRequirements, onCapacityChange]);
+  }, [capacityImpact.totalHours, capacityImpact.workOrderCount]); // Removed onCapacityChange and resourceRequirements from deps
 
   const handleWorkOrderToggle = (workOrderId: string) => {
     const newSelection = selectedWorkOrders.includes(workOrderId)

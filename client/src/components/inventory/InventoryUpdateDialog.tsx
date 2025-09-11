@@ -51,10 +51,7 @@ export function InventoryUpdateDialog({ type, item, trigger }: InventoryUpdateDi
         ? `/api/inventory/materials/${item.id}/update-stock`
         : `/api/inventory/tools/${item.id}/update-stock`;
       
-      return apiRequest(endpoint, {
-        method: "PATCH",
-        body: JSON.stringify(data),
-      });
+      return apiRequest("PATCH", endpoint, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 

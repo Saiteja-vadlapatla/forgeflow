@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
@@ -212,10 +212,10 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
     },
   });
 
-  const handleCapacityChange = (totalHours: number, requirements: any) => {
+  const handleCapacityChange = useCallback((totalHours: number, requirements: any) => {
     setTotalEstimatedHours(totalHours);
     setResourceRequirements(requirements);
-  };
+  }, []);
 
   const handleTimelineChange = (start: string, end: string) => {
     form.setValue("startDate", start);

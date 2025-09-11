@@ -75,10 +75,7 @@ export function SchedulePreview({
       endDate: string;
       policy: SchedulingPolicy;
     }) => {
-      const response = await apiRequest("/api/scheduling/preview", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
+      const response = await apiRequest("POST", "/api/scheduling/preview", data);
       return response;
     },
     onSuccess: (data: SchedulePreviewData) => {

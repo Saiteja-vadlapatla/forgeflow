@@ -94,7 +94,7 @@ export function QualityInspectionForm({ onSuccess, workOrders, machines }: Quali
         inspectionDate: new Date().toISOString(),
       };
 
-      return apiRequest("/api/quality/records", { method: "POST", body: payload });
+      return apiRequest("POST", "/api/quality/records", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/quality/records"] });
