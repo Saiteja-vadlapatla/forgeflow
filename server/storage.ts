@@ -105,7 +105,11 @@ export interface IStorage {
   getAllScheduleSlots(): Promise<ScheduleSlot[]>;
   getScheduleSlot(id: string): Promise<ScheduleSlot | undefined>;
   createScheduleSlot(slot: InsertScheduleSlot): Promise<ScheduleSlot>;
+  updateScheduleSlot(id: string, updates: Partial<ScheduleSlot>): Promise<ScheduleSlot | undefined>;
   getScheduleSlotsByPlan(planId: string): Promise<ScheduleSlot[]>;
+  getScheduleSlotsByDateRange(startDate: Date, endDate: Date, machineIds?: string[]): Promise<ScheduleSlot[]>;
+  validateScheduleSlots(slots: ScheduleSlot[]): Promise<SchedulingConflict[]>;
+  bulkUpdateScheduleSlots(updates: { id: string, updates: Partial<ScheduleSlot> }[]): Promise<{ updated: ScheduleSlot[], conflicts: SchedulingConflict[] }>;
   deleteScheduleSlotsByPlan(planId: string): Promise<void>;
   
   // Machine Capabilities operations
@@ -1930,12 +1934,319 @@ export class MemStorage implements IStorage {
       actualRunMinutes: insertSlot.actualRunMinutes || null,
       schedulingRule: insertSlot.schedulingRule || null,
       conflictFlags: insertSlot.conflictFlags || [],
+      color: insertSlot.color || "#3B82F6",
+      locked: insertSlot.locked || false,
+      tags: insertSlot.tags || [],
       id,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
     this.scheduleSlots.set(id, slot);
     return slot;
+  }
+
+  async updateScheduleSlot(id: string, updates: Partial<ScheduleSlot>): Promise<ScheduleSlot | undefined> {
+    const existingSlot = this.scheduleSlots.get(id);
+    if (!existingSlot) {
+      return undefined;
+    }
+
+    const updatedSlot: ScheduleSlot = {
+      ...existingSlot,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    
+    this.scheduleSlots.set(id, updatedSlot);
+    return updatedSlot;
+  }
+
+  async getScheduleSlotsByDateRange(startDate: Date, endDate: Date, machineIds?: string[]): Promise<ScheduleSlot[]> {
+    return Array.from(this.scheduleSlots.values())
+      .filter(slot => {
+        const slotStart = new Date(slot.startTime);
+        const slotEnd = new Date(slot.endTime);
+        
+        // Check date overlap: slot overlaps with range if slot.start < range.end AND slot.end > range.start
+        const hasDateOverlap = slotStart < endDate && slotEnd > startDate;
+        
+        // Check machine filter
+        const matchesMachine = !machineIds || machineIds.length === 0 || machineIds.includes(slot.machineId);
+        
+        return hasDateOverlap && matchesMachine;
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  }
+
+  async validateScheduleSlots(slots: ScheduleSlot[]): Promise<SchedulingConflict[]> {
+    const conflicts: SchedulingConflict[] = [];
+    const allSlots = Array.from(this.scheduleSlots.values()).concat(slots);
+    
+    // Get necessary data for comprehensive validation
+    const defaultCalendar = await this.getDefaultCalendar();
+    const setupMatrix = Array.from(this.setupMatrix.values());
+    const machines = await this.getAllMachines();
+    
+    // Check for overlapping slots on the same machine
+    for (const slot1 of slots) {
+      for (const slot2 of allSlots) {
+        if (slot1.id === slot2.id || slot1.machineId !== slot2.machineId) {
+          continue;
+        }
+        
+        const start1 = new Date(slot1.startTime);
+        const end1 = new Date(slot1.endTime);
+        const start2 = new Date(slot2.startTime);
+        const end2 = new Date(slot2.endTime);
+        
+        // Check for overlap: start1 < end2 AND start2 < end1
+        if (start1 < end2 && start2 < end1) {
+          conflicts.push({
+            type: "resource_conflict",
+            severity: "high",
+            description: `Schedule conflict: Operations overlap on machine ${slot1.machineId}`,
+            affectedOperations: [slot1.operationId, slot2.operationId],
+            suggestedResolution: "Adjust start/end times to eliminate overlap"
+          });
+        }
+      }
+    }
+    
+    // Check for precedence violations
+    for (const slot of slots) {
+      const operation = this.operations.get(slot.operationId);
+      if (operation && operation.predecessorOperationIds) {
+        const predecessorIds = operation.predecessorOperationIds as string[];
+        for (const predId of predecessorIds) {
+          const predSlot = allSlots.find(s => s.operationId === predId);
+          if (predSlot && new Date(predSlot.endTime) > new Date(slot.startTime)) {
+            conflicts.push({
+              type: "precedence_violation",
+              severity: "high",
+              description: `Precedence violation: Operation ${operation.operationNumber} starts before predecessor completes`,
+              affectedOperations: [slot.operationId, predSlot.operationId],
+              suggestedResolution: "Delay successor operation until predecessor completes"
+            });
+          }
+        }
+      }
+    }
+    
+    // Check for capacity overload violations
+    if (defaultCalendar) {
+      for (const slot of slots) {
+        const machine = machines.find(m => m.id === slot.machineId);
+        if (machine) {
+          const overloadCheck = this.checkCapacityOverload(
+            slot.machineId,
+            new Date(slot.startTime),
+            new Date(slot.endTime),
+            allSlots,
+            defaultCalendar
+          );
+          
+          if (overloadCheck.isOverloaded && overloadCheck.percentage > 120) {
+            conflicts.push({
+              type: "capacity_overload",
+              severity: overloadCheck.percentage > 150 ? "high" : "medium",
+              description: `Machine ${machine.name} overloaded by ${overloadCheck.percentage.toFixed(1)}% on this day`,
+              affectedOperations: [slot.operationId],
+              suggestedResolution: "Consider redistributing load or extending timeline"
+            });
+          }
+        }
+      }
+    }
+    
+    // Check for setup/changeover violations
+    for (const slot of slots) {
+      const machine = machines.find(m => m.id === slot.machineId);
+      const operation = this.operations.get(slot.operationId);
+      
+      if (machine && operation) {
+        // Find the previous operation on the same machine
+        const previousSlot = allSlots
+          .filter(s => s.machineId === slot.machineId && s.id !== slot.id && new Date(s.endTime) <= new Date(slot.startTime))
+          .sort((a, b) => new Date(b.endTime).getTime() - new Date(a.endTime).getTime())[0];
+          
+        if (previousSlot) {
+          const previousOperation = this.operations.get(previousSlot.operationId);
+          if (previousOperation) {
+            // Find applicable setup time from matrix
+            const setupRule = setupMatrix.find(rule => 
+              rule.fromFamily === previousOperation.operationFamily &&
+              rule.toFamily === operation.operationFamily &&
+              rule.machineType === machine.type
+            );
+            
+            if (setupRule) {
+              const actualGapMinutes = (new Date(slot.startTime).getTime() - new Date(previousSlot.endTime).getTime()) / 60000;
+              const requiredSetupMinutes = setupRule.changeoverMinutes;
+              
+              if (actualGapMinutes < requiredSetupMinutes) {
+                conflicts.push({
+                  type: "resource_conflict",
+                  severity: "medium",
+                  description: `Insufficient setup time: ${actualGapMinutes.toFixed(0)} min available, ${requiredSetupMinutes} min required for changeover from ${previousOperation.operationFamily} to ${operation.operationFamily}`,
+                  affectedOperations: [slot.operationId],
+                  suggestedResolution: "Increase gap between operations or adjust setup time allocation"
+                });
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Check for calendar/shift violations
+    if (defaultCalendar) {
+      const shifts = defaultCalendar.shifts as any[];
+      const workDays = defaultCalendar.workDays as number[];
+      const exceptions = (defaultCalendar.exceptions as any[]) || [];
+      
+      for (const slot of slots) {
+        const startTime = new Date(slot.startTime);
+        const endTime = new Date(slot.endTime);
+        const dayOfWeek = startTime.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        const dateStr = startTime.toISOString().split('T')[0];
+        
+        // Check if scheduled on a non-working day
+        if (workDays && !workDays.includes(dayOfWeek)) {
+          conflicts.push({
+            type: "deadline_missed",
+            severity: "medium",
+            description: `Operation scheduled on non-working day (${startTime.toLocaleDateString()})`,
+            affectedOperations: [slot.operationId],
+            suggestedResolution: "Reschedule to a working day"
+          });
+        }
+        
+        // Check for holiday/exception conflicts
+        const exception = exceptions.find(exc => exc.date === dateStr);
+        if (exception) {
+          conflicts.push({
+            type: "deadline_missed",
+            severity: "high",
+            description: `Operation scheduled during ${exception.type}: ${exception.description}`,
+            affectedOperations: [slot.operationId],
+            suggestedResolution: "Reschedule to avoid holiday/maintenance period"
+          });
+        }
+        
+        // Check if operation extends beyond shift hours
+        if (shifts && shifts.length > 0) {
+          const isWithinShiftHours = shifts.some(shift => {
+            const shiftStart = new Date(`1970-01-01T${shift.startTime}:00`);
+            const shiftEnd = new Date(`1970-01-01T${shift.endTime}:00`);
+            const slotStart = new Date(`1970-01-01T${startTime.toTimeString().split(' ')[0]}`);
+            const slotEnd = new Date(`1970-01-01T${endTime.toTimeString().split(' ')[0]}`);
+            
+            return slotStart >= shiftStart && slotEnd <= shiftEnd;
+          });
+          
+          if (!isWithinShiftHours) {
+            conflicts.push({
+              type: "deadline_missed",
+              severity: "medium",
+              description: `Operation scheduled outside shift hours (${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()})`,
+              affectedOperations: [slot.operationId],
+              suggestedResolution: "Adjust timing to fit within shift hours"
+            });
+          }
+        }
+      }
+    }
+    
+    // Check for deadline violations
+    for (const slot of slots) {
+      const operation = this.operations.get(slot.operationId);
+      if (operation && operation.dueDate) {
+        const dueDate = new Date(operation.dueDate);
+        const endTime = new Date(slot.endTime);
+        
+        if (endTime > dueDate) {
+          const delayDays = Math.ceil((endTime.getTime() - dueDate.getTime()) / (24 * 60 * 60 * 1000));
+          conflicts.push({
+            type: "deadline_missed",
+            severity: delayDays > 7 ? "high" : "medium",
+            description: `Operation ${operation.operationNumber} scheduled to finish ${delayDays} day(s) after due date`,
+            affectedOperations: [slot.operationId],
+            suggestedResolution: "Increase priority or reallocate resources to meet deadline"
+          });
+        }
+      }
+    }
+    
+    return conflicts;
+  }
+  
+  // Helper method for capacity overload checking
+  private checkCapacityOverload(
+    machineId: string,
+    startTime: Date,
+    endTime: Date,
+    scheduleSlots: ScheduleSlot[],
+    calendar: Calendar
+  ): { isOverloaded: boolean, percentage: number } {
+    try {
+      const shifts = calendar.shifts as any[];
+      
+      if (!shifts || shifts.length === 0) {
+        return { isOverloaded: false, percentage: 0 };
+      }
+      
+      const totalShiftMinutes = shifts.reduce((sum, shift) => {
+        const start = new Date(`1970-01-01T${shift.startTime}:00`);
+        const end = new Date(`1970-01-01T${shift.endTime}:00`);
+        const shiftMinutes = (end.getTime() - start.getTime()) / 60000;
+        return sum + Math.max(shiftMinutes - (shift.breakMinutes || 0), 0);
+      }, 0);
+      
+      const date = startTime.toISOString().split('T')[0];
+      const dayStart = new Date(date + 'T00:00:00');
+      const dayEnd = new Date(date + 'T23:59:59');
+      
+      const daySlots = scheduleSlots.filter(slot => {
+        return slot.machineId === machineId &&
+               new Date(slot.startTime) >= dayStart &&
+               new Date(slot.endTime) <= dayEnd;
+      });
+      
+      const totalScheduledMinutes = daySlots.reduce((sum, slot) => {
+        const setupMinutes = slot.setupMinutes || 0;
+        const runMinutes = slot.runMinutes || 0;
+        return sum + setupMinutes + runMinutes;
+      }, 0);
+      
+      const utilizationPercentage = totalShiftMinutes > 0 ? (totalScheduledMinutes * 100) / totalShiftMinutes : 0;
+      
+      return {
+        isOverloaded: utilizationPercentage > 100,
+        percentage: Math.round(utilizationPercentage * 100) / 100
+      };
+    } catch (error) {
+      console.error('Error checking capacity overload:', error);
+      return { isOverloaded: false, percentage: 0 };
+    }
+  }
+
+  async bulkUpdateScheduleSlots(updates: { id: string, updates: Partial<ScheduleSlot> }[]): Promise<{ updated: ScheduleSlot[], conflicts: SchedulingConflict[] }> {
+    const updated: ScheduleSlot[] = [];
+    const allUpdatedSlots: ScheduleSlot[] = [];
+    
+    // Apply all updates first
+    for (const { id, updates: slotUpdates } of updates) {
+      const updatedSlot = await this.updateScheduleSlot(id, slotUpdates);
+      if (updatedSlot) {
+        updated.push(updatedSlot);
+        allUpdatedSlots.push(updatedSlot);
+      }
+    }
+    
+    // Validate the updated slots for conflicts
+    const conflicts = await this.validateScheduleSlots(allUpdatedSlots);
+    
+    return { updated, conflicts };
   }
 
   async getScheduleSlotsByPlan(planId: string): Promise<ScheduleSlot[]> {

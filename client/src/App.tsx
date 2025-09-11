@@ -1,3 +1,4 @@
+import React from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import QualityControlPage from "@/pages/quality-control";
 import { InventoryPage } from "@/pages/inventory";
 import { ProductionPlanningPage } from "@/pages/production-planning";
 import { CapacityPlanningPage } from "@/pages/capacity-planning";
+import { GanttPage } from "@/pages/gantt";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -23,6 +25,7 @@ function Router() {
       <Route path="/inventory" component={InventoryPage} />
       <Route path="/production-planning" component={ProductionPlanningPage} />
       <Route path="/capacity-planning" component={CapacityPlanningPage} />
+      <Route path="/gantt" component={GanttPage} />
       <Route component={NotFound} />
     </Switch>
   );

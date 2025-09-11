@@ -495,6 +495,9 @@ export const scheduleSlots = pgTable("schedule_slots", {
   actualRunMinutes: real("actual_run_minutes"),
   schedulingRule: text("scheduling_rule"), // EDD, SPT, CR, etc.
   conflictFlags: jsonb("conflict_flags"), // Array of detected conflicts
+  color: text("color").default("#3B82F6"), // Hex color code for visual differentiation in Gantt chart
+  locked: boolean("locked").default(false), // Prevents drag/drop modifications for critical tasks
+  tags: jsonb("tags"), // Array of tags for categorization/filtering (e.g., ["urgent", "outsourced"])
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

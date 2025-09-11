@@ -1,3 +1,4 @@
+import React from "react";
 import { AppHeader } from "@/components/layout/AppHeader";
 import { SideNavigation } from "@/components/layout/SideNavigation";
 import { KPICards } from "@/components/dashboard/KPICards";

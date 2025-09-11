@@ -7,7 +7,8 @@ import {
   Package, 
   Calendar, 
   BarChart3,
-  Activity 
+  Activity,
+  GanttChart
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 
@@ -23,6 +24,7 @@ export function SideNavigation() {
     { path: "/inventory", icon: Package, label: "Inventory" },
     { path: "/production-planning", icon: Calendar, label: "Production Planning" },
     { path: "/capacity-planning", icon: Activity, label: "Capacity Planning" },
+    { path: "/gantt", icon: GanttChart, label: "Gantt Scheduler" },
     { path: "/reports", icon: BarChart3, label: "Reports" },
   ];
 

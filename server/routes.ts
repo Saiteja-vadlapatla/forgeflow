@@ -6,7 +6,8 @@ import {
   insertWorkOrderSchema, insertMachineSchema, insertQualityRecordSchema, 
   insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema,
   insertSetupGroupSchema, insertOperatorSkillSchema, insertToolResourceSchema,
-  insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema
+  insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema,
+  insertScheduleSlotSchema, insertOperationSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1287,6 +1288,166 @@ export async function registerRoutes(app: Express): Promise<Server> {
         results: { error: error instanceof Error ? error.message : 'Simulation failed' }
       });
       res.status(500).json({ error: "Failed to simulate scenario" });
+    }
+  });
+
+  // Gantt Chart Scheduling endpoints
+  app.get("/api/schedule", async (req, res) => {
+    try {
+      const { start, end, machineId } = req.query;
+      
+      if (!start || !end) {
+        return res.status(400).json({ error: "start and end date parameters are required" });
+      }
+
+      const startDate = new Date(start as string);
+      const endDate = new Date(end as string);
+      const machineIds = machineId ? (Array.isArray(machineId) ? machineId as string[] : [machineId as string]) : undefined;
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+
+      const scheduleSlots = await storage.getScheduleSlotsByDateRange(startDate, endDate, machineIds);
+      res.json(scheduleSlots);
+    } catch (error) {
+      console.error('Error fetching schedule:', error);
+      res.status(500).json({ error: "Failed to fetch schedule" });
+    }
+  });
+
+  app.patch("/api/schedule/slots/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Validate update data with partial schema (only require changed fields)
+      const partialSchema = insertScheduleSlotSchema.partial();
+      const validation = partialSchema.safeParse(req.body);
+      
+      if (!validation.success) {
+        return res.status(400).json({ 
+          error: "Invalid schedule slot update data", 
+          details: validation.error.format()
+        });
+      }
+      
+      const updates = validation.data;
+
+      // Get existing slot to check if it's locked
+      const existingSlot = await storage.getScheduleSlot(id);
+      if (!existingSlot) {
+        return res.status(404).json({ error: "Schedule slot not found" });
+      }
+
+      if (existingSlot.locked) {
+        return res.status(409).json({ error: "Cannot modify locked schedule slot" });
+      }
+
+      const updatedSlot = await storage.updateScheduleSlot(id, updates);
+      if (!updatedSlot) {
+        return res.status(404).json({ error: "Schedule slot not found" });
+      }
+
+      // Validate for conflicts
+      const conflicts = await storage.validateScheduleSlots([updatedSlot]);
+
+      res.json({ slot: updatedSlot, conflicts });
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error updating schedule slot:', error);
+      res.status(500).json({ error: "Failed to update schedule slot" });
+    }
+  });
+
+  app.post("/api/schedule/validate", async (req, res) => {
+    try {
+      const { slots } = req.body;
+
+      if (!Array.isArray(slots)) {
+        return res.status(400).json({ error: "slots must be an array" });
+      }
+
+      const conflicts = await storage.validateScheduleSlots(slots);
+      res.json(conflicts);
+    } catch (error) {
+      console.error('Error validating schedule:', error);
+      res.status(500).json({ error: "Failed to validate schedule" });
+    }
+  });
+
+  app.post("/api/schedule/bulk-update", async (req, res) => {
+    try {
+      const { updates } = req.body;
+
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: "updates must be an array" });
+      }
+
+      // Validate each update using Zod schema
+      const partialSchema = insertScheduleSlotSchema.partial();
+      const validatedUpdates = [];
+      
+      for (const update of updates) {
+        if (!update.id || typeof update.id !== 'string') {
+          return res.status(400).json({ error: "Each update must have a valid id property" });
+        }
+        
+        if (!update.updates || typeof update.updates !== 'object') {
+          return res.status(400).json({ error: "Each update must have an updates property" });
+        }
+        
+        const validation = partialSchema.safeParse(update.updates);
+        if (!validation.success) {
+          return res.status(400).json({ 
+            error: `Invalid update data for slot ${update.id}`, 
+            details: validation.error.format()
+          });
+        }
+        
+        validatedUpdates.push({
+          id: update.id,
+          updates: validation.data
+        });
+      }
+
+      // Check for locked slots
+      const lockedSlots = [];
+      for (const update of updates) {
+        const existingSlot = await storage.getScheduleSlot(update.id);
+        if (existingSlot && existingSlot.locked) {
+          lockedSlots.push(update.id);
+        }
+      }
+
+      if (lockedSlots.length > 0) {
+        return res.status(409).json({ 
+          error: "Cannot modify locked schedule slots", 
+          lockedSlots 
+        });
+      }
+
+      const result = await storage.bulkUpdateScheduleSlots(validatedUpdates);
+      res.json(result);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error bulk updating schedule slots:', error);
+      res.status(500).json({ error: "Failed to bulk update schedule slots" });
+    }
+  });
+
+  app.get("/api/schedule/conflicts/:planId", async (req, res) => {
+    try {
+      const { planId } = req.params;
+      const slots = await storage.getScheduleSlotsByPlan(planId);
+      const conflicts = await storage.validateScheduleSlots(slots);
+      res.json(conflicts);
+    } catch (error) {
+      console.error('Error getting schedule conflicts:', error);
+      res.status(500).json({ error: "Failed to get schedule conflicts" });
     }
   });
 
