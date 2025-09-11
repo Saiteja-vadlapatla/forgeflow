@@ -327,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(material);
     } catch (error) {
       console.error("Raw material creation error:", error);
-      res.status(400).json({ error: "Failed to create raw material", details: error.message });
+      res.status(400).json({ error: "Failed to create raw material", details: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -360,7 +360,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(tool);
     } catch (error) {
       console.error("Tool creation error:", error);
-      res.status(400).json({ error: "Failed to create tool", details: error.message });
+      res.status(400).json({ error: "Failed to create tool", details: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -401,6 +401,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(capacity);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch capacity planning data" });
+    }
+  });
+
+  // Scheduling API routes for production planning
+  app.post("/api/scheduling/preview", async (req, res) => {
+    try {
+      const { workOrderIds, startDate, endDate, policy } = req.body;
+      
+      // Mock schedule preview generation for now
+      // In a real implementation, this would call the ProductionScheduler
+      const scheduleSlots = workOrderIds.map((woId: string, index: number) => ({
+        id: `slot-${index}`,
+        workOrderId: woId,
+        operationId: `op-${woId}`,
+        machineId: `machine-${index % 3 + 1}`,
+        startTime: new Date(Date.now() + index * 8 * 60 * 60 * 1000).toISOString(),
+        endTime: new Date(Date.now() + (index + 1) * 8 * 60 * 60 * 1000).toISOString(),
+        setupMinutes: 30,
+        runMinutes: 450,
+        quantity: 10,
+        priority: 100,
+        status: "scheduled",
+        conflictFlags: []
+      }));
+
+      const capacityBuckets = [
+        {
+          machineId: "machine-1",
+          date: startDate,
+          plannedMinutes: 480,
+          availableMinutes: 480,
+          utilization: 100,
+          isOverloaded: false
+        }
+      ];
+
+      const conflicts: any[] = [];
+
+      const metrics = {
+        totalWorkOrders: workOrderIds.length,
+        totalHours: scheduleSlots.reduce((sum: number, slot: any) => sum + (slot.setupMinutes + slot.runMinutes) / 60, 0),
+        averageUtilization: 85.5,
+        makespan: 48,
+        criticalPath: 32
+      };
+
+      res.json({
+        scheduleSlots,
+        capacityBuckets,
+        conflicts,
+        metrics
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to generate schedule preview" });
+    }
+  });
+
+  app.post("/api/scheduling/optimize", async (req, res) => {
+    try {
+      const { planId } = req.body;
+      
+      // Mock optimization response
+      res.json({
+        success: true,
+        optimizedSchedule: {
+          improvementPercentage: 15.5,
+          newMakespan: 42,
+          suggestions: [
+            "Reorder operations to reduce setup time",
+            "Balance machine utilization",
+            "Prioritize critical path operations"
+          ]
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to optimize schedule" });
     }
   });
 

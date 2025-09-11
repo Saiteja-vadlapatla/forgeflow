@@ -7,35 +7,38 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ProductionPlan, CapacityPlanning } from "@shared/schema";
+import { ProductionPlan, CapacityPlanning, Machine } from "@shared/schema";
 import { ProductionPlanForm } from "@/components/planning/ProductionPlanForm";
 import { CapacityPlanningChart } from "@/components/planning/CapacityPlanningChart";
 import { SchedulingModule } from "@/components/planning/SchedulingModule";
 
-interface Machine {
-  id: string;
-  name: string;
-  operation: string;
-  efficiency: number;
-  status: string;
+interface CapacityData {
+  machineId: string;
+  machineName: string;
+  date: string;
+  plannedHours: number;
+  availableHours: number;
+  utilization: number;
+  workOrders: string[];
+  status: "overloaded" | "optimal" | "underutilized";
 }
 
 export function ProductionPlanningPage() {
   const [selectedPlanType, setSelectedPlanType] = useState<string>("all");
   const [isCreatingPlan, setIsCreatingPlan] = useState(false);
 
-  const { data: productionPlans = [], isLoading: plansLoading } = useQuery({
+  const { data: productionPlans = [], isLoading: plansLoading } = useQuery<ProductionPlan[]>({
     queryKey: ["/api/production-plans"],
   });
 
-  const { data: capacityData = [], isLoading: capacityLoading } = useQuery({
+  const { data: capacityData = [], isLoading: capacityLoading } = useQuery<CapacityPlanning[]>({
     queryKey: ["/api/capacity-planning"],
   });
 
   // Generate mock capacity data for charts
-  const generateMockCapacityData = () => {
+  const generateMockCapacityData = (): CapacityData[] => {
     const today = new Date();
-    const mockData = [];
+    const mockData: CapacityData[] = [];
     
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
@@ -49,7 +52,7 @@ export function ProductionPlanningPage() {
         availableHours: 8,
         utilization: 75 + Math.random() * 30,
         workOrders: [`WO-${1000 + i}`, `WO-${2000 + i}`],
-        status: Math.random() > 0.7 ? "overloaded" : Math.random() > 0.3 ? "optimal" : "underutilized"
+        status: (Math.random() > 0.7 ? "overloaded" : Math.random() > 0.3 ? "optimal" : "underutilized") as "overloaded" | "optimal" | "underutilized"
       });
       
       mockData.push({
@@ -60,14 +63,14 @@ export function ProductionPlanningPage() {
         availableHours: 8,
         utilization: 80 + Math.random() * 25,
         workOrders: [`WO-${3000 + i}`],
-        status: Math.random() > 0.6 ? "overloaded" : "optimal"
+        status: (Math.random() > 0.6 ? "overloaded" : "optimal") as "overloaded" | "optimal" | "underutilized"
       });
     }
     
     return mockData;
   };
 
-  const { data: machines = [] } = useQuery({
+  const { data: machines = [] } = useQuery<Machine[]>({
     queryKey: ["/api/machines"],
   });
 
@@ -243,7 +246,7 @@ export function ProductionPlanningPage() {
                           <p className="text-sm text-gray-600 capitalize">{plan.planType} Plan</p>
                         </div>
                       </div>
-                      {getStatusBadge(plan.status)}
+                      {getStatusBadge(plan.status || "draft")}
                     </div>
 
                     <div className="space-y-2 text-sm">
