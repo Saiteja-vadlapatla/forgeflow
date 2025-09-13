@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -15,8 +21,8 @@ import { insertRawMaterialSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { GeometryCalculator } from "./GeometryCalculator";
 
-const rawMaterialFormSchema = insertRawMaterialSchema.omit({ 
-  sku: true 
+const rawMaterialFormSchema = insertRawMaterialSchema.omit({
+  sku: true,
 });
 
 type RawMaterialFormData = z.infer<typeof rawMaterialFormSchema>;
@@ -56,11 +62,11 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
         },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         throw new Error("Failed to create raw material");
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -92,33 +98,60 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
 
   const generateSKU = (data: RawMaterialFormData): string => {
     const materialCode = data.materialType.substring(0, 3).toUpperCase();
-    const gradeCode = data.grade ? `-${data.grade}` : '';
-    const shapeCode = data.shape.replace(/\s+/g, '').substring(0, 4).toUpperCase();
-    const sizeCode = data.diameter ? `-D${data.diameter}` : data.width ? `-W${data.width}` : '';
-    const lengthCode = data.length ? `-L${data.length}` : '';
-    
+    const gradeCode = data.grade ? `-${data.grade}` : "";
+    const shapeCode = data.shape
+      .replace(/\s+/g, "")
+      .substring(0, 4)
+      .toUpperCase();
+    const sizeCode = data.diameter
+      ? `-D${data.diameter}`
+      : data.width
+      ? `-W${data.width}`
+      : "";
+    const lengthCode = data.length ? `-L${data.length}` : "";
+
     return `${materialCode}${gradeCode}-${shapeCode}${sizeCode}${lengthCode}`;
   };
 
   const materialTypes = [
-    "Steel", "Aluminum", "Stainless Steel", "Brass", "Copper", 
-    "Titanium", "Plastic", "Carbon Steel", "Alloy Steel"
+    "Steel",
+    "Aluminum",
+    "Stainless Steel",
+    "Brass",
+    "Copper",
+    "Titanium",
+    "Plastic",
+    "Carbon Steel",
+    "Alloy Steel",
   ];
 
   const shapes = [
-    "Round Bar", "Square Bar", "Rectangular Bar", "Flat Bar",
-    "Plate", "Sheet", "Tube", "Pipe", "Angle", "Channel"
+    "Round Bar",
+    "Square Bar",
+    "Rectangular Bar",
+    "Flat Bar",
+    "Plate",
+    "Sheet",
+    "Tube",
+    "Pipe",
+    "Angle",
+    "Channel",
   ];
 
   const suppliers = [
-    "Metal Supermarkets", "Ryerson", "Industrial Metal Supply",
-    "OnlineMetals.com", "ThyssenKrupp", "Nucor Corporation",
-    "Steel Dynamics", "Local Supplier"
+    "Metal Supermarkets",
+    "Ryerson",
+    "Industrial Metal Supply",
+    "OnlineMetals.com",
+    "ThyssenKrupp",
+    "Nucor Corporation",
+    "Steel Dynamics",
+    "Local Supplier",
   ];
 
   const renderDimensionFields = () => {
     const shape = form.watch("shape");
-    
+
     switch (shape) {
       case "Round Bar":
         return (
@@ -145,7 +178,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
           </div>
         );
-        
+
       case "Square Bar":
         return (
           <div>
@@ -171,7 +204,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
           </div>
         );
-        
+
       case "Rectangular Bar":
       case "Flat Bar":
         return (
@@ -211,7 +244,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
           </>
         );
-        
+
       case "Plate":
       case "Sheet":
         return (
@@ -251,7 +284,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
           </>
         );
-        
+
       case "Tube":
       case "Pipe":
         return (
@@ -291,7 +324,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
           </>
         );
-        
+
       default:
         return (
           <div className="text-gray-500 text-center py-8">
@@ -312,8 +345,8 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="materialType">Material Type</Label>
-              <Select 
-                value={form.watch("materialType")} 
+              <Select
+                value={form.watch("materialType")}
                 onValueChange={(value) => form.setValue("materialType", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -351,8 +384,8 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
 
             <div>
               <Label htmlFor="shape">Shape</Label>
-              <Select 
-                value={form.watch("shape")} 
+              <Select
+                value={form.watch("shape")}
                 onValueChange={(value) => form.setValue("shape", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -398,7 +431,6 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
         {/* Supply Information */}
         <Card>
           <CardHeader>
@@ -407,8 +439,8 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           <CardContent className="space-y-4">
             <div>
               <Label htmlFor="supplier">Supplier</Label>
-              <Select 
-                value={form.watch("supplier")} 
+              <Select
+                value={form.watch("supplier")}
                 onValueChange={(value) => form.setValue("supplier", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -500,10 +532,20 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       </div>
 
       <ScrollableDialogFooter>
-        <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSuccess}
+          data-testid="button-cancel"
+        >
           Cancel
         </Button>
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
+        <Button
+          type="submit"
+          disabled={mutation.isPending}
+          data-testid="button-submit"
+          onClick={() => form.handleSubmit(onSubmit)()}
+        >
           {mutation.isPending ? "Adding..." : "Add Material"}
         </Button>
       </ScrollableDialogFooter>

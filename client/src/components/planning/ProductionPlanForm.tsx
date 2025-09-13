@@ -3,42 +3,68 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { ArrowLeft, ArrowRight, Save, Play, Calendar, Settings, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Save,
+  Play,
+  Calendar,
+  Settings,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { insertProductionPlanSchema, WorkOrder, Machine, SchedulingPolicy } from "@shared/schema";
+import {
+  insertProductionPlanSchema,
+  WorkOrder,
+  Machine,
+  SchedulingPolicy,
+} from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { WorkOrderSelector } from "./WorkOrderSelector";
 import { TimelineManager } from "./TimelineManager";
 import { SchedulePreview } from "./SchedulePreview";
 
 // Enhanced form schema with work order selection and scheduling policy
-const enhancedProductionPlanFormSchema = insertProductionPlanSchema.extend({
-  workOrderIds: z.array(z.string()).min(1, "At least one work order must be selected"),
-  schedulingPolicy: z.object({
-    rule: z.enum(["EDD", "SPT", "CR", "FIFO", "PRIORITY"]),
-    horizon: z.number().min(24).max(8760),
-    allowOverload: z.boolean(),
-    maxOverloadPercentage: z.number().optional(),
-    rescheduleInterval: z.number().optional(),
-  }),
-}).omit({
-  startDate: true,
-  endDate: true,
-}).extend({
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-});
+const enhancedProductionPlanFormSchema = insertProductionPlanSchema
+  .extend({
+    workOrderIds: z
+      .array(z.string())
+      .min(1, "At least one work order must be selected"),
+    schedulingPolicy: z.object({
+      rule: z.enum(["EDD", "SPT", "CR", "FIFO", "PRIORITY"]),
+      horizon: z.number().min(24).max(8760),
+      allowOverload: z.boolean(),
+      maxOverloadPercentage: z.number().optional(),
+      rescheduleInterval: z.number().optional(),
+    }),
+  })
+  .omit({
+    startDate: true,
+    endDate: true,
+  })
+  .extend({
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().min(1, "End date is required"),
+  });
 
-type EnhancedProductionPlanFormData = z.infer<typeof enhancedProductionPlanFormSchema>;
+type EnhancedProductionPlanFormData = z.infer<
+  typeof enhancedProductionPlanFormSchema
+>;
 
 interface ProductionPlanFormProps {
   onSuccess: () => void;
@@ -126,9 +152,9 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
   useEffect(() => {
     if (startDate && planType) {
       const date = new Date(startDate);
-      const month = date.toLocaleDateString('en-US', { month: 'long' });
+      const month = date.toLocaleDateString("en-US", { month: "long" });
       const year = date.getFullYear();
-      
+
       let generatedName = "";
       switch (planType) {
         case "daily":
@@ -143,7 +169,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
           generatedName = `Monthly Plan - ${month} ${year}`;
           break;
       }
-      
+
       if (generatedName && !form.getValues("planName")) {
         form.setValue("planName", generatedName);
       }
@@ -158,16 +184,30 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
   const mutation = useMutation({
     mutationFn: async (data: EnhancedProductionPlanFormData) => {
       // Calculate total work orders and estimated efficiency
-      const selectedWOs = workOrders.filter(wo => data.workOrderIds.includes(wo.id));
+      const selectedWOs = workOrders.filter((wo) =>
+        data.workOrderIds.includes(wo.id)
+      );
       const totalWorkOrders = selectedWOs.length;
-      const totalHours = selectedWOs.reduce((sum, wo) => sum + (wo.estimatedHours || 0), 0);
-      
+      const totalHours = selectedWOs.reduce(
+        (sum, wo) => sum + (wo.estimatedHours || 0),
+        0
+      );
+
       // Calculate initial efficiency estimate based on plan duration and capacity
-      const planDurationDays = Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24));
-      const workingDays = Math.floor(planDurationDays * 5/7); // Assume 5-day work week
-      const availableMachines = machines.filter(m => m.status !== "maintenance").length;
+      const planDurationDays = Math.ceil(
+        (new Date(data.endDate).getTime() -
+          new Date(data.startDate).getTime()) /
+          (1000 * 60 * 60 * 24)
+      );
+      const workingDays = Math.floor((planDurationDays * 5) / 7); // Assume 5-day work week
+      const availableMachines = machines.filter(
+        (m) => m.status !== "maintenance"
+      ).length;
       const totalCapacityHours = workingDays * 8 * availableMachines;
-      const estimatedEfficiency = totalCapacityHours > 0 ? Math.min(100, (totalHours / totalCapacityHours) * 100) : 0;
+      const estimatedEfficiency =
+        totalCapacityHours > 0
+          ? Math.min(100, (totalHours / totalCapacityHours) * 100)
+          : 0;
 
       const enhancedData = {
         ...data,
@@ -195,10 +235,13 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
     },
   });
 
-  const handleCapacityChange = useCallback((totalHours: number, requirements: any) => {
-    setTotalEstimatedHours(totalHours);
-    setResourceRequirements(requirements);
-  }, []);
+  const handleCapacityChange = useCallback(
+    (totalHours: number, requirements: any) => {
+      setTotalEstimatedHours(totalHours);
+      setResourceRequirements(requirements);
+    },
+    []
+  );
 
   const handleTimelineChange = (start: string, end: string) => {
     form.setValue("startDate", start);
@@ -220,7 +263,11 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
   const canProceedToNext = () => {
     switch (currentStep) {
       case 0: // Basic info
-        return form.watch("planName") && form.watch("startDate") && form.watch("endDate");
+        return (
+          form.watch("planName") &&
+          form.watch("startDate") &&
+          form.watch("endDate")
+        );
       case 1: // Work orders
         return selectedWorkOrders.length > 0;
       case 2: // Scheduling
@@ -250,9 +297,9 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
             Step {currentStep + 1} of {FORM_STEPS.length}
           </div>
         </div>
-        
+
         <Progress value={getStepProgress()} className="h-2" />
-        
+
         {/* Step Navigation */}
         <div className="flex items-center space-x-4">
           {FORM_STEPS.map((step, index) => {
@@ -273,7 +320,11 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                       : isCompleted
                       ? "bg-green-100 text-green-700 border border-green-300"
                       : "bg-gray-100 text-gray-500 border border-gray-300"
-                  } ${isAccessible ? "cursor-pointer hover:opacity-80" : "cursor-not-allowed"}`}
+                  } ${
+                    isAccessible
+                      ? "cursor-pointer hover:opacity-80"
+                      : "cursor-not-allowed"
+                  }`}
                   data-testid={`step-${step.id}`}
                 >
                   <Icon className="h-4 w-4" />
@@ -319,9 +370,14 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
 
                   <div>
                     <Label htmlFor="planType">Plan Type</Label>
-                    <Select 
-                      value={form.watch("planType")} 
-                      onValueChange={(value) => form.setValue("planType", value as "daily" | "weekly" | "monthly")}
+                    <Select
+                      value={form.watch("planType")}
+                      onValueChange={(value) =>
+                        form.setValue(
+                          "planType",
+                          value as "daily" | "weekly" | "monthly"
+                        )
+                      }
                     >
                       <SelectTrigger data-testid="select-plan-type">
                         <SelectValue />
@@ -342,7 +398,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                       id="startDate"
                       type="date"
                       {...form.register("startDate")}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={new Date().toISOString().split("T")[0]}
                       data-testid="input-start-date"
                     />
                     {form.formState.errors.startDate && (
@@ -358,7 +414,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                       id="endDate"
                       type="date"
                       {...form.register("endDate")}
-                      min={startDate || new Date().toISOString().split('T')[0]}
+                      min={startDate || new Date().toISOString().split("T")[0]}
                       data-testid="input-end-date"
                     />
                     {form.formState.errors.endDate && (
@@ -440,7 +496,8 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
             <div className="text-sm text-gray-600">
               {currentStep === 1 && selectedWorkOrders.length > 0 && (
                 <span data-testid="text-selected-workorders">
-                  {selectedWorkOrders.length} work orders selected ({totalEstimatedHours.toFixed(1)}h)
+                  {selectedWorkOrders.length} work orders selected (
+                  {totalEstimatedHours.toFixed(1)}h)
                 </span>
               )}
               {currentStep === 2 && (
@@ -449,7 +506,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                 </span>
               )}
             </div>
-            
+
             <div className="flex space-x-2">
               <Button
                 type="button"
@@ -459,7 +516,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
               >
                 Cancel
               </Button>
-              
+
               {currentStep < FORM_STEPS.length - 1 ? (
                 <Button
                   type="button"
@@ -475,6 +532,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                   type="submit"
                   disabled={mutation.isPending || !canProceedToNext()}
                   data-testid="button-create-plan"
+                  onClick={() => onSubmit(form.getValues())}
                 >
                   {mutation.isPending ? (
                     <>Creating...</>
