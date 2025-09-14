@@ -480,6 +480,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to fetch production plans" });
     }
   });
+  // Add to routes.ts after the POST /api/production-plans route:
+app.get("/api/production-plans/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const plan = await storage.getProductionPlan(id);
+    if (!plan) {
+      return res.status(404).json({ error: "Production plan not found" });
+    }
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch production plan" });
+  }
+});
 
   app.post("/api/production-plans", async (req, res) => {
     try {
@@ -491,6 +504,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastRealtimeData();
     } catch (error) {
       res.status(400).json({ error: "Failed to create production plan" });
+    }
+  });
+
+  // Add the missing PUT endpoint for updating production plans
+  app.put("/api/production-plans/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const validatedData = insertProductionPlanSchema.parse(req.body);
+      const plan = await storage.updateProductionPlan(id, validatedData);
+      
+      if (!plan) {
+        return res.status(404).json({ error: "Production plan not found" });
+      }
+      
+      res.json(plan);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update production plan" });
     }
   });
 
