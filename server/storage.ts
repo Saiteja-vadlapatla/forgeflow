@@ -29,11 +29,15 @@ import {
   type ScrapLog, type InsertScrapLog,
   type AnalyticsKPIs, type OEEBreakdown, type AdherenceMetrics,
   type UtilizationMetrics, type QualitySummary, type TrendPoint,
-  type MachineOEESnapshot, type AnalyticsFilters
+  type MachineOEESnapshot, type AnalyticsFilters,
+  rawMaterials, inventoryTools, consumables, fasteners, generalItems
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { ProductionScheduler } from "./scheduling";
 import { AnalyticsEngine } from "./analytics";
+import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-http";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -304,6 +308,7 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
+  private db: ReturnType<typeof drizzle>;
   private users: Map<string, User>;
   private machines: Map<string, Machine>;
   private workOrders: Map<string, WorkOrder>;
@@ -346,6 +351,10 @@ export class MemStorage implements IStorage {
   private scrapLogs: Map<string, ScrapLog>;
 
   constructor() {
+    // Initialize database connection
+    const sql = neon(process.env.DATABASE_URL!);
+    this.db = drizzle(sql);
+    
     this.users = new Map();
     this.machines = new Map();
     this.workOrders = new Map();
@@ -1984,164 +1993,129 @@ export class MemStorage implements IStorage {
 
   // Raw Materials operations
   async getRawMaterials(): Promise<any[]> {
-    return Array.from(this.rawMaterials.values());
+    return await this.db.select().from(rawMaterials);
   }
 
   async createRawMaterial(material: any): Promise<any> {
-    const id = randomUUID();
     // Use client-provided SKU if available, otherwise generate one
     const sku = material.sku || `RM-${material.materialType.substring(0,2).toUpperCase()}-${(material.grade || 'UNK')}-${Date.now()}`;
-    const newMaterial = {
+    const result = await this.db.insert(rawMaterials).values({
       ...material,
-      id,
-      sku,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.rawMaterials.set(id, newMaterial);
-    return newMaterial;
+      sku
+    }).returning();
+    return result[0];
   }
 
   async updateRawMaterial(id: string, updates: any): Promise<any> {
-    const material = this.rawMaterials.get(id);
-    if (!material) return undefined;
-    
-    const updatedMaterial = { 
-      ...material, 
-      ...updates, 
-      updatedAt: new Date() 
-    };
-    this.rawMaterials.set(id, updatedMaterial);
-    return updatedMaterial;
+    const result = await this.db.update(rawMaterials)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(rawMaterials.id, id))
+      .returning();
+    return result[0];
   }
 
   // Inventory Tools operations
   async getInventoryTools(): Promise<any[]> {
-    return Array.from(this.inventoryTools.values());
+    return await this.db.select().from(inventoryTools);
   }
 
   async createInventoryTool(tool: any): Promise<any> {
-    const id = randomUUID();
     // Use client-provided SKU if available, otherwise generate one
     const sku = tool.sku || `TL-${tool.toolType.substring(0,2).toUpperCase()}-${tool.size}-${Date.now()}`;
-    const newTool = {
+    const result = await this.db.insert(inventoryTools).values({
       ...tool,
-      id,
-      sku,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.inventoryTools.set(id, newTool);
-    return newTool;
+      sku
+    }).returning();
+    return result[0];
   }
 
   async updateInventoryTool(id: string, updates: any): Promise<any> {
-    const tool = this.inventoryTools.get(id);
-    if (!tool) return undefined;
-    
-    const updatedTool = { 
-      ...tool, 
-      ...updates, 
-      updatedAt: new Date() 
-    };
-    this.inventoryTools.set(id, updatedTool);
-    return updatedTool;
+    const result = await this.db.update(inventoryTools)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(inventoryTools.id, id))
+      .returning();
+    return result[0];
   }
 
   // Consumables operations
   async getConsumables(): Promise<any[]> {
-    return Array.from(this.consumables.values());
+    return await this.db.select().from(consumables);
   }
 
   async createConsumable(consumable: any): Promise<any> {
-    const id = randomUUID();
     const sku = consumable.sku || `CON-${consumable.category.substring(0,3).toUpperCase()}-${Date.now()}`;
-    const newConsumable = {
+    const result = await this.db.insert(consumables).values({
       ...consumable,
-      id,
-      sku,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.consumables.set(id, newConsumable);
-    return newConsumable;
+      sku
+    }).returning();
+    return result[0];
   }
 
   async updateConsumable(id: string, updates: any): Promise<any> {
-    const consumable = this.consumables.get(id);
-    if (!consumable) return undefined;
-    
-    const updatedConsumable = { 
-      ...consumable, 
-      ...updates, 
-      updatedAt: new Date() 
-    };
-    this.consumables.set(id, updatedConsumable);
-    return updatedConsumable;
+    const result = await this.db.update(consumables)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(consumables.id, id))
+      .returning();
+    return result[0];
   }
 
   // Fasteners operations
   async getFasteners(): Promise<any[]> {
-    return Array.from(this.fasteners.values());
+    return await this.db.select().from(fasteners);
   }
 
   async createFastener(fastener: any): Promise<any> {
-    const id = randomUUID();
     const sku = fastener.sku || `FAS-${fastener.threadType.substring(0,3).toUpperCase()}-${Date.now()}`;
-    const newFastener = {
+    const result = await this.db.insert(fasteners).values({
       ...fastener,
-      id,
-      sku,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.fasteners.set(id, newFastener);
-    return newFastener;
+      sku
+    }).returning();
+    return result[0];
   }
 
   async updateFastener(id: string, updates: any): Promise<any> {
-    const fastener = this.fasteners.get(id);
-    if (!fastener) return undefined;
-    
-    const updatedFastener = { 
-      ...fastener, 
-      ...updates, 
-      updatedAt: new Date() 
-    };
-    this.fasteners.set(id, updatedFastener);
-    return updatedFastener;
+    const result = await this.db.update(fasteners)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(fasteners.id, id))
+      .returning();
+    return result[0];
   }
 
   // General Items operations
   async getGeneralItems(): Promise<any[]> {
-    return Array.from(this.generalItems.values());
+    return await this.db.select().from(generalItems);
   }
 
   async createGeneralItem(item: any): Promise<any> {
-    const id = randomUUID();
     const sku = item.sku || `GEN-${item.category.substring(0,3).toUpperCase()}-${Date.now()}`;
-    const newItem = {
+    const result = await this.db.insert(generalItems).values({
       ...item,
-      id,
-      sku,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    this.generalItems.set(id, newItem);
-    return newItem;
+      sku
+    }).returning();
+    return result[0];
   }
 
   async updateGeneralItem(id: string, updates: any): Promise<any> {
-    const item = this.generalItems.get(id);
-    if (!item) return undefined;
-    
-    const updatedItem = { 
-      ...item, 
-      ...updates, 
-      updatedAt: new Date() 
-    };
-    this.generalItems.set(id, updatedItem);
-    return updatedItem;
+    const result = await this.db.update(generalItems)
+      .set({
+        ...updates,
+        updatedAt: new Date()
+      })
+      .where(eq(generalItems.id, id))
+      .returning();
+    return result[0];
   }
 
   // Production Planning operations
