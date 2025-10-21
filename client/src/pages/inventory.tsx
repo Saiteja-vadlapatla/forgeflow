@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, Package, Wrench, Filter, RefreshCw } from "lucide-react";
+import { Search, Plus, Package, Wrench, Filter, RefreshCw, Droplet, Hammer, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,9 +11,15 @@ import { ScrollableDialog, ScrollableDialogContent, ScrollableDialogHeader, Scro
 import { RawMaterial, InventoryTool } from "@shared/schema";
 import { RawMaterialForm } from "@/components/inventory/RawMaterialForm";
 import { ToolForm } from "@/components/inventory/ToolForm";
+import { ConsumableForm } from "@/components/inventory/ConsumableForm";
+import { FastenerForm } from "@/components/inventory/FastenerForm";
+import { GeneralItemForm } from "@/components/inventory/GeneralItemForm";
 import { InventoryUpdateDialog } from "@/components/inventory/InventoryUpdateDialog";
 import { RawMaterialDetails } from "@/components/inventory/RawMaterialDetails";
 import { ToolDetails } from "@/components/inventory/ToolDetails";
+import { ConsumableDetails } from "@/components/inventory/ConsumableDetails";
+import { FastenerDetails } from "@/components/inventory/FastenerDetails";
+import { GeneralItemDetails } from "@/components/inventory/GeneralItemDetails";
 import { RawMaterialEdit } from "@/components/inventory/RawMaterialEdit";
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 
@@ -22,17 +28,35 @@ export function InventoryPage() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [isAddingTool, setIsAddingTool] = useState(false);
+  const [isAddingConsumable, setIsAddingConsumable] = useState(false);
+  const [isAddingFastener, setIsAddingFastener] = useState(false);
+  const [isAddingGeneralItem, setIsAddingGeneralItem] = useState(false);
   const [viewingMaterialId, setViewingMaterialId] = useState<string | null>(null);
   const [viewingToolId, setViewingToolId] = useState<string | null>(null);
+  const [viewingConsumableId, setViewingConsumableId] = useState<string | null>(null);
+  const [viewingFastenerId, setViewingFastenerId] = useState<string | null>(null);
+  const [viewingGeneralItemId, setViewingGeneralItemId] = useState<string | null>(null);
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
 
-  const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery({
+  const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery<any[]>({
     queryKey: ["/api/inventory/materials"],
   });
 
-  const { data: tools = [], isLoading: toolsLoading } = useQuery({
+  const { data: tools = [], isLoading: toolsLoading } = useQuery<any[]>({
     queryKey: ["/api/inventory/tools"],
+  });
+
+  const { data: consumables = [], isLoading: consumablesLoading } = useQuery<any[]>({
+    queryKey: ["/api/inventory/consumables"],
+  });
+
+  const { data: fasteners = [], isLoading: fastenersLoading } = useQuery<any[]>({
+    queryKey: ["/api/inventory/fasteners"],
+  });
+
+  const { data: generalItems = [], isLoading: generalItemsLoading } = useQuery<any[]>({
+    queryKey: ["/api/inventory/general-items"],
   });
 
   const filteredMaterials = rawMaterials.filter((material: RawMaterial) => {
@@ -115,7 +139,7 @@ export function InventoryPage() {
 
       {/* Inventory Tabs */}
       <Tabs defaultValue="materials" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="materials">
             <Package className="h-4 w-4 mr-2" />
             Raw Materials ({rawMaterials.length})
@@ -123,6 +147,18 @@ export function InventoryPage() {
           <TabsTrigger value="tools">
             <Wrench className="h-4 w-4 mr-2" />
             Tools ({tools.length})
+          </TabsTrigger>
+          <TabsTrigger value="consumables">
+            <Droplet className="h-4 w-4 mr-2" />
+            Consumables ({consumables.length})
+          </TabsTrigger>
+          <TabsTrigger value="fasteners">
+            <Hammer className="h-4 w-4 mr-2" />
+            Fasteners ({fasteners.length})
+          </TabsTrigger>
+          <TabsTrigger value="general">
+            <Box className="h-4 w-4 mr-2" />
+            General ({generalItems.length})
           </TabsTrigger>
         </TabsList>
 
@@ -341,6 +377,261 @@ export function InventoryPage() {
             </div>
           )}
         </TabsContent>
+
+        {/* Consumables Tab */}
+        <TabsContent value="consumables" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Consumables Inventory</h2>
+            <ScrollableDialog open={isAddingConsumable} onOpenChange={setIsAddingConsumable}>
+              <ScrollableDialogTrigger asChild>
+                <Button data-testid="button-add-consumable">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Consumable
+                </Button>
+              </ScrollableDialogTrigger>
+              <ScrollableDialogContent className="max-w-4xl">
+                <ScrollableDialogHeader>
+                  <ScrollableDialogTitle>Add Consumable</ScrollableDialogTitle>
+                </ScrollableDialogHeader>
+                <ConsumableForm onSuccess={() => setIsAddingConsumable(false)} />
+              </ScrollableDialogContent>
+            </ScrollableDialog>
+          </div>
+
+          {consumablesLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {consumables.map((consumable: any) => (
+                <Card key={consumable.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{consumable.name}</h3>
+                        <p className="text-sm text-gray-600">{consumable.category}</p>
+                        <p className="text-xs text-gray-500">SKU: {consumable.sku}</p>
+                      </div>
+                      {getStockStatusBadge(
+                        consumable.currentStock || 0,
+                        consumable.minStockLevel || 10,
+                        consumable.maxStockLevel || 100
+                      )}
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Grade:</span>
+                        <span className="font-medium">{consumable.grade || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Volume:</span>
+                        <span className="font-medium">{consumable.volumePerUnit} {consumable.volumeUnit}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Stock:</span>
+                        <span className="font-medium">{consumable.currentStock || 0} {consumable.unit}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Supplier:</span>
+                        <span className="font-medium">{consumable.supplier || '-'}</span>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setViewingConsumableId(consumable.id)}
+                        data-testid={`button-details-consumable-${consumable.id}`}
+                      >
+                        Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Fasteners Tab */}
+        <TabsContent value="fasteners" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Fasteners Inventory</h2>
+            <ScrollableDialog open={isAddingFastener} onOpenChange={setIsAddingFastener}>
+              <ScrollableDialogTrigger asChild>
+                <Button data-testid="button-add-fastener">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Fastener
+                </Button>
+              </ScrollableDialogTrigger>
+              <ScrollableDialogContent className="max-w-4xl">
+                <ScrollableDialogHeader>
+                  <ScrollableDialogTitle>Add Fastener</ScrollableDialogTitle>
+                </ScrollableDialogHeader>
+                <FastenerForm onSuccess={() => setIsAddingFastener(false)} />
+              </ScrollableDialogContent>
+            </ScrollableDialog>
+          </div>
+
+          {fastenersLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {fasteners.map((fastener: any) => (
+                <Card key={fastener.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{fastener.name}</h3>
+                        <p className="text-sm text-gray-600">{fastener.threadType} {fastener.size}mm</p>
+                        <p className="text-xs text-gray-500">SKU: {fastener.sku}</p>
+                      </div>
+                      {getStockStatusBadge(
+                        fastener.currentStock || 0,
+                        fastener.minStockLevel || 100,
+                        fastener.maxStockLevel || 1000
+                      )}
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Pitch:</span>
+                        <span className="font-medium">{fastener.pitch}mm</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Length:</span>
+                        <span className="font-medium">{fastener.length}mm</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Material:</span>
+                        <span className="font-medium">{fastener.material}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Stock:</span>
+                        <span className="font-medium">{fastener.currentStock || 0} pcs</span>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setViewingFastenerId(fastener.id)}
+                        data-testid={`button-details-fastener-${fastener.id}`}
+                      >
+                        Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* General Items Tab */}
+        <TabsContent value="general" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">General Items Inventory</h2>
+            <ScrollableDialog open={isAddingGeneralItem} onOpenChange={setIsAddingGeneralItem}>
+              <ScrollableDialogTrigger asChild>
+                <Button data-testid="button-add-general-item">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add General Item
+                </Button>
+              </ScrollableDialogTrigger>
+              <ScrollableDialogContent className="max-w-4xl">
+                <ScrollableDialogHeader>
+                  <ScrollableDialogTitle>Add General Item</ScrollableDialogTitle>
+                </ScrollableDialogHeader>
+                <GeneralItemForm onSuccess={() => setIsAddingGeneralItem(false)} />
+              </ScrollableDialogContent>
+            </ScrollableDialog>
+          </div>
+
+          {generalItemsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-4">
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {generalItems.map((item: any) => (
+                <Card key={item.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h3 className="font-semibold text-lg">{item.name}</h3>
+                        <p className="text-sm text-gray-600">{item.category}</p>
+                        <p className="text-xs text-gray-500">SKU: {item.sku}</p>
+                      </div>
+                      {getStockStatusBadge(
+                        item.currentStock || 0,
+                        item.minStockLevel || 5,
+                        item.maxStockLevel || 50
+                      )}
+                    </div>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Model:</span>
+                        <span className="font-medium">{item.model || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Manufacturer:</span>
+                        <span className="font-medium">{item.manufacturer || '-'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Condition:</span>
+                        <Badge className="bg-green-100 text-green-800">{item.condition}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Stock:</span>
+                        <span className="font-medium">{item.currentStock || 0} pcs</span>
+                      </div>
+                    </div>
+                    <div className="mt-4 pt-3 border-t flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setViewingGeneralItemId(item.id)}
+                        data-testid={`button-details-general-item-${item.id}`}
+                      >
+                        Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
       
       {/* Details Dialogs */}
@@ -396,6 +687,39 @@ export function InventoryPage() {
               toolId={viewingToolId}
               onClose={() => setViewingToolId(null)}
             />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      <ScrollableDialog 
+        open={viewingConsumableId !== null} 
+        onOpenChange={(open) => !open && setViewingConsumableId(null)}
+      >
+        <ScrollableDialogContent className="max-w-5xl max-h-[90vh]">
+          {viewingConsumableId && (
+            <ConsumableDetails id={viewingConsumableId} />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      <ScrollableDialog 
+        open={viewingFastenerId !== null} 
+        onOpenChange={(open) => !open && setViewingFastenerId(null)}
+      >
+        <ScrollableDialogContent className="max-w-5xl max-h-[90vh]">
+          {viewingFastenerId && (
+            <FastenerDetails id={viewingFastenerId} />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      <ScrollableDialog 
+        open={viewingGeneralItemId !== null} 
+        onOpenChange={(open) => !open && setViewingGeneralItemId(null)}
+      >
+        <ScrollableDialogContent className="max-w-5xl max-h-[90vh]">
+          {viewingGeneralItemId && (
+            <GeneralItemDetails id={viewingGeneralItemId} />
           )}
         </ScrollableDialogContent>
       </ScrollableDialog>
