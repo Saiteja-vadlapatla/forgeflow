@@ -17,16 +17,36 @@ const consumableFormSchema = insertConsumableSchema.omit({ sku: true });
 type ConsumableFormData = z.infer<typeof consumableFormSchema>;
 
 interface ConsumableFormProps {
+  consumable?: any;
   onSuccess: () => void;
 }
 
-export function ConsumableForm({ onSuccess }: ConsumableFormProps) {
+export function ConsumableForm({ consumable, onSuccess }: ConsumableFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!consumable;
 
   const form = useForm<ConsumableFormData>({
     resolver: zodResolver(consumableFormSchema),
-    defaultValues: {
+    defaultValues: consumable ? {
+      name: consumable.name || "",
+      category: consumable.category || "",
+      type: consumable.type || "",
+      manufacturer: consumable.manufacturer || "",
+      grade: consumable.grade || "",
+      viscosity: consumable.viscosity || "",
+      capacity: consumable.capacity || 0,
+      unitOfMeasure: consumable.unitOfMeasure || "",
+      currentStock: consumable.currentStock || 0,
+      supplier: consumable.supplier || "",
+      unitCost: consumable.unitCost || 0,
+      reorderPoint: consumable.reorderPoint || 10,
+      maxStock: consumable.maxStock || 100,
+      location: consumable.location || "",
+      shelfLife: consumable.shelfLife,
+      specifications: consumable.specifications || "",
+      safetyDataSheet: consumable.safetyDataSheet || "",
+    } : {
       name: "",
       category: "",
       type: "",
@@ -49,15 +69,18 @@ export function ConsumableForm({ onSuccess }: ConsumableFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: ConsumableFormData) => {
-      const response = await fetch("/api/inventory/consumables", {
-        method: "POST",
+      const url = isEditing ? `/api/inventory/consumables/${consumable.id}` : "/api/inventory/consumables";
+      const method = isEditing ? "PATCH" : "POST";
+      
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || "Failed to create consumable");
+        throw new Error(errorData.details || errorData.error || `Failed to ${isEditing ? 'update' : 'create'} consumable`);
       }
 
       return response.json();
@@ -66,22 +89,26 @@ export function ConsumableForm({ onSuccess }: ConsumableFormProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/consumables"] });
       toast({
         title: "Success",
-        description: "Consumable added successfully",
+        description: `Consumable ${isEditing ? 'updated' : 'added'} successfully`,
       });
       onSuccess();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add consumable",
+        description: error.message || `Failed to ${isEditing ? 'update' : 'add'} consumable`,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: ConsumableFormData) => {
-    const sku = generateSKU(data);
-    mutation.mutate({ ...data, sku });
+    if (isEditing) {
+      mutation.mutate(data);
+    } else {
+      const sku = generateSKU(data);
+      mutation.mutate({ ...data, sku });
+    }
   };
 
   const generateSKU = (data: ConsumableFormData): string => {

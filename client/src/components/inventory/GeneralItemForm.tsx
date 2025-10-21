@@ -17,16 +17,36 @@ const generalItemFormSchema = insertGeneralItemSchema.omit({ sku: true });
 type GeneralItemFormData = z.infer<typeof generalItemFormSchema>;
 
 interface GeneralItemFormProps {
+  item?: any;
   onSuccess: () => void;
 }
 
-export function GeneralItemForm({ onSuccess }: GeneralItemFormProps) {
+export function GeneralItemForm({ item, onSuccess }: GeneralItemFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!item;
 
   const form = useForm<GeneralItemFormData>({
     resolver: zodResolver(generalItemFormSchema),
-    defaultValues: {
+    defaultValues: item ? {
+      name: item.name || "",
+      category: item.category || "",
+      subCategory: item.subCategory || "",
+      manufacturer: item.manufacturer || "",
+      model: item.model || "",
+      description: item.description || "",
+      specifications: item.specifications || {},
+      currentStock: item.currentStock || 0,
+      supplier: item.supplier || "",
+      unitCost: item.unitCost || 0,
+      reorderPoint: item.reorderPoint || 5,
+      maxStock: item.maxStock || 50,
+      location: item.location || "",
+      condition: item.condition || "new",
+      serialNumber: item.serialNumber || "",
+      purchaseDate: item.purchaseDate,
+      warrantyExpiry: item.warrantyExpiry,
+    } : {
       name: "",
       category: "",
       subCategory: "",
@@ -49,15 +69,18 @@ export function GeneralItemForm({ onSuccess }: GeneralItemFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: GeneralItemFormData) => {
-      const response = await fetch("/api/inventory/general-items", {
-        method: "POST",
+      const url = isEditing ? `/api/inventory/general-items/${item.id}` : "/api/inventory/general-items";
+      const method = isEditing ? "PATCH" : "POST";
+      
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || "Failed to create general item");
+        throw new Error(errorData.details || errorData.error || `Failed to ${isEditing ? 'update' : 'create'} general item`);
       }
 
       return response.json();
@@ -66,22 +89,26 @@ export function GeneralItemForm({ onSuccess }: GeneralItemFormProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/general-items"] });
       toast({
         title: "Success",
-        description: "General item added successfully",
+        description: `General item ${isEditing ? 'updated' : 'added'} successfully`,
       });
       onSuccess();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add general item",
+        description: error.message || `Failed to ${isEditing ? 'update' : 'add'} general item`,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: GeneralItemFormData) => {
-    const sku = generateSKU(data);
-    mutation.mutate({ ...data, sku });
+    if (isEditing) {
+      mutation.mutate(data);
+    } else {
+      const sku = generateSKU(data);
+      mutation.mutate({ ...data, sku });
+    }
   };
 
   const generateSKU = (data: GeneralItemFormData): string => {

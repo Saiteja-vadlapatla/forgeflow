@@ -17,16 +17,37 @@ const fastenerFormSchema = insertFastenerSchema.omit({ sku: true });
 type FastenerFormData = z.infer<typeof fastenerFormSchema>;
 
 interface FastenerFormProps {
+  fastener?: any;
   onSuccess: () => void;
 }
 
-export function FastenerForm({ onSuccess }: FastenerFormProps) {
+export function FastenerForm({ fastener, onSuccess }: FastenerFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!fastener;
 
   const form = useForm<FastenerFormData>({
     resolver: zodResolver(fastenerFormSchema),
-    defaultValues: {
+    defaultValues: fastener ? {
+      fastenerType: fastener.fastenerType || "",
+      threadType: fastener.threadType || "",
+      diameter: fastener.diameter || 0,
+      pitch: fastener.pitch,
+      threadDescription: fastener.threadDescription || "",
+      length: fastener.length,
+      headType: fastener.headType || "",
+      driveType: fastener.driveType || "",
+      material: fastener.material || "",
+      grade: fastener.grade || "",
+      finish: fastener.finish || "",
+      currentStock: fastener.currentStock || 0,
+      supplier: fastener.supplier || "",
+      unitCost: fastener.unitCost || 0,
+      reorderPoint: fastener.reorderPoint || 100,
+      maxStock: fastener.maxStock || 1000,
+      location: fastener.location || "",
+      specifications: fastener.specifications || "",
+    } : {
       fastenerType: "",
       threadType: "",
       diameter: 0,
@@ -50,15 +71,18 @@ export function FastenerForm({ onSuccess }: FastenerFormProps) {
 
   const mutation = useMutation({
     mutationFn: async (data: FastenerFormData) => {
-      const response = await fetch("/api/inventory/fasteners", {
-        method: "POST",
+      const url = isEditing ? `/api/inventory/fasteners/${fastener.id}` : "/api/inventory/fasteners";
+      const method = isEditing ? "PATCH" : "POST";
+      
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || "Failed to create fastener");
+        throw new Error(errorData.details || errorData.error || `Failed to ${isEditing ? 'update' : 'create'} fastener`);
       }
 
       return response.json();
@@ -67,22 +91,26 @@ export function FastenerForm({ onSuccess }: FastenerFormProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/fasteners"] });
       toast({
         title: "Success",
-        description: "Fastener added successfully",
+        description: `Fastener ${isEditing ? 'updated' : 'added'} successfully`,
       });
       onSuccess();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to add fastener",
+        description: error.message || `Failed to ${isEditing ? 'update' : 'add'} fastener`,
         variant: "destructive",
       });
     },
   });
 
   const onSubmit = (data: FastenerFormData) => {
-    const sku = generateSKU(data);
-    mutation.mutate({ ...data, sku });
+    if (isEditing) {
+      mutation.mutate(data);
+    } else {
+      const sku = generateSKU(data);
+      mutation.mutate({ ...data, sku });
+    }
   };
 
   const generateSKU = (data: FastenerFormData): string => {
