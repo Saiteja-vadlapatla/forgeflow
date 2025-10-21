@@ -14,6 +14,7 @@ import { ToolForm } from "@/components/inventory/ToolForm";
 import { InventoryUpdateDialog } from "@/components/inventory/InventoryUpdateDialog";
 import { RawMaterialDetails } from "@/components/inventory/RawMaterialDetails";
 import { ToolDetails } from "@/components/inventory/ToolDetails";
+import { RawMaterialEdit } from "@/components/inventory/RawMaterialEdit";
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 
 export function InventoryPage() {
@@ -23,6 +24,8 @@ export function InventoryPage() {
   const [isAddingTool, setIsAddingTool] = useState(false);
   const [viewingMaterialId, setViewingMaterialId] = useState<string | null>(null);
   const [viewingToolId, setViewingToolId] = useState<string | null>(null);
+  const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
+  const [editingToolId, setEditingToolId] = useState<string | null>(null);
 
   const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery({
     queryKey: ["/api/inventory/materials"],
@@ -352,7 +355,29 @@ export function InventoryPage() {
           {viewingMaterialId && (
             <RawMaterialDetails
               materialId={viewingMaterialId}
+              onEdit={() => {
+                setEditingMaterialId(viewingMaterialId);
+                setViewingMaterialId(null);
+              }}
               onClose={() => setViewingMaterialId(null)}
+            />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      {/* Edit Dialogs */}
+      <ScrollableDialog 
+        open={editingMaterialId !== null} 
+        onOpenChange={(open) => !open && setEditingMaterialId(null)}
+      >
+        <ScrollableDialogContent className="max-w-4xl">
+          <ScrollableDialogHeader>
+            <ScrollableDialogTitle>Edit Raw Material</ScrollableDialogTitle>
+          </ScrollableDialogHeader>
+          {editingMaterialId && (
+            <RawMaterialEdit
+              materialId={editingMaterialId}
+              onSuccess={() => setEditingMaterialId(null)}
             />
           )}
         </ScrollableDialogContent>

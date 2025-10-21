@@ -346,6 +346,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/inventory/materials/:id", async (req, res) => {
+    try {
+      const materials = await storage.getRawMaterials();
+      const material = materials.find(m => m.id === req.params.id);
+      if (!material) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+      res.json(material);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch material" });
+    }
+  });
+
+  app.patch("/api/inventory/materials/:id", async (req, res) => {
+    try {
+      // Extract currentStock separately as it's not in the base schema
+      const { currentStock, ...materialData } = req.body;
+      const validatedData = insertRawMaterialSchema.partial().parse(materialData);
+      
+      // Merge currentStock back if provided
+      const updateData = currentStock !== undefined 
+        ? { ...validatedData, currentStock } 
+        : validatedData;
+      
+      const updated = await storage.updateRawMaterial(req.params.id, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "Material not found" });
+      }
+      res.json(updated);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update material", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
   app.patch("/api/inventory/materials/:id/update-stock", async (req, res) => {
     try {
       const { id } = req.params;
@@ -418,6 +455,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Tool creation error:", error);
       res.status(400).json({ error: "Failed to create tool", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.get("/api/inventory/tools/:id", async (req, res) => {
+    try {
+      const tools = await storage.getInventoryTools();
+      const tool = tools.find(t => t.id === req.params.id);
+      if (!tool) {
+        return res.status(404).json({ error: "Tool not found" });
+      }
+      res.json(tool);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch tool" });
+    }
+  });
+
+  app.patch("/api/inventory/tools/:id", async (req, res) => {
+    try {
+      // Extract currentStock separately as it's not in the base schema
+      const { currentStock, ...toolData } = req.body;
+      const validatedData = insertInventoryToolSchema.partial().parse(toolData);
+      
+      // Merge currentStock back if provided
+      const updateData = currentStock !== undefined 
+        ? { ...validatedData, currentStock } 
+        : validatedData;
+      
+      const updated = await storage.updateInventoryTool(req.params.id, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "Tool not found" });
+      }
+      res.json(updated);
+      
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update tool", details: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
