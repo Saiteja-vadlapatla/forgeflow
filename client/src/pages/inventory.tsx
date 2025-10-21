@@ -12,6 +12,8 @@ import { RawMaterial, InventoryTool } from "@shared/schema";
 import { RawMaterialForm } from "@/components/inventory/RawMaterialForm";
 import { ToolForm } from "@/components/inventory/ToolForm";
 import { InventoryUpdateDialog } from "@/components/inventory/InventoryUpdateDialog";
+import { RawMaterialDetails } from "@/components/inventory/RawMaterialDetails";
+import { ToolDetails } from "@/components/inventory/ToolDetails";
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 
 export function InventoryPage() {
@@ -19,6 +21,8 @@ export function InventoryPage() {
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [isAddingTool, setIsAddingTool] = useState(false);
+  const [viewingMaterialId, setViewingMaterialId] = useState<string | null>(null);
+  const [viewingToolId, setViewingToolId] = useState<string | null>(null);
 
   const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery({
     queryKey: ["/api/inventory/materials"],
@@ -204,7 +208,13 @@ export function InventoryPage() {
                           </Button>
                         }
                       />
-                      <Button size="sm" variant="outline" className="flex-1">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setViewingMaterialId(material.id)}
+                        data-testid={`button-details-material-${material.id}`}
+                      >
                         Details
                       </Button>
                     </div>
@@ -312,7 +322,13 @@ export function InventoryPage() {
                           </Button>
                         }
                       />
-                      <Button size="sm" variant="outline" className="flex-1">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => setViewingToolId(tool.id)}
+                        data-testid={`button-details-tool-${tool.id}`}
+                      >
                         Details
                       </Button>
                     </div>
@@ -323,6 +339,41 @@ export function InventoryPage() {
           )}
         </TabsContent>
       </Tabs>
+      
+      {/* Details Dialogs */}
+      <ScrollableDialog 
+        open={viewingMaterialId !== null} 
+        onOpenChange={(open) => !open && setViewingMaterialId(null)}
+      >
+        <ScrollableDialogContent className="max-w-4xl">
+          <ScrollableDialogHeader>
+            <ScrollableDialogTitle>Raw Material Details</ScrollableDialogTitle>
+          </ScrollableDialogHeader>
+          {viewingMaterialId && (
+            <RawMaterialDetails
+              materialId={viewingMaterialId}
+              onClose={() => setViewingMaterialId(null)}
+            />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      <ScrollableDialog 
+        open={viewingToolId !== null} 
+        onOpenChange={(open) => !open && setViewingToolId(null)}
+      >
+        <ScrollableDialogContent className="max-w-4xl">
+          <ScrollableDialogHeader>
+            <ScrollableDialogTitle>Tool Details</ScrollableDialogTitle>
+          </ScrollableDialogHeader>
+          {viewingToolId && (
+            <ToolDetails
+              toolId={viewingToolId}
+              onClose={() => setViewingToolId(null)}
+            />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
       </div>
     </ResponsiveLayout>
   );

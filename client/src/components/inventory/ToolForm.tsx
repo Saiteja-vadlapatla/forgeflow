@@ -41,6 +41,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
       material: "",
       supplier: "",
       unitCost: 0,
+      currentStock: 0,
       reorderPoint: 5,
       maxStock: 50,
       location: "",
@@ -409,12 +410,28 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                 {...form.register("unitCost", { valueAsNumber: true })}
                 placeholder="45.50"
                 className="mt-1"
+                data-testid="input-unit-cost"
               />
               {form.formState.errors.unitCost && (
                 <p className="text-sm text-red-600 mt-1">
                   {form.formState.errors.unitCost.message}
                 </p>
               )}
+            </div>
+
+            <div>
+              <Label htmlFor="currentStock">Initial Stock Quantity</Label>
+              <Input
+                id="currentStock"
+                type="number"
+                {...form.register("currentStock", { valueAsNumber: true })}
+                placeholder="0"
+                className="mt-1"
+                data-testid="input-current-stock"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Starting inventory quantity (can be updated later)
+              </p>
             </div>
 
             <div>
@@ -425,6 +442,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                 {...form.register("reorderPoint", { valueAsNumber: true })}
                 placeholder="5"
                 className="mt-1"
+                data-testid="input-reorder-point"
               />
             </div>
 
@@ -436,6 +454,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                 {...form.register("maxStock", { valueAsNumber: true })}
                 placeholder="50"
                 className="mt-1"
+                data-testid="input-max-stock"
               />
             </div>
 

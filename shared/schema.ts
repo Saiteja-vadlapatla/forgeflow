@@ -834,6 +834,8 @@ export const insertRawMaterialSchema = createInsertSchema(rawMaterials).omit({
 }).extend({
   // Make SKU optional since it can be generated client-side or server-side
   sku: z.string().optional(),
+  // Add initial stock level when creating material
+  currentStock: z.number().optional().default(0),
 });
 export const insertRawMaterialInventorySchema = createInsertSchema(rawMaterialInventory);
 export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit({
@@ -843,6 +845,8 @@ export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit
 }).extend({
   // Make SKU optional since it can be generated client-side or server-side
   sku: z.string().optional(),
+  // Add initial stock level when creating tool
+  currentStock: z.number().optional().default(0),
 });
 export const insertToolInventorySchema = createInsertSchema(toolInventory);
 export const insertProductionPlanSchema = createInsertSchema(productionPlans).omit({

@@ -43,6 +43,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       shape: "",
       supplier: "",
       unitCost: 0,
+      currentStock: 0,
       reorderPoint: 10,
       maxStock: 100,
       location: "",
@@ -521,6 +522,21 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <Label htmlFor="currentStock">Initial Stock Quantity</Label>
+              <Input
+                id="currentStock"
+                type="number"
+                {...form.register("currentStock", { valueAsNumber: true })}
+                placeholder="0"
+                className="mt-1"
+                data-testid="input-current-stock"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                Starting inventory quantity (can be updated later)
+              </p>
+            </div>
+
+            <div>
               <Label htmlFor="reorderPoint">Reorder Point</Label>
               <Input
                 id="reorderPoint"
@@ -528,6 +544,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
                 {...form.register("reorderPoint", { valueAsNumber: true })}
                 placeholder="10"
                 className="mt-1"
+                data-testid="input-reorder-point"
               />
             </div>
 
@@ -539,6 +556,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
                 {...form.register("maxStock", { valueAsNumber: true })}
                 placeholder="100"
                 className="mt-1"
+                data-testid="input-max-stock"
               />
             </div>
 
