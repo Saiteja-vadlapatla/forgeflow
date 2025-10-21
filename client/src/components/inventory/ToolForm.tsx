@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormLabel } from "@/components/ui/form-label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,7 +66,8 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
       });
       
       if (!response.ok) {
-        throw new Error("Failed to create tool");
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || "Failed to create tool");
       }
       
       return response.json();
@@ -78,7 +80,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
       });
       onSuccess();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to add tool",
@@ -155,9 +157,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="toolType" className="flex items-center gap-1">
-                Tool Type <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="toolType" required>Tool Type</FormLabel>
               <Select 
                 value={form.watch("toolType")} 
                 onValueChange={(value) => form.setValue("toolType", value)}
@@ -181,7 +181,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="subType">Sub Type</Label>
+              <FormLabel htmlFor="subType" optional>Sub Type</FormLabel>
               <Input
                 id="subType"
                 {...form.register("subType")}
@@ -191,9 +191,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="manufacturer" className="flex items-center gap-1">
-                Manufacturer <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="manufacturer" required>Manufacturer</FormLabel>
               <Select 
                 value={form.watch("manufacturer")} 
                 onValueChange={(value) => form.setValue("manufacturer", value)}
@@ -217,9 +215,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="model" className="flex items-center gap-1">
-                Model <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="model" required>Model</FormLabel>
               <Input
                 id="model"
                 {...form.register("model")}
@@ -242,9 +238,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="size" className="flex items-center gap-1">
-                Size (mm) <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="size" required>Size (mm)</FormLabel>
               <Input
                 id="size"
                 type="number"
@@ -261,7 +255,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="length">Overall Length (mm)</Label>
+              <FormLabel htmlFor="length" optional>Overall Length (mm)</FormLabel>
               <Input
                 id="length"
                 type="number"
@@ -273,9 +267,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="material" className="flex items-center gap-1">
-                Material <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="material" required>Material</FormLabel>
               <Select 
                 value={form.watch("material")} 
                 onValueChange={(value) => form.setValue("material", value)}
@@ -299,7 +291,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="coating">Coating</Label>
+              <FormLabel htmlFor="coating" optional>Coating</FormLabel>
               <Select 
                 value={form.watch("coating") || ""} 
                 onValueChange={(value) => form.setValue("coating", value)}
@@ -318,7 +310,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="geometry">Geometry (for inserts)</Label>
+              <FormLabel htmlFor="geometry" optional>Geometry (for inserts)</FormLabel>
               <Input
                 id="geometry"
                 {...form.register("geometry")}
@@ -392,9 +384,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="supplier" className="flex items-center gap-1">
-                Supplier <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="supplier" required>Supplier</FormLabel>
               <Select 
                 value={form.watch("supplier")} 
                 onValueChange={(value) => form.setValue("supplier", value)}
@@ -418,9 +408,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="unitCost" className="flex items-center gap-1">
-                Unit Cost ($) <span className="text-red-500">*</span>
-              </Label>
+              <FormLabel htmlFor="unitCost" required>Unit Cost ($)</FormLabel>
               <Input
                 id="unitCost"
                 type="number"
@@ -438,7 +426,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="currentStock">Initial Stock Quantity</Label>
+              <FormLabel htmlFor="currentStock" optional>Initial Stock Quantity</FormLabel>
               <Input
                 id="currentStock"
                 type="number"
@@ -453,7 +441,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="reorderPoint">Reorder Point</Label>
+              <FormLabel htmlFor="reorderPoint" optional>Reorder Point</FormLabel>
               <Input
                 id="reorderPoint"
                 type="number"
@@ -465,7 +453,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="maxStock">Maximum Stock</Label>
+              <FormLabel htmlFor="maxStock" optional>Maximum Stock</FormLabel>
               <Input
                 id="maxStock"
                 type="number"
@@ -477,7 +465,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="location">Storage Location</Label>
+              <FormLabel htmlFor="location" optional>Storage Location</FormLabel>
               <Input
                 id="location"
                 {...form.register("location")}

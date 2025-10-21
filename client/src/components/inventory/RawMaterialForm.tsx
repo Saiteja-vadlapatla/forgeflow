@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormLabel } from "@/components/ui/form-label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -66,7 +67,8 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to create raw material");
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || "Failed to create raw material");
       }
 
       return response.json();
@@ -79,7 +81,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       });
       onSuccess();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to add raw material",
@@ -360,7 +362,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="materialType">Material Type</Label>
+              <FormLabel htmlFor="materialType" required>Material Type</FormLabel>
               <Select
                 value={form.watch("materialType")}
                 onValueChange={(value) => {
@@ -387,7 +389,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="grade">Grade</Label>
+              <FormLabel htmlFor="grade" required>Grade</FormLabel>
               <Input
                 id="grade"
                 {...form.register("grade")}
@@ -402,7 +404,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="shape">Shape</Label>
+              <FormLabel htmlFor="shape" required>Shape</FormLabel>
               <Select
                 value={form.watch("shape")}
                 onValueChange={(value) => {
@@ -460,7 +462,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="supplier">Supplier</Label>
+              <FormLabel htmlFor="supplier" required>Supplier</FormLabel>
               <Select
                 value={form.watch("supplier")}
                 onValueChange={(value) => {
@@ -487,7 +489,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="unitCost">Unit Cost ($)</Label>
+              <FormLabel htmlFor="unitCost" required>Unit Cost ($)</FormLabel>
               <Input
                 id="unitCost"
                 type="number"
@@ -504,7 +506,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="location">Storage Location</Label>
+              <FormLabel htmlFor="location" optional>Storage Location</FormLabel>
               <Input
                 id="location"
                 {...form.register("location")}
@@ -522,7 +524,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="currentStock">Initial Stock Quantity</Label>
+              <FormLabel htmlFor="currentStock" optional>Initial Stock Quantity</FormLabel>
               <Input
                 id="currentStock"
                 type="number"
@@ -537,7 +539,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="reorderPoint">Reorder Point</Label>
+              <FormLabel htmlFor="reorderPoint" optional>Reorder Point</FormLabel>
               <Input
                 id="reorderPoint"
                 type="number"
@@ -549,7 +551,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="maxStock">Maximum Stock</Label>
+              <FormLabel htmlFor="maxStock" optional>Maximum Stock</FormLabel>
               <Input
                 id="maxStock"
                 type="number"
@@ -561,7 +563,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="specifications">Additional Specifications</Label>
+              <FormLabel htmlFor="specifications" optional>Additional Specifications</FormLabel>
               <Textarea
                 id="specifications"
                 {...form.register("specifications")}
