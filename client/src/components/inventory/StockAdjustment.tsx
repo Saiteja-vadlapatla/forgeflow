@@ -68,10 +68,21 @@ export function StockAdjustment({ itemId, itemType, currentStock, itemName }: St
 
   const handleStockUpdate = () => {
     const quantity = parseFloat(adjustmentQuantity);
-    if (isNaN(quantity) || quantity <= 0) {
+    
+    // For 'set' operation, allow zero; for 'add'/'remove', require positive
+    if (isNaN(quantity) || quantity < 0) {
       toast({
         title: "Invalid Quantity",
-        description: "Please enter a valid positive number.",
+        description: "Please enter a valid non-negative number.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (adjustmentType !== 'set' && quantity <= 0) {
+      toast({
+        title: "Invalid Quantity",
+        description: "Please enter a positive number for add/remove operations.",
         variant: "destructive",
       });
       return;
