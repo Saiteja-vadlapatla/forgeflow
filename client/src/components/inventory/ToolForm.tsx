@@ -142,7 +142,7 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
   ];
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form id="tool-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>
@@ -471,11 +471,11 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
         </Card>
       </div>
 
-      <ScrollableDialogFooter>
+      <ScrollableDialogFooter form="tool-form">
         <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
           Cancel
         </Button>
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit">
+        <Button type="submit" form="tool-form" disabled={mutation.isPending} data-testid="button-submit">
           {mutation.isPending ? "Adding..." : "Add Tool"}
         </Button>
       </ScrollableDialogFooter>

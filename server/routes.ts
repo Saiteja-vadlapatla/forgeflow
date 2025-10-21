@@ -401,7 +401,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (adjustmentType === 'add') {
         newStock = currentStock + adjustmentQuantity;
       } else if (adjustmentType === 'remove') {
-        newStock = Math.max(0, currentStock - adjustmentQuantity);
+        // Validate: cannot withdraw more than available stock
+        if (adjustmentQuantity > currentStock) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          });
+        }
+        newStock = currentStock - adjustmentQuantity;
       } else if (adjustmentType === 'set') {
         newStock = adjustmentQuantity;
       }
@@ -513,7 +520,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (adjustmentType === 'add') {
         newStock = currentStock + adjustmentQuantity;
       } else if (adjustmentType === 'remove') {
-        newStock = Math.max(0, currentStock - adjustmentQuantity);
+        // Validate: cannot withdraw more than available stock
+        if (adjustmentQuantity > currentStock) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          });
+        }
+        newStock = currentStock - adjustmentQuantity;
       } else if (adjustmentType === 'set') {
         newStock = adjustmentQuantity;
       }
