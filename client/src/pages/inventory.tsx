@@ -1,12 +1,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, Package, Wrench, Filter, RefreshCw, Droplet, Hammer, Box } from "lucide-react";
+import { Plus, Package, Wrench, RefreshCw, Droplet, Hammer, Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollableDialog, ScrollableDialogContent, ScrollableDialogHeader, ScrollableDialogTitle, ScrollableDialogTrigger } from "@/components/ui/scrollable-dialog";
 import { RawMaterial, InventoryTool } from "@shared/schema";
 import { RawMaterialForm } from "@/components/inventory/RawMaterialForm";
@@ -14,18 +10,16 @@ import { ToolForm } from "@/components/inventory/ToolForm";
 import { ConsumableForm } from "@/components/inventory/ConsumableForm";
 import { FastenerForm } from "@/components/inventory/FastenerForm";
 import { GeneralItemForm } from "@/components/inventory/GeneralItemForm";
-import { InventoryUpdateDialog } from "@/components/inventory/InventoryUpdateDialog";
 import { RawMaterialDetails } from "@/components/inventory/RawMaterialDetails";
 import { ToolDetails } from "@/components/inventory/ToolDetails";
 import { ConsumableDetails } from "@/components/inventory/ConsumableDetails";
 import { FastenerDetails } from "@/components/inventory/FastenerDetails";
 import { GeneralItemDetails } from "@/components/inventory/GeneralItemDetails";
 import { RawMaterialEdit } from "@/components/inventory/RawMaterialEdit";
+import { InventoryTable, ColumnDef } from "@/components/inventory/InventoryTable";
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 
 export function InventoryPage() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
   const [isAddingTool, setIsAddingTool] = useState(false);
   const [isAddingConsumable, setIsAddingConsumable] = useState(false);
@@ -59,32 +53,85 @@ export function InventoryPage() {
     queryKey: ["/api/inventory/general-items"],
   });
 
-  const filteredMaterials = rawMaterials.filter((material: RawMaterial) => {
-    const matchesSearch = material.materialType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         material.grade.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         material.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterCategory === "all" || material.materialType === filterCategory;
-    return matchesSearch && matchesFilter;
-  });
+  // Column definitions for Raw Materials
+  const materialColumns: ColumnDef<any>[] = [
+    { header: "SKU", accessor: "sku", sortable: true },
+    { header: "Material Type", accessor: "materialType", sortable: true },
+    { header: "Grade", accessor: "grade", sortable: true },
+    { header: "Shape", accessor: "shape", sortable: true },
+    { 
+      header: "Stock", 
+      accessor: "currentStock",
+      sortable: true,
+      cell: (value) => value || 0
+    },
+    { header: "Supplier", accessor: "supplier", sortable: true },
+  ];
 
-  const filteredTools = tools.filter((tool: InventoryTool) => {
-    const matchesSearch = tool.toolType.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tool.manufacturer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         tool.sku.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesSearch;
-  });
+  // Column definitions for Tools
+  const toolColumns: ColumnDef<any>[] = [
+    { header: "SKU", accessor: "sku", sortable: true },
+    { header: "Tool Type", accessor: "toolType", sortable: true },
+    { header: "Manufacturer", accessor: "manufacturer", sortable: true },
+    { header: "Model", accessor: "model", sortable: true },
+    { 
+      header: "Size (mm)", 
+      accessor: "size",
+      sortable: true
+    },
+    {
+      header: "Stock",
+      accessor: "currentStock",
+      sortable: true,
+      cell: (value) => value || 0
+    },
+    { header: "Supplier", accessor: "supplier", sortable: true },
+  ];
 
-  const getStockStatusBadge = (current: number, reorder: number, max: number) => {
-    if (current === 0) {
-      return <Badge className="bg-red-100 text-red-800">Out of Stock</Badge>;
-    } else if (current <= reorder) {
-      return <Badge className="bg-yellow-100 text-yellow-800">Low Stock</Badge>;
-    } else if (current >= max * 0.9) {
-      return <Badge className="bg-blue-100 text-blue-800">High Stock</Badge>;
-    } else {
-      return <Badge className="bg-green-100 text-green-800">In Stock</Badge>;
-    }
-  };
+  // Column definitions for Consumables
+  const consumableColumns: ColumnDef<any>[] = [
+    { header: "SKU", accessor: "sku", sortable: true },
+    { header: "Name", accessor: "name", sortable: true },
+    { header: "Category", accessor: "category", sortable: true },
+    { header: "Manufacturer", accessor: "manufacturer", sortable: true },
+    {
+      header: "Stock",
+      accessor: "currentStock",
+      sortable: true,
+      cell: (value) => value || 0
+    },
+    { header: "Supplier", accessor: "supplier", sortable: true },
+  ];
+
+  // Column definitions for Fasteners
+  const fastenerColumns: ColumnDef<any>[] = [
+    { header: "SKU", accessor: "sku", sortable: true },
+    { header: "Type", accessor: "fastenerType", sortable: true },
+    { header: "Thread", accessor: "threadDescription", sortable: true },
+    { header: "Material", accessor: "material", sortable: true },
+    {
+      header: "Stock",
+      accessor: "currentStock",
+      sortable: true,
+      cell: (value) => value || 0
+    },
+    { header: "Supplier", accessor: "supplier", sortable: true },
+  ];
+
+  // Column definitions for General Items
+  const generalItemColumns: ColumnDef<any>[] = [
+    { header: "SKU", accessor: "sku", sortable: true },
+    { header: "Name", accessor: "name", sortable: true },
+    { header: "Category", accessor: "category", sortable: true },
+    { header: "Manufacturer", accessor: "manufacturer", sortable: true },
+    {
+      header: "Stock",
+      accessor: "currentStock",
+      sortable: true,
+      cell: (value) => value || 0
+    },
+    { header: "Supplier", accessor: "supplier", sortable: true },
+  ];
 
   return (
     <ResponsiveLayout isConnected={true}>
@@ -103,39 +150,6 @@ export function InventoryPage() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Search by SKU, material type, or manufacturer..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Select value={filterCategory} onValueChange={setFilterCategory}>
-                <SelectTrigger className="w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="Steel">Steel</SelectItem>
-                  <SelectItem value="Aluminum">Aluminum</SelectItem>
-                  <SelectItem value="Stainless Steel">Stainless Steel</SelectItem>
-                  <SelectItem value="Brass">Brass</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Inventory Tabs */}
       <Tabs defaultValue="materials" className="w-full">
@@ -183,84 +197,15 @@ export function InventoryPage() {
           </div>
 
           {materialsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <div className="text-center py-8">Loading materials...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredMaterials.map((material: RawMaterial & { currentStock?: number; reorderPoint?: number }) => (
-                <Card key={material.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{material.materialType}</h3>
-                        <p className="text-sm text-gray-600">{material.grade}</p>
-                        <p className="text-xs text-gray-500">SKU: {material.sku}</p>
-                      </div>
-                      {getStockStatusBadge(
-                        material.currentStock || 0,
-                        material.reorderPoint || 10,
-                        material.maxStock || 100
-                      )}
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Shape:</span>
-                        <span className="font-medium">{material.shape}</span>
-                      </div>
-                      {material.diameter && (
-                        <div className="flex justify-between">
-                          <span>Diameter:</span>
-                          <span className="font-medium">{material.diameter}mm</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span>Supplier:</span>
-                        <span className="font-medium">{material.supplier}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Stock:</span>
-                        <span className="font-medium">{material.currentStock || 0} pcs</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Location:</span>
-                        <span className="font-medium">{material.location || "N/A"}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t flex space-x-2">
-                      <InventoryUpdateDialog
-                        type="material"
-                        item={material}
-                        trigger={
-                          <Button size="sm" variant="outline" className="flex-1">
-                            Update Stock
-                          </Button>
-                        }
-                      />
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => setViewingMaterialId(material.id)}
-                        data-testid={`button-details-material-${material.id}`}
-                      >
-                        Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <InventoryTable
+              data={rawMaterials}
+              columns={materialColumns}
+              onView={(item) => setViewingMaterialId(item.id)}
+              onEdit={(item) => setEditingMaterialId(item.id)}
+              searchPlaceholder="Search materials by SKU, type, grade, supplier..."
+            />
           )}
         </TabsContent>
 
@@ -285,96 +230,15 @@ export function InventoryPage() {
           </div>
 
           {toolsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <div className="text-center py-8">Loading tools...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTools.map((tool: InventoryTool & { currentStock?: number; condition?: string }) => (
-                <Card key={tool.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{tool.toolType}</h3>
-                        <p className="text-sm text-gray-600">{tool.manufacturer} {tool.model}</p>
-                        <p className="text-xs text-gray-500">SKU: {tool.sku}</p>
-                      </div>
-                      {getStockStatusBadge(
-                        tool.currentStock || 0,
-                        tool.reorderPoint || 5,
-                        tool.maxStock || 50
-                      )}
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Size:</span>
-                        <span className="font-medium">Ø{tool.size}mm</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Material:</span>
-                        <span className="font-medium">{tool.material}</span>
-                      </div>
-                      {tool.coating && (
-                        <div className="flex justify-between">
-                          <span>Coating:</span>
-                          <span className="font-medium">{tool.coating}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between">
-                        <span>Stock:</span>
-                        <span className="font-medium">{tool.currentStock || 0} pcs</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Condition:</span>
-                        <Badge 
-                          className={
-                            tool.condition === "new" ? "bg-green-100 text-green-800" :
-                            tool.condition === "used" ? "bg-yellow-100 text-yellow-800" :
-                            "bg-red-100 text-red-800"
-                          }
-                        >
-                          {tool.condition || "new"}
-                        </Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Location:</span>
-                        <span className="font-medium">{tool.location || "Tool Crib"}</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t flex space-x-2">
-                      <InventoryUpdateDialog
-                        type="tool"
-                        item={tool}
-                        trigger={
-                          <Button size="sm" variant="outline" className="flex-1">
-                            Update Stock
-                          </Button>
-                        }
-                      />
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => setViewingToolId(tool.id)}
-                        data-testid={`button-details-tool-${tool.id}`}
-                      >
-                        Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <InventoryTable
+              data={tools}
+              columns={toolColumns}
+              onView={(item) => setViewingToolId(item.id)}
+              onEdit={(item) => setEditingToolId(item.id)}
+              searchPlaceholder="Search tools by SKU, type, manufacturer, model..."
+            />
           )}
         </TabsContent>
 
@@ -399,67 +263,15 @@ export function InventoryPage() {
           </div>
 
           {consumablesLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <div className="text-center py-8">Loading consumables...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {consumables.map((consumable: any) => (
-                <Card key={consumable.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{consumable.name}</h3>
-                        <p className="text-sm text-gray-600">{consumable.category}</p>
-                        <p className="text-xs text-gray-500">SKU: {consumable.sku}</p>
-                      </div>
-                      {getStockStatusBadge(
-                        consumable.currentStock || 0,
-                        consumable.minStockLevel || 10,
-                        consumable.maxStockLevel || 100
-                      )}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Grade:</span>
-                        <span className="font-medium">{consumable.grade || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Volume:</span>
-                        <span className="font-medium">{consumable.volumePerUnit} {consumable.volumeUnit}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Stock:</span>
-                        <span className="font-medium">{consumable.currentStock || 0} {consumable.unit}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Supplier:</span>
-                        <span className="font-medium">{consumable.supplier || '-'}</span>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-3 border-t flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => setViewingConsumableId(consumable.id)}
-                        data-testid={`button-details-consumable-${consumable.id}`}
-                      >
-                        Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <InventoryTable
+              data={consumables}
+              columns={consumableColumns}
+              onView={(item) => setViewingConsumableId(item.id)}
+              onEdit={(item) => window.alert('Edit functionality coming soon')}
+              searchPlaceholder="Search consumables by SKU, name, category, supplier..."
+            />
           )}
         </TabsContent>
 
@@ -484,67 +296,15 @@ export function InventoryPage() {
           </div>
 
           {fastenersLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <div className="text-center py-8">Loading fasteners...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {fasteners.map((fastener: any) => (
-                <Card key={fastener.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{fastener.name}</h3>
-                        <p className="text-sm text-gray-600">{fastener.threadType} {fastener.size}mm</p>
-                        <p className="text-xs text-gray-500">SKU: {fastener.sku}</p>
-                      </div>
-                      {getStockStatusBadge(
-                        fastener.currentStock || 0,
-                        fastener.minStockLevel || 100,
-                        fastener.maxStockLevel || 1000
-                      )}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Pitch:</span>
-                        <span className="font-medium">{fastener.pitch}mm</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Length:</span>
-                        <span className="font-medium">{fastener.length}mm</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Material:</span>
-                        <span className="font-medium">{fastener.material}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Stock:</span>
-                        <span className="font-medium">{fastener.currentStock || 0} pcs</span>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-3 border-t flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => setViewingFastenerId(fastener.id)}
-                        data-testid={`button-details-fastener-${fastener.id}`}
-                      >
-                        Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <InventoryTable
+              data={fasteners}
+              columns={fastenerColumns}
+              onView={(item) => setViewingFastenerId(item.id)}
+              onEdit={(item) => window.alert('Edit functionality coming soon')}
+              searchPlaceholder="Search fasteners by SKU, type, thread, material, supplier..."
+            />
           )}
         </TabsContent>
 
@@ -569,67 +329,15 @@ export function InventoryPage() {
           </div>
 
           {generalItemsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-4">
-                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                    <div className="h-3 bg-gray-200 rounded mb-1"></div>
-                    <div className="h-3 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <div className="text-center py-8">Loading general items...</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {generalItems.map((item: any) => (
-                <Card key={item.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-semibold text-lg">{item.name}</h3>
-                        <p className="text-sm text-gray-600">{item.category}</p>
-                        <p className="text-xs text-gray-500">SKU: {item.sku}</p>
-                      </div>
-                      {getStockStatusBadge(
-                        item.currentStock || 0,
-                        item.minStockLevel || 5,
-                        item.maxStockLevel || 50
-                      )}
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span>Model:</span>
-                        <span className="font-medium">{item.model || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Manufacturer:</span>
-                        <span className="font-medium">{item.manufacturer || '-'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Condition:</span>
-                        <Badge className="bg-green-100 text-green-800">{item.condition}</Badge>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Stock:</span>
-                        <span className="font-medium">{item.currentStock || 0} pcs</span>
-                      </div>
-                    </div>
-                    <div className="mt-4 pt-3 border-t flex space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => setViewingGeneralItemId(item.id)}
-                        data-testid={`button-details-general-item-${item.id}`}
-                      >
-                        Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <InventoryTable
+              data={generalItems}
+              columns={generalItemColumns}
+              onView={(item) => setViewingGeneralItemId(item.id)}
+              onEdit={(item) => window.alert('Edit functionality coming soon')}
+              searchPlaceholder="Search general items by SKU, name, category, manufacturer..."
+            />
           )}
         </TabsContent>
       </Tabs>
