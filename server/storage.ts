@@ -105,6 +105,21 @@ export interface IStorage {
   createInventoryTool(tool: any): Promise<any>;
   updateInventoryTool(id: string, updates: any): Promise<any>;
 
+  // Consumables operations
+  getConsumables(): Promise<any[]>;
+  createConsumable(consumable: any): Promise<any>;
+  updateConsumable(id: string, updates: any): Promise<any>;
+
+  // Fasteners operations
+  getFasteners(): Promise<any[]>;
+  createFastener(fastener: any): Promise<any>;
+  updateFastener(id: string, updates: any): Promise<any>;
+
+  // General Items operations
+  getGeneralItems(): Promise<any[]>;
+  createGeneralItem(item: any): Promise<any>;
+  updateGeneralItem(id: string, updates: any): Promise<any>;
+
   // Production Planning operations
   getProductionPlans(): Promise<any[]>;
   createProductionPlan(plan: any): Promise<any>;
@@ -296,6 +311,9 @@ export class MemStorage implements IStorage {
   private inventoryItems: Map<string, InventoryItem>;
   private rawMaterials: Map<string, any>;
   private inventoryTools: Map<string, any>;
+  private consumables: Map<string, any>;
+  private fasteners: Map<string, any>;
+  private generalItems: Map<string, any>;
   private productionPlans: Map<string, any>;
   private downtimeEvents: Map<string, DowntimeEvent>;
   private productionLogs: Map<string, ProductionLog>;
@@ -335,6 +353,9 @@ export class MemStorage implements IStorage {
     this.inventoryItems = new Map();
     this.rawMaterials = new Map();
     this.inventoryTools = new Map();
+    this.consumables = new Map();
+    this.fasteners = new Map();
+    this.generalItems = new Map();
     this.productionPlans = new Map();
     this.downtimeEvents = new Map();
     this.productionLogs = new Map();
@@ -2025,6 +2046,102 @@ export class MemStorage implements IStorage {
     };
     this.inventoryTools.set(id, updatedTool);
     return updatedTool;
+  }
+
+  // Consumables operations
+  async getConsumables(): Promise<any[]> {
+    return Array.from(this.consumables.values());
+  }
+
+  async createConsumable(consumable: any): Promise<any> {
+    const id = randomUUID();
+    const sku = consumable.sku || `CON-${consumable.category.substring(0,3).toUpperCase()}-${Date.now()}`;
+    const newConsumable = {
+      ...consumable,
+      id,
+      sku,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.consumables.set(id, newConsumable);
+    return newConsumable;
+  }
+
+  async updateConsumable(id: string, updates: any): Promise<any> {
+    const consumable = this.consumables.get(id);
+    if (!consumable) return undefined;
+    
+    const updatedConsumable = { 
+      ...consumable, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.consumables.set(id, updatedConsumable);
+    return updatedConsumable;
+  }
+
+  // Fasteners operations
+  async getFasteners(): Promise<any[]> {
+    return Array.from(this.fasteners.values());
+  }
+
+  async createFastener(fastener: any): Promise<any> {
+    const id = randomUUID();
+    const sku = fastener.sku || `FAS-${fastener.threadType.substring(0,3).toUpperCase()}-${Date.now()}`;
+    const newFastener = {
+      ...fastener,
+      id,
+      sku,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.fasteners.set(id, newFastener);
+    return newFastener;
+  }
+
+  async updateFastener(id: string, updates: any): Promise<any> {
+    const fastener = this.fasteners.get(id);
+    if (!fastener) return undefined;
+    
+    const updatedFastener = { 
+      ...fastener, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.fasteners.set(id, updatedFastener);
+    return updatedFastener;
+  }
+
+  // General Items operations
+  async getGeneralItems(): Promise<any[]> {
+    return Array.from(this.generalItems.values());
+  }
+
+  async createGeneralItem(item: any): Promise<any> {
+    const id = randomUUID();
+    const sku = item.sku || `GEN-${item.category.substring(0,3).toUpperCase()}-${Date.now()}`;
+    const newItem = {
+      ...item,
+      id,
+      sku,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    this.generalItems.set(id, newItem);
+    return newItem;
+  }
+
+  async updateGeneralItem(id: string, updates: any): Promise<any> {
+    const item = this.generalItems.get(id);
+    if (!item) return undefined;
+    
+    const updatedItem = { 
+      ...item, 
+      ...updates, 
+      updatedAt: new Date() 
+    };
+    this.generalItems.set(id, updatedItem);
+    return updatedItem;
   }
 
   // Production Planning operations

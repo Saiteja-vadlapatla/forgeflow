@@ -4,7 +4,8 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { 
   insertWorkOrderSchema, insertMachineSchema, insertQualityRecordSchema, 
-  insertRawMaterialSchema, insertInventoryToolSchema, insertProductionPlanSchema,
+  insertRawMaterialSchema, insertInventoryToolSchema, insertConsumableSchema, 
+  insertFastenerSchema, insertGeneralItemSchema, insertProductionPlanSchema,
   insertSetupGroupSchema, insertOperatorSkillSchema, insertToolResourceSchema,
   insertMaterialAvailabilitySchema, insertResourceReservationSchema, insertScenarioSchema,
   insertScheduleSlotSchema, insertOperationSchema, insertMachineCapabilitySchema,
@@ -556,6 +557,252 @@ export async function registerRoutes(app: Express): Promise<Server> {
       broadcastRealtimeData();
     } catch (error) {
       res.status(400).json({ error: "Failed to update tool stock" });
+    }
+  });
+
+  // Consumables API routes
+  app.get("/api/inventory/consumables", async (req, res) => {
+    try {
+      const consumables = await storage.getConsumables();
+      res.json(consumables);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch consumables" });
+    }
+  });
+
+  app.post("/api/inventory/consumables", async (req, res) => {
+    try {
+      const validatedData = insertConsumableSchema.parse(req.body);
+      const consumable = await storage.createConsumable(validatedData);
+      res.json(consumable);
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create consumable", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.get("/api/inventory/consumables/:id", async (req, res) => {
+    try {
+      const consumables = await storage.getConsumables();
+      const consumable = consumables.find(c => c.id === req.params.id);
+      if (!consumable) {
+        return res.status(404).json({ error: "Consumable not found" });
+      }
+      res.json(consumable);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch consumable" });
+    }
+  });
+
+  app.patch("/api/inventory/consumables/:id", async (req, res) => {
+    try {
+      const { currentStock, ...consumableData } = req.body;
+      const validatedData = insertConsumableSchema.partial().parse(consumableData);
+      const updateData = currentStock !== undefined ? { ...validatedData, currentStock } : validatedData;
+      const updated = await storage.updateConsumable(req.params.id, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "Consumable not found" });
+      }
+      res.json(updated);
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update consumable", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.patch("/api/inventory/consumables/:id/update-stock", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { adjustmentType, adjustmentQuantity } = req.body;
+      const consumables = await storage.getConsumables();
+      const consumable = consumables.find(c => c.id === id);
+      if (!consumable) {
+        return res.status(404).json({ error: "Consumable not found" });
+      }
+      const currentStock = consumable.currentStock || 0;
+      let newStock = currentStock;
+      if (adjustmentType === 'add') {
+        newStock = currentStock + adjustmentQuantity;
+      } else if (adjustmentType === 'remove') {
+        if (adjustmentQuantity > currentStock) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          });
+        }
+        newStock = currentStock - adjustmentQuantity;
+      } else if (adjustmentType === 'set') {
+        newStock = adjustmentQuantity;
+      }
+      await storage.updateConsumable(id, { currentStock: newStock });
+      res.json({ success: true, newStock, previousStock: currentStock });
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update consumable stock" });
+    }
+  });
+
+  // Fasteners API routes
+  app.get("/api/inventory/fasteners", async (req, res) => {
+    try {
+      const fasteners = await storage.getFasteners();
+      res.json(fasteners);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch fasteners" });
+    }
+  });
+
+  app.post("/api/inventory/fasteners", async (req, res) => {
+    try {
+      const validatedData = insertFastenerSchema.parse(req.body);
+      const fastener = await storage.createFastener(validatedData);
+      res.json(fastener);
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create fastener", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.get("/api/inventory/fasteners/:id", async (req, res) => {
+    try {
+      const fasteners = await storage.getFasteners();
+      const fastener = fasteners.find(f => f.id === req.params.id);
+      if (!fastener) {
+        return res.status(404).json({ error: "Fastener not found" });
+      }
+      res.json(fastener);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch fastener" });
+    }
+  });
+
+  app.patch("/api/inventory/fasteners/:id", async (req, res) => {
+    try {
+      const { currentStock, ...fastenerData } = req.body;
+      const validatedData = insertFastenerSchema.partial().parse(fastenerData);
+      const updateData = currentStock !== undefined ? { ...validatedData, currentStock } : validatedData;
+      const updated = await storage.updateFastener(req.params.id, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "Fastener not found" });
+      }
+      res.json(updated);
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update fastener", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.patch("/api/inventory/fasteners/:id/update-stock", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { adjustmentType, adjustmentQuantity } = req.body;
+      const fasteners = await storage.getFasteners();
+      const fastener = fasteners.find(f => f.id === id);
+      if (!fastener) {
+        return res.status(404).json({ error: "Fastener not found" });
+      }
+      const currentStock = fastener.currentStock || 0;
+      let newStock = currentStock;
+      if (adjustmentType === 'add') {
+        newStock = currentStock + adjustmentQuantity;
+      } else if (adjustmentType === 'remove') {
+        if (adjustmentQuantity > currentStock) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          });
+        }
+        newStock = currentStock - adjustmentQuantity;
+      } else if (adjustmentType === 'set') {
+        newStock = adjustmentQuantity;
+      }
+      await storage.updateFastener(id, { currentStock: newStock });
+      res.json({ success: true, newStock, previousStock: currentStock });
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update fastener stock" });
+    }
+  });
+
+  // General Items API routes
+  app.get("/api/inventory/general-items", async (req, res) => {
+    try {
+      const items = await storage.getGeneralItems();
+      res.json(items);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch general items" });
+    }
+  });
+
+  app.post("/api/inventory/general-items", async (req, res) => {
+    try {
+      const validatedData = insertGeneralItemSchema.parse(req.body);
+      const item = await storage.createGeneralItem(validatedData);
+      res.json(item);
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to create general item", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.get("/api/inventory/general-items/:id", async (req, res) => {
+    try {
+      const items = await storage.getGeneralItems();
+      const item = items.find(i => i.id === req.params.id);
+      if (!item) {
+        return res.status(404).json({ error: "General item not found" });
+      }
+      res.json(item);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch general item" });
+    }
+  });
+
+  app.patch("/api/inventory/general-items/:id", async (req, res) => {
+    try {
+      const { currentStock, ...itemData } = req.body;
+      const validatedData = insertGeneralItemSchema.partial().parse(itemData);
+      const updateData = currentStock !== undefined ? { ...validatedData, currentStock } : validatedData;
+      const updated = await storage.updateGeneralItem(req.params.id, updateData);
+      if (!updated) {
+        return res.status(404).json({ error: "General item not found" });
+      }
+      res.json(updated);
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update general item", details: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  app.patch("/api/inventory/general-items/:id/update-stock", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { adjustmentType, adjustmentQuantity } = req.body;
+      const items = await storage.getGeneralItems();
+      const item = items.find(i => i.id === id);
+      if (!item) {
+        return res.status(404).json({ error: "General item not found" });
+      }
+      const currentStock = item.currentStock || 0;
+      let newStock = currentStock;
+      if (adjustmentType === 'add') {
+        newStock = currentStock + adjustmentQuantity;
+      } else if (adjustmentType === 'remove') {
+        if (adjustmentQuantity > currentStock) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          });
+        }
+        newStock = currentStock - adjustmentQuantity;
+      } else if (adjustmentType === 'set') {
+        newStock = adjustmentQuantity;
+      }
+      await storage.updateGeneralItem(id, { currentStock: newStock });
+      res.json({ success: true, newStock, previousStock: currentStock });
+      broadcastRealtimeData();
+    } catch (error) {
+      res.status(400).json({ error: "Failed to update general item stock" });
     }
   });
 
