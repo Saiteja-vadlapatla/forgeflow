@@ -476,6 +476,7 @@ export const rawMaterials = pgTable("raw_materials", {
   thickness: real("thickness"), // in mm for plates
   width: real("width"), // in mm for plates/squares
   length: real("length"), // in mm - can vary
+  currentStock: integer("current_stock").default(0),
   supplier: text("supplier").notNull(),
   unitCost: real("unit_cost").notNull(),
   reorderPoint: integer("reorder_point").default(10),
@@ -510,6 +511,7 @@ export const inventoryTools = pgTable("inventory_tools", {
   applicationMaterial: text("application_material").array(), // Steel, Aluminum, etc.
   operationType: text("operation_type").array(), // TURNING, MILLING, DRILLING
   specifications: jsonb("specifications"), // Cutting parameters, angles, etc.
+  currentStock: integer("current_stock").default(0),
   supplier: text("supplier").notNull(),
   unitCost: real("unit_cost").notNull(),
   reorderPoint: integer("reorder_point").default(5),
