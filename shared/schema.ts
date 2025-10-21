@@ -957,6 +957,8 @@ export const insertGeneralItemSchema = createInsertSchema(generalItems).omit({
 }).extend({
   sku: z.string().optional(),
   currentStock: z.number().optional().default(0),
+  purchaseDate: z.string().optional().transform((val) => val ? new Date(val) : undefined),
+  warrantyExpiry: z.string().optional().transform((val) => val ? new Date(val) : undefined),
 });
 export const insertProductionPlanSchema = createInsertSchema(productionPlans).omit({
   id: true,

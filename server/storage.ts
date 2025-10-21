@@ -352,6 +352,7 @@ export class MemStorage implements IStorage {
 
   constructor() {
     // Initialize database connection
+    console.log(process.env.DATABASE_URL);
     const sql = neon(process.env.DATABASE_URL!);
     this.db = drizzle(sql);
     
