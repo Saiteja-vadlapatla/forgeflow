@@ -35,9 +35,8 @@ import {
 import { randomUUID } from "crypto";
 import { ProductionScheduler } from "./scheduling";
 import { AnalyticsEngine } from "./analytics";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
 import { eq } from "drizzle-orm";
+import { db } from "./db";
 
 export interface IStorage {
   // User operations
@@ -351,11 +350,6 @@ export class MemStorage implements IStorage {
   private scrapLogs: Map<string, ScrapLog>;
 
   constructor() {
-    // Initialize database connection
-    console.log(process.env.DATABASE_URL);
-    const sql = neon(process.env.DATABASE_URL!);
-    this.db = drizzle(sql);
-    
     this.users = new Map();
     this.machines = new Map();
     this.workOrders = new Map();
@@ -370,7 +364,7 @@ export class MemStorage implements IStorage {
     this.downtimeEvents = new Map();
     this.productionLogs = new Map();
     this.alerts = new Map();
-    
+
     // Initialize scheduling storage
     this.operations = new Map();
     this.scheduleSlots = new Map();
@@ -379,7 +373,7 @@ export class MemStorage implements IStorage {
     this.setupMatrix = new Map();
     this.capacityBuckets = new Map();
     this.shiftEntries = new Map();
-    
+
     // Initialize new capacity planning storage
     this.setupGroups = new Map();
     this.operatorSkills = new Map();
@@ -387,7 +381,7 @@ export class MemStorage implements IStorage {
     this.materialAvailability = new Map();
     this.resourceReservations = new Map();
     this.scenarios = new Map();
-    
+
     // Initialize data entry storage
     this.shiftReports = new Map();
     this.operatorSessions = new Map();
@@ -1994,13 +1988,13 @@ export class MemStorage implements IStorage {
 
   // Raw Materials operations
   async getRawMaterials(): Promise<any[]> {
-    return await this.db.select().from(rawMaterials);
+    return await db.select().from(rawMaterials);
   }
 
   async createRawMaterial(material: any): Promise<any> {
     // Use client-provided SKU if available, otherwise generate one
     const sku = material.sku || `RM-${material.materialType.substring(0,2).toUpperCase()}-${(material.grade || 'UNK')}-${Date.now()}`;
-    const result = await this.db.insert(rawMaterials).values({
+    const result = await db.insert(rawMaterials).values({
       ...material,
       sku
     }).returning();
@@ -2008,7 +2002,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateRawMaterial(id: string, updates: any): Promise<any> {
-    const result = await this.db.update(rawMaterials)
+    const result = await db.update(rawMaterials)
       .set({
         ...updates,
         updatedAt: new Date()
@@ -2020,13 +2014,13 @@ export class MemStorage implements IStorage {
 
   // Inventory Tools operations
   async getInventoryTools(): Promise<any[]> {
-    return await this.db.select().from(inventoryTools);
+    return await db.select().from(inventoryTools);
   }
 
   async createInventoryTool(tool: any): Promise<any> {
     // Use client-provided SKU if available, otherwise generate one
     const sku = tool.sku || `TL-${tool.toolType.substring(0,2).toUpperCase()}-${tool.size}-${Date.now()}`;
-    const result = await this.db.insert(inventoryTools).values({
+    const result = await db.insert(inventoryTools).values({
       ...tool,
       sku
     }).returning();
@@ -2034,7 +2028,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateInventoryTool(id: string, updates: any): Promise<any> {
-    const result = await this.db.update(inventoryTools)
+    const result = await db.update(inventoryTools)
       .set({
         ...updates,
         updatedAt: new Date()
