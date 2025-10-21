@@ -35,10 +35,14 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
     resolver: zodResolver(toolFormSchema),
     defaultValues: {
       toolType: "",
+      subType: "",
       manufacturer: "",
       model: "",
       size: 0,
+      length: 0,
       material: "",
+      coating: "",
+      geometry: "",
       supplier: "",
       unitCost: 0,
       currentStock: 0,
@@ -151,7 +155,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="toolType">Tool Type</Label>
+              <Label htmlFor="toolType" className="flex items-center gap-1">
+                Tool Type <span className="text-red-500">*</span>
+              </Label>
               <Select 
                 value={form.watch("toolType")} 
                 onValueChange={(value) => form.setValue("toolType", value)}
@@ -185,7 +191,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="manufacturer">Manufacturer</Label>
+              <Label htmlFor="manufacturer" className="flex items-center gap-1">
+                Manufacturer <span className="text-red-500">*</span>
+              </Label>
               <Select 
                 value={form.watch("manufacturer")} 
                 onValueChange={(value) => form.setValue("manufacturer", value)}
@@ -209,7 +217,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="model">Model</Label>
+              <Label htmlFor="model" className="flex items-center gap-1">
+                Model <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="model"
                 {...form.register("model")}
@@ -232,7 +242,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="size">Size (mm)</Label>
+              <Label htmlFor="size" className="flex items-center gap-1">
+                Size (mm) <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="size"
                 type="number"
@@ -261,7 +273,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="material">Material</Label>
+              <Label htmlFor="material" className="flex items-center gap-1">
+                Material <span className="text-red-500">*</span>
+              </Label>
               <Select 
                 value={form.watch("material")} 
                 onValueChange={(value) => form.setValue("material", value)}
@@ -378,7 +392,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="supplier">Supplier</Label>
+              <Label htmlFor="supplier" className="flex items-center gap-1">
+                Supplier <span className="text-red-500">*</span>
+              </Label>
               <Select 
                 value={form.watch("supplier")} 
                 onValueChange={(value) => form.setValue("supplier", value)}
@@ -402,7 +418,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <Label htmlFor="unitCost">Unit Cost ($)</Label>
+              <Label htmlFor="unitCost" className="flex items-center gap-1">
+                Unit Cost ($) <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="unitCost"
                 type="number"
@@ -475,7 +493,13 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
         <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
           Cancel
         </Button>
-        <Button type="submit" form="tool-form" disabled={mutation.isPending} data-testid="button-submit">
+        <Button 
+          type="submit" 
+          form="tool-form" 
+          disabled={mutation.isPending || !form.formState.isValid} 
+          className={mutation.isPending ? "opacity-50 cursor-not-allowed" : ""}
+          data-testid="button-submit"
+        >
           {mutation.isPending ? "Adding..." : "Add Tool"}
         </Button>
       </ScrollableDialogFooter>

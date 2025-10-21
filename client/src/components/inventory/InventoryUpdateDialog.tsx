@@ -46,12 +46,23 @@ export function InventoryUpdateDialog({ type, item, trigger }: InventoryUpdateDi
   });
 
   const mutation = useMutation({
-    mutationFn: (data: InventoryUpdateData) => {
+    mutationFn: async (data: InventoryUpdateData) => {
       const endpoint = type === "material" 
         ? `/api/inventory/materials/${item.id}/update-stock`
         : `/api/inventory/tools/${item.id}/update-stock`;
       
-      return apiRequest("PATCH", endpoint, data);
+      const response = await fetch(endpoint, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.details || errorData.error || "Failed to update stock");
+      }
+      
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -66,7 +77,7 @@ export function InventoryUpdateDialog({ type, item, trigger }: InventoryUpdateDi
       setOpen(false);
       form.reset();
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
         description: error.message || "Failed to update stock",
