@@ -529,6 +529,82 @@ export const toolInventory = pgTable("tool_inventory", {
   lastUpdated: timestamp("last_updated").defaultNow().notNull(),
 });
 
+// Consumables - Hydraulic oil, coolant, maintenance items
+export const consumables = pgTable("consumables", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: varchar("sku").unique().notNull(),
+  name: text("name").notNull(), // Product name
+  category: text("category").notNull(), // Hydraulic Oil, Coolant, Lubricant, Cleaning Supplies, etc.
+  type: text("type"), // Specific type within category
+  manufacturer: text("manufacturer").notNull(),
+  grade: text("grade"), // ISO VG grade for hydraulic oils, etc.
+  viscosity: text("viscosity"), // e.g., "ISO VG 46", "SAE 10W-30"
+  capacity: real("capacity"), // Volume/weight per unit
+  unitOfMeasure: text("unit_of_measure").notNull(), // liters, gallons, kg, pieces
+  currentStock: integer("current_stock").default(0),
+  supplier: text("supplier").notNull(),
+  unitCost: real("unit_cost").notNull(),
+  reorderPoint: integer("reorder_point").default(10),
+  maxStock: integer("max_stock").default(100),
+  location: text("location"), // Storage location
+  shelfLife: integer("shelf_life"), // in months
+  specifications: text("specifications"), // Additional product specs
+  safetyDataSheet: text("safety_data_sheet"), // SDS reference or link
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Fasteners - Metric, UNF, BSP with standard and special pitches
+export const fasteners = pgTable("fasteners", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: varchar("sku").unique().notNull(),
+  fastenerType: text("fastener_type").notNull(), // Bolt, Screw, Nut, Washer, etc.
+  threadType: text("thread_type").notNull(), // Metric, UNF, UNC, BSP, BSPT, etc.
+  diameter: real("diameter").notNull(), // Nominal diameter in mm
+  pitch: real("pitch"), // Thread pitch in mm (e.g., 1.5 for M10x1.5)
+  threadDescription: text("thread_description"), // e.g., "M10x1.5", "1/4-20 UNF", "G1/4 BSP"
+  length: real("length"), // Length in mm
+  headType: text("head_type"), // Hex, Socket Cap, Flat, Pan, etc.
+  driveType: text("drive_type"), // Hex, Phillips, Torx, etc.
+  material: text("material").notNull(), // Steel, Stainless Steel, Brass, etc.
+  grade: text("grade"), // 8.8, 10.9, 12.9, A2, A4, etc.
+  finish: text("finish"), // Zinc Plated, Black Oxide, Plain, etc.
+  currentStock: integer("current_stock").default(0),
+  supplier: text("supplier").notNull(),
+  unitCost: real("unit_cost").notNull(),
+  reorderPoint: integer("reorder_point").default(100),
+  maxStock: integer("max_stock").default(1000),
+  location: text("location"),
+  specifications: text("specifications"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// General Items - Air guns, deburring kits, spanners, pallets, misc equipment
+export const generalItems = pgTable("general_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: varchar("sku").unique().notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // Hand Tools, Power Tools, Measuring Equipment, Material Handling, etc.
+  subCategory: text("sub_category"), // Deburring, Cleaning, Clamping, Storage, etc.
+  manufacturer: text("manufacturer"),
+  model: text("model"),
+  description: text("description"), // Detailed item description
+  specifications: jsonb("specifications"), // Flexible specs for different item types
+  currentStock: integer("current_stock").default(0),
+  supplier: text("supplier").notNull(),
+  unitCost: real("unit_cost").notNull(),
+  reorderPoint: integer("reorder_point").default(5),
+  maxStock: integer("max_stock").default(50),
+  location: text("location"),
+  condition: text("condition").default("new"), // new, used, refurbished
+  serialNumber: text("serial_number"), // For traceable items
+  purchaseDate: timestamp("purchase_date"),
+  warrantyExpiry: timestamp("warranty_expiry"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 // Production Planning Tables - Enhanced for Industry Standards
 export const productionPlans = pgTable("production_plans", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -849,6 +925,30 @@ export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit
   currentStock: z.number().optional().default(0),
 });
 export const insertToolInventorySchema = createInsertSchema(toolInventory);
+export const insertConsumableSchema = createInsertSchema(consumables).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  sku: z.string().optional(),
+  currentStock: z.number().optional().default(0),
+});
+export const insertFastenerSchema = createInsertSchema(fasteners).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  sku: z.string().optional(),
+  currentStock: z.number().optional().default(0),
+});
+export const insertGeneralItemSchema = createInsertSchema(generalItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  sku: z.string().optional(),
+  currentStock: z.number().optional().default(0),
+});
 export const insertProductionPlanSchema = createInsertSchema(productionPlans).omit({
   id: true,
   createdAt: true,
@@ -936,6 +1036,12 @@ export type InventoryTool = typeof inventoryTools.$inferSelect;
 export type InsertInventoryTool = z.infer<typeof insertInventoryToolSchema>;
 export type ToolInventory = typeof toolInventory.$inferSelect;
 export type InsertToolInventory = z.infer<typeof insertToolInventorySchema>;
+export type Consumable = typeof consumables.$inferSelect;
+export type InsertConsumable = z.infer<typeof insertConsumableSchema>;
+export type Fastener = typeof fasteners.$inferSelect;
+export type InsertFastener = z.infer<typeof insertFastenerSchema>;
+export type GeneralItem = typeof generalItems.$inferSelect;
+export type InsertGeneralItem = z.infer<typeof insertGeneralItemSchema>;
 export type ProductionPlan = typeof productionPlans.$inferSelect;
 export type InsertProductionPlan = z.infer<typeof insertProductionPlanSchema>;
 export type CapacityPlanning = typeof capacityPlanning.$inferSelect;
