@@ -1,17 +1,18 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as DialogPrimitive from "@radix-ui/react-dialog"
-import { X } from "lucide-react"
-import { cn } from "@/lib/utils"
+import * as React from "react";
+import { createPortal } from "react-dom";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const ScrollableDialog = DialogPrimitive.Root
+const ScrollableDialog = DialogPrimitive.Root;
 
-const ScrollableDialogTrigger = DialogPrimitive.Trigger
+const ScrollableDialogTrigger = DialogPrimitive.Trigger;
 
-const ScrollableDialogPortal = DialogPrimitive.Portal
+const ScrollableDialogPortal = DialogPrimitive.Portal;
 
-const ScrollableDialogClose = DialogPrimitive.Close
+const ScrollableDialogClose = DialogPrimitive.Close;
 
 const ScrollableDialogOverlay = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Overlay>,
@@ -25,8 +26,8 @@ const ScrollableDialogOverlay = React.forwardRef<
     )}
     {...props}
   />
-))
-ScrollableDialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+));
+ScrollableDialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const ScrollableDialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
@@ -56,7 +57,7 @@ const ScrollableDialogContent = React.forwardRef<
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         </div>
-        
+
         {/* Main content - scrollable */}
         <div className="flex-1 overflow-y-auto px-6">
           <div className="min-h-0">
@@ -65,7 +66,7 @@ const ScrollableDialogContent = React.forwardRef<
             <DefaultDialogDescription />
           </div>
         </div>
-        
+
         {/* Footer stays fixed at bottom */}
         <div className="shrink-0 p-6 pt-0" id="dialog-footer-area">
           {/* Footer content will be rendered here via portal */}
@@ -73,8 +74,8 @@ const ScrollableDialogContent = React.forwardRef<
       </div>
     </DialogPrimitive.Content>
   </ScrollableDialogPortal>
-))
-ScrollableDialogContent.displayName = DialogPrimitive.Content.displayName
+));
+ScrollableDialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const ScrollableDialogHeader = ({
   className,
@@ -87,42 +88,44 @@ const ScrollableDialogHeader = ({
     )}
     {...props}
   />
-)
-ScrollableDialogHeader.displayName = "ScrollableDialogHeader"
+);
+ScrollableDialogHeader.displayName = "ScrollableDialogHeader";
 
 const ScrollableDialogFooter = ({
   className,
+  children,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => {
+  const [footerElement, setFooterElement] = React.useState<HTMLElement | null>(
+    null
+  );
+
   React.useEffect(() => {
-    // Move footer content to the fixed footer area
-    const footerArea = document.getElementById('dialog-footer-area');
-    const footerContent = document.querySelector('[data-scrollable-dialog-footer]');
-    
-    if (footerArea && footerContent) {
-      footerArea.appendChild(footerContent);
-      
-      return () => {
-        // Cleanup on unmount
-        if (footerContent.parentNode === footerArea) {
-          footerArea.removeChild(footerContent);
-        }
-      };
-    }
+    // Find the footer area element
+    const footerArea = document.getElementById("dialog-footer-area");
+    setFooterElement(footerArea);
   }, []);
 
-  return (
+  // If footer area is not available, render nothing
+  if (!footerElement) {
+    return null;
+  }
+
+  // Use React portal to render footer content in the fixed footer area
+  return createPortal(
     <div
-      data-scrollable-dialog-footer
       className={cn(
         "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 border-t pt-4",
         className
       )}
       {...props}
-    />
+    >
+      {children}
+    </div>,
+    footerElement
   );
 };
-ScrollableDialogFooter.displayName = "ScrollableDialogFooter"
+ScrollableDialogFooter.displayName = "ScrollableDialogFooter";
 
 const ScrollableDialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
@@ -136,8 +139,8 @@ const ScrollableDialogTitle = React.forwardRef<
     )}
     {...props}
   />
-))
-ScrollableDialogTitle.displayName = DialogPrimitive.Title.displayName
+));
+ScrollableDialogTitle.displayName = DialogPrimitive.Title.displayName;
 
 const ScrollableDialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
@@ -148,15 +151,16 @@ const ScrollableDialogDescription = React.forwardRef<
     className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
-))
-ScrollableDialogDescription.displayName = DialogPrimitive.Description.displayName
+));
+ScrollableDialogDescription.displayName =
+  DialogPrimitive.Description.displayName;
 
 // Default hidden description for accessibility
 const DefaultDialogDescription = () => (
   <ScrollableDialogDescription className="sr-only">
     Dialog content
   </ScrollableDialogDescription>
-)
+);
 
 export {
   ScrollableDialog,
@@ -169,4 +173,4 @@ export {
   ScrollableDialogFooter,
   ScrollableDialogTitle,
   ScrollableDialogDescription,
-}
+};

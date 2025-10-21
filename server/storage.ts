@@ -108,6 +108,8 @@ export interface IStorage {
   // Production Planning operations
   getProductionPlans(): Promise<any[]>;
   createProductionPlan(plan: any): Promise<any>;
+  getProductionPlan(id: string): Promise<any | null>;
+  updateProductionPlan(id: string, updates: any): Promise<any | null>;
   getCapacityPlanning(): Promise<any[]>;
 
   // Scheduling operations
@@ -2043,6 +2045,19 @@ export class MemStorage implements IStorage {
     };
     this.productionPlans.set(id, newPlan);
     return newPlan;
+  }
+
+  async getProductionPlan(id: string): Promise<any | null> {
+    return this.productionPlans.get(id) || null;
+  }
+
+  async updateProductionPlan(id: string, updates: any): Promise<any | null> {
+    const plan = this.productionPlans.get(id);
+    if (!plan) return null;
+    
+    const updatedPlan = { ...plan, ...updates, updatedAt: new Date() };
+    this.productionPlans.set(id, updatedPlan);
+    return updatedPlan;
   }
 
   async getCapacityPlanning(): Promise<any[]> {

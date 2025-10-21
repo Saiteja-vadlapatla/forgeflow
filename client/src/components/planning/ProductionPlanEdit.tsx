@@ -11,6 +11,7 @@ import {
   Calendar,
   Settings,
   Users,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ import {
   WorkOrder,
   Machine,
   SchedulingPolicy,
+  ProductionPlan,
 } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { WorkOrderSelector } from "./WorkOrderSelector";
@@ -66,8 +68,10 @@ type EnhancedProductionPlanFormData = z.infer<
   typeof enhancedProductionPlanFormSchema
 >;
 
-interface ProductionPlanFormProps {
+interface ProductionPlanEditProps {
+  planId: string;
   onSuccess: () => void;
+  onCancel: () => void;
 }
 
 interface FormStep {
@@ -104,13 +108,32 @@ const FORM_STEPS: FormStep[] = [
   },
 ];
 
-export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
+export function ProductionPlanEdit({
+  planId,
+  onSuccess,
+  onCancel,
+}: ProductionPlanEditProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedWorkOrders, setSelectedWorkOrders] = useState<string[]>([]);
   const [totalEstimatedHours, setTotalEstimatedHours] = useState(0);
   const [resourceRequirements, setResourceRequirements] = useState<any>({});
+
+  // Fetch existing plan data
+  const { data: existingPlan, isLoading: planLoading } =
+    useQuery<ProductionPlan>({
+      queryKey: ["/api/production-plans", planId],
+      queryFn: async () => {
+        const response = await apiRequest(
+          "GET",
+          `/api/production-plans/${planId}`
+        );
+        // Parse the response data properly
+        const data = await response.json();
+        return data as ProductionPlan;
+      },
+    });
 
   // Get work orders and machines for capacity calculations
   const { data: workOrders = [] } = useQuery<WorkOrder[]>({
@@ -148,9 +171,49 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
   const endDate = form.watch("endDate");
   const schedulingPolicy = form.watch("schedulingPolicy");
 
+  // Load existing plan data when available
+  useEffect(() => {
+    if (existingPlan) {
+      // Safe date parsing
+      const parseDate = (dateValue: any): string => {
+        if (!dateValue) return "";
+        const date = new Date(dateValue);
+        return isNaN(date.getTime()) ? "" : date.toISOString().split("T")[0];
+      };
+
+      form.reset({
+        planName: existingPlan.planName || "",
+        planType:
+          (existingPlan.planType as "daily" | "weekly" | "monthly") || "weekly",
+        startDate: parseDate(existingPlan.startDate),
+        endDate: parseDate(existingPlan.endDate),
+        status:
+          (existingPlan.status as
+            | "draft"
+            | "active"
+            | "completed"
+            | "archived") || "draft",
+        notes: existingPlan.notes || "",
+        createdBy: existingPlan.createdBy || "current-user",
+        workOrderIds: (existingPlan.workOrderIds as string[]) || [],
+        schedulingPolicy:
+          (existingPlan.schedulingPolicy as SchedulingPolicy) || {
+            rule: "EDD",
+            horizon: 168,
+            allowOverload: false,
+            maxOverloadPercentage: 120,
+            rescheduleInterval: 60,
+          },
+      });
+
+      // Set selected work orders
+      setSelectedWorkOrders((existingPlan.workOrderIds as string[]) || []);
+    }
+  }, [existingPlan, form]);
+
   // Auto-generate plan name based on type and dates
   useEffect(() => {
-    if (startDate && planType) {
+    if (startDate && planType && !existingPlan) {
       const date = new Date(startDate);
       const month = date.toLocaleDateString("en-US", { month: "long" });
       const year = date.getFullYear();
@@ -174,7 +237,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
         form.setValue("planName", generatedName);
       }
     }
-  }, [planType, startDate, form]);
+  }, [planType, startDate, form, existingPlan]);
 
   // Update form when work orders selection changes
   useEffect(() => {
@@ -212,24 +275,27 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
       const enhancedData = {
         ...data,
         totalWorkOrders,
-        completedWorkOrders: 0,
         efficiency: Math.round(estimatedEfficiency),
       };
 
-      return await apiRequest("POST", "/api/production-plans", enhancedData);
+      return await apiRequest(
+        "PUT",
+        `/api/production-plans/${planId}`,
+        enhancedData
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/production-plans"] });
       toast({
         title: "Success",
-        description: "Production plan created successfully",
+        description: "Production plan updated successfully",
       });
       onSuccess();
     },
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create production plan",
+        description: error.message || "Failed to update production plan",
         variant: "destructive",
       });
     },
@@ -287,14 +353,31 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
     return ((currentStep + 1) / FORM_STEPS.length) * 100;
   };
 
+  if (planLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded mb-2"></div>
+          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Progress Header */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Create Production Plan</h2>
-          <div className="text-sm text-gray-500">
-            Step {currentStep + 1} of {FORM_STEPS.length}
+          <h2 className="text-2xl font-bold">Edit Production Plan</h2>
+          <div className="flex items-center space-x-2">
+            <div className="text-sm text-gray-500">
+              Step {currentStep + 1} of {FORM_STEPS.length}
+            </div>
+            <Button variant="outline" size="sm" onClick={onCancel}>
+              <X className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -511,7 +594,7 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={onSuccess}
+                onClick={onCancel}
                 data-testid="button-cancel-plan"
               >
                 Cancel
@@ -531,15 +614,18 @@ export function ProductionPlanForm({ onSuccess }: ProductionPlanFormProps) {
                 <Button
                   type="submit"
                   disabled={mutation.isPending || !canProceedToNext()}
-                  data-testid="button-create-plan"
-                  onClick={() => onSubmit(form.getValues())}
+                  data-testid="button-update-plan"
+                  onClick={() => {
+                    console.log("Updating plan");
+                    mutation.mutate(form.getValues());
+                  }}
                 >
                   {mutation.isPending ? (
-                    <>Creating...</>
+                    <>Updating...</>
                   ) : (
                     <>
                       <Save className="h-4 w-4 mr-2" />
-                      Create Plan
+                      Update Plan
                     </>
                   )}
                 </Button>
