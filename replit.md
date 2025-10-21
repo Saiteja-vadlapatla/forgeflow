@@ -105,3 +105,59 @@ Preferred communication style: Simple, everyday language.
 - **Quality Inspection**: Advanced measurement entry with tolerance checking and automatic pass/fail determination
 - **Machine Specifications**: Detailed machine capability tracking with spindle speeds, feed rates, and work envelopes
 - **Manufacturing Standards**: Integration of common tolerances, material properties, and operation templates
+
+## Recent Updates (October 2024)
+
+### Inventory Management System Redesign
+- **Table-Based UI Transformation**: Migrated all five inventory categories from card grids to professional data tables
+  - Searchable, sortable, and paginated tables for Raw Materials, Tools, Consumables, Fasteners, and General Items
+  - Row-level action buttons (View, Edit, Delete) for efficient inventory management
+  - Customizable column visibility and data density controls
+  
+- **Edit Functionality Implementation** ✅
+  - Full edit dialogs for Consumables, Fasteners, and General Items using existing forms
+  - Edit state management and handlers integrated in InventoryTable component
+  - Raw Materials edit functionality maintained (uses separate RawMaterialEdit component)
+  - Tools edit temporarily disabled pending ToolEdit component creation
+  - Form validation and cache invalidation working correctly
+
+- **Stock Adjustment System** ✅
+  - Created reusable StockAdjustment component for all inventory types
+  - Three operations supported:
+    - **Add**: Increase stock quantity
+    - **Remove**: Decrease stock quantity  
+    - **Set**: Set exact stock level (allows zero for scrapping/depleting inventory)
+  - Includes reason selection (Purchase, Production, Adjustment, Return, Scrap, Transfer, Audit)
+  - Optional notes field for documentation
+  - Proper validation: allows zero only for 'set' operation, requires positive numbers for add/remove
+  - Successfully integrated at top of RawMaterialDetails modal
+  - Query cache invalidation ensures table refreshes after stock updates
+
+### Completed Tasks (October 21, 2024)
+1. ✅ Redesigned all five inventory categories with modern data table UI
+2. ✅ Implemented searchable, sortable, paginated tables with row-level actions
+3. ✅ Created edit dialogs for Consumables, Fasteners, and General Items
+4. ✅ Wired up edit handlers in InventoryTable component  
+5. ✅ Built reusable StockAdjustment component with Add/Remove/Set operations
+6. ✅ Integrated stock adjustment UI in RawMaterialDetails modal
+7. ✅ Fixed critical validation bug to allow zero stock levels when using 'set' operation
+8. ✅ Architect review confirmed proper implementation of edit dialogs and stock adjustment
+
+### TODO: Remaining Inventory Tasks
+- [ ] Add StockAdjustment component to remaining detail modals:
+  - [ ] ToolDetails
+  - [ ] ConsumableDetails  
+  - [ ] FastenerDetails
+  - [ ] GeneralItemDetails
+- [ ] Add StockAdjustment component to all edit modals for in-place stock updates
+- [ ] Create proper ToolEdit component to restore full edit parity for Tools inventory
+- [ ] Fix Add General Item form submission issue (identified in testing)
+- [ ] End-to-end testing of complete edit and stock adjustment workflows
+
+### Architecture Notes
+- **Component Patterns**: 
+  - Consumables, Fasteners, and General Items use combined Add/Edit forms (check `isEditing` flag)
+  - Raw Materials and Tools use separate Add/Edit components
+  - StockAdjustment is a standalone reusable component that can be embedded in any modal
+- **Data Flow**: All mutations use TanStack Query with proper cache invalidation
+- **Validation**: Zod schemas ensure data integrity, special handling for stock adjustment operations
