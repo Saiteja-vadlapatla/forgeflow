@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Package, Wrench, RefreshCw, Droplet, Hammer, Box } from "lucide-react";
+import { Plus, Package, Wrench, RefreshCw, Droplet, Hammer, Box, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollableDialog, ScrollableDialogContent, ScrollableDialogHeader, ScrollableDialogTitle, ScrollableDialogTrigger } from "@/components/ui/scrollable-dialog";
@@ -18,6 +18,7 @@ import { GeneralItemDetails } from "@/components/inventory/GeneralItemDetails";
 import { RawMaterialEdit } from "@/components/inventory/RawMaterialEdit";
 import { InventoryTable, ColumnDef } from "@/components/inventory/InventoryTable";
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
+import { ExportInventoryDialog } from "@/components/inventory/ExportInventoryDialog";
 
 export function InventoryPage() {
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
@@ -35,6 +36,7 @@ export function InventoryPage() {
   const [editingConsumableId, setEditingConsumableId] = useState<string | null>(null);
   const [editingFastenerId, setEditingFastenerId] = useState<string | null>(null);
   const [editingGeneralItemId, setEditingGeneralItemId] = useState<string | null>(null);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery<any[]>({
     queryKey: ["/api/inventory/materials"],
@@ -146,6 +148,15 @@ export function InventoryPage() {
           <p className="text-gray-600">Manage raw materials and tools inventory</p>
         </div>
         <div className="flex space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setIsExportDialogOpen(true)}
+            data-testid="button-export-inventory"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export to Excel
+          </Button>
           <Button variant="outline" size="sm">
             <RefreshCw className="h-4 w-4 mr-2" />
             Sync Inventory
@@ -488,6 +499,19 @@ export function InventoryPage() {
           )}
         </ScrollableDialogContent>
       </ScrollableDialog>
+
+      {/* Export Inventory Dialog */}
+      <ExportInventoryDialog
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
+        inventoryData={{
+          materials: rawMaterials,
+          tools: tools,
+          consumables: consumables,
+          fasteners: fasteners,
+          generalItems: generalItems,
+        }}
+      />
       </div>
     </ResponsiveLayout>
   );
