@@ -1,18 +1,11 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Package, DollarSign, MapPin, Ruler, Box, Info, AlertCircle, TrendingUp } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Package, DollarSign, MapPin, Ruler, Box, Info, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { RawMaterial, InsertRawMaterial } from "@shared/schema";
+import { RawMaterial } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { StockAdjustment } from "@/components/inventory/StockAdjustment";
 
 // Extended type to include currentStock which is handled in-memory
 type RawMaterialWithStock = RawMaterial & { currentStock?: number };
@@ -24,76 +17,11 @@ interface RawMaterialDetailsProps {
 }
 
 export function RawMaterialDetails({ materialId, onEdit, onClose }: RawMaterialDetailsProps) {
-  const { toast } = useToast();
-  const [isStockDialogOpen, setIsStockDialogOpen] = useState(false);
-  const [adjustmentType, setAdjustmentType] = useState<'add' | 'remove' | 'set'>('add');
-  const [adjustmentQuantity, setAdjustmentQuantity] = useState('');
-  const [adjustmentReason, setAdjustmentReason] = useState('');
-  const [adjustmentNotes, setAdjustmentNotes] = useState('');
-
   const { data: materials = [], isLoading } = useQuery<RawMaterialWithStock[]>({
     queryKey: ["/api/inventory/materials"],
   });
 
   const material = materials.find(m => m.id === materialId);
-
-  const updateStockMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const response = await fetch(`/api/inventory/materials/${materialId}/update-stock`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw errorData;
-      }
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/inventory/materials'] });
-      toast({
-        title: "Stock Updated",
-        description: "Stock level has been updated successfully.",
-      });
-      setIsStockDialogOpen(false);
-      resetStockForm();
-    },
-    onError: (error: any) => {
-      const errorMessage = error?.details || error?.message || "Failed to update stock";
-      toast({
-        title: "Update Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const resetStockForm = () => {
-    setAdjustmentQuantity('');
-    setAdjustmentReason('');
-    setAdjustmentNotes('');
-    setAdjustmentType('add');
-  };
-
-  const handleStockUpdate = () => {
-    const quantity = parseFloat(adjustmentQuantity);
-    if (isNaN(quantity) || quantity <= 0) {
-      toast({
-        title: "Invalid Quantity",
-        description: "Please enter a valid positive number.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    updateStockMutation.mutate({
-      adjustmentType,
-      adjustmentQuantity: quantity,
-      reason: adjustmentReason,
-      notes: adjustmentNotes,
-    });
-  };
 
   if (isLoading) {
     return (
@@ -149,6 +77,14 @@ export function RawMaterialDetails({ materialId, onEdit, onClose }: RawMaterialD
       </div>
 
       <Separator />
+
+      {/* Stock Adjustment */}
+      <StockAdjustment
+        itemId={materialId}
+        itemType="materials"
+        currentStock={material.currentStock || 0}
+        itemName={`${material.materialType} - ${material.grade}`}
+      />
 
       {/* Material Specifications */}
       <Card>
@@ -285,22 +221,6 @@ export function RawMaterialDetails({ materialId, onEdit, onClose }: RawMaterialD
         </Card>
       )}
 
-      {/* Stock Management */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Stock Management</CardTitle>
-          <CardDescription>Adjust inventory levels for this material</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button 
-            onClick={() => setIsStockDialogOpen(true)}
-            data-testid="button-adjust-stock"
-          >
-            <TrendingUp className="mr-2 h-4 w-4" /> Adjust Stock
-          </Button>
-        </CardContent>
-      </Card>
-
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 pt-4 border-t">
         {onEdit && (
@@ -313,70 +233,6 @@ export function RawMaterialDetails({ materialId, onEdit, onClose }: RawMaterialD
         </Button>
       </div>
 
-      {/* Stock Adjustment Dialog */}
-      <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Adjust Stock Level</DialogTitle>
-            <DialogDescription>
-              Current stock: {material.currentStock || 0}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="adjustment-type">Adjustment Type</Label>
-              <Select value={adjustmentType} onValueChange={(value: any) => setAdjustmentType(value)}>
-                <SelectTrigger id="adjustment-type" data-testid="select-adjustment-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="add">Add Stock</SelectItem>
-                  <SelectItem value="remove">Remove Stock</SelectItem>
-                  <SelectItem value="set">Set Stock Level</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                step="0.01"
-                value={adjustmentQuantity}
-                onChange={(e) => setAdjustmentQuantity(e.target.value)}
-                data-testid="input-adjustment-quantity"
-              />
-            </div>
-            <div>
-              <Label htmlFor="reason">Reason</Label>
-              <Input
-                id="reason"
-                value={adjustmentReason}
-                onChange={(e) => setAdjustmentReason(e.target.value)}
-                placeholder="e.g., Received shipment, stock count correction"
-                data-testid="input-adjustment-reason"
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={adjustmentNotes}
-                onChange={(e) => setAdjustmentNotes(e.target.value)}
-                data-testid="textarea-adjustment-notes"
-              />
-            </div>
-            <Button 
-              onClick={handleStockUpdate} 
-              disabled={updateStockMutation.isPending}
-              className="w-full"
-              data-testid="button-confirm-stock-update"
-            >
-              {updateStockMutation.isPending ? "Updating..." : "Update Stock"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

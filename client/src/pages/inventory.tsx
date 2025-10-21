@@ -32,6 +32,9 @@ export function InventoryPage() {
   const [viewingGeneralItemId, setViewingGeneralItemId] = useState<string | null>(null);
   const [editingMaterialId, setEditingMaterialId] = useState<string | null>(null);
   const [editingToolId, setEditingToolId] = useState<string | null>(null);
+  const [editingConsumableId, setEditingConsumableId] = useState<string | null>(null);
+  const [editingFastenerId, setEditingFastenerId] = useState<string | null>(null);
+  const [editingGeneralItemId, setEditingGeneralItemId] = useState<string | null>(null);
 
   const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery<any[]>({
     queryKey: ["/api/inventory/materials"],
@@ -236,7 +239,7 @@ export function InventoryPage() {
               data={tools}
               columns={toolColumns}
               onView={(item) => setViewingToolId(item.id)}
-              onEdit={(item) => setEditingToolId(item.id)}
+              onEdit={(item) => window.alert('Tool edit coming soon - use view details for now')}
               searchPlaceholder="Search tools by SKU, type, manufacturer, model..."
             />
           )}
@@ -269,7 +272,7 @@ export function InventoryPage() {
               data={consumables}
               columns={consumableColumns}
               onView={(item) => setViewingConsumableId(item.id)}
-              onEdit={(item) => window.alert('Edit functionality coming soon')}
+              onEdit={(item) => setEditingConsumableId(item.id)}
               searchPlaceholder="Search consumables by SKU, name, category, supplier..."
             />
           )}
@@ -302,7 +305,7 @@ export function InventoryPage() {
               data={fasteners}
               columns={fastenerColumns}
               onView={(item) => setViewingFastenerId(item.id)}
-              onEdit={(item) => window.alert('Edit functionality coming soon')}
+              onEdit={(item) => setEditingFastenerId(item.id)}
               searchPlaceholder="Search fasteners by SKU, type, thread, material, supplier..."
             />
           )}
@@ -335,7 +338,7 @@ export function InventoryPage() {
               data={generalItems}
               columns={generalItemColumns}
               onView={(item) => setViewingGeneralItemId(item.id)}
-              onEdit={(item) => window.alert('Edit functionality coming soon')}
+              onEdit={(item) => setEditingGeneralItemId(item.id)}
               searchPlaceholder="Search general items by SKU, name, category, manufacturer..."
             />
           )}
@@ -428,6 +431,60 @@ export function InventoryPage() {
         <ScrollableDialogContent className="max-w-5xl max-h-[90vh]">
           {viewingGeneralItemId && (
             <GeneralItemDetails id={viewingGeneralItemId} />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      {/* Consumable Edit Dialog */}
+      <ScrollableDialog 
+        open={editingConsumableId !== null} 
+        onOpenChange={(open) => !open && setEditingConsumableId(null)}
+      >
+        <ScrollableDialogContent className="max-w-4xl">
+          <ScrollableDialogHeader>
+            <ScrollableDialogTitle>Edit Consumable</ScrollableDialogTitle>
+          </ScrollableDialogHeader>
+          {editingConsumableId && (
+            <ConsumableForm
+              consumable={consumables.find((c: any) => c.id === editingConsumableId)}
+              onSuccess={() => setEditingConsumableId(null)}
+            />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      {/* Fastener Edit Dialog */}
+      <ScrollableDialog 
+        open={editingFastenerId !== null} 
+        onOpenChange={(open) => !open && setEditingFastenerId(null)}
+      >
+        <ScrollableDialogContent className="max-w-4xl">
+          <ScrollableDialogHeader>
+            <ScrollableDialogTitle>Edit Fastener</ScrollableDialogTitle>
+          </ScrollableDialogHeader>
+          {editingFastenerId && (
+            <FastenerForm
+              fastener={fasteners.find((f: any) => f.id === editingFastenerId)}
+              onSuccess={() => setEditingFastenerId(null)}
+            />
+          )}
+        </ScrollableDialogContent>
+      </ScrollableDialog>
+
+      {/* General Item Edit Dialog */}
+      <ScrollableDialog 
+        open={editingGeneralItemId !== null} 
+        onOpenChange={(open) => !open && setEditingGeneralItemId(null)}
+      >
+        <ScrollableDialogContent className="max-w-4xl">
+          <ScrollableDialogHeader>
+            <ScrollableDialogTitle>Edit General Item</ScrollableDialogTitle>
+          </ScrollableDialogHeader>
+          {editingGeneralItemId && (
+            <GeneralItemForm
+              item={generalItems.find((i: any) => i.id === editingGeneralItemId)}
+              onSuccess={() => setEditingGeneralItemId(null)}
+            />
           )}
         </ScrollableDialogContent>
       </ScrollableDialog>
