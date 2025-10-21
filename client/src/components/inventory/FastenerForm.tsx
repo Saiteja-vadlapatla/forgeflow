@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { insertFastenerSchema } from "@shared/schema";
+import { StockAdjustment } from "./StockAdjustment";
 
 const fastenerFormSchema = insertFastenerSchema.omit({ sku: true });
 
@@ -18,13 +19,14 @@ type FastenerFormData = z.infer<typeof fastenerFormSchema>;
 
 interface FastenerFormProps {
   fastener?: any;
+  isEditing?: boolean;
   onSuccess: () => void;
 }
 
-export function FastenerForm({ fastener, onSuccess }: FastenerFormProps) {
+export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: FastenerFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isEditing = !!fastener;
+  const isEditing = isEditingProp ?? !!fastener;
 
   const form = useForm<FastenerFormData>({
     resolver: zodResolver(fastenerFormSchema),
@@ -160,6 +162,16 @@ export function FastenerForm({ fastener, onSuccess }: FastenerFormProps) {
 
   return (
     <form id="fastener-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {/* Stock Adjustment - Only shown when editing */}
+      {isEditing && fastener && (
+        <StockAdjustment
+          itemId={fastener.id}
+          itemType="fasteners"
+          currentStock={fastener.currentStock || 0}
+          itemName={`${fastener.fastenerType} ${fastener.threadDescription}`.trim()}
+        />
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>

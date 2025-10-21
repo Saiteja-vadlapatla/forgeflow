@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { insertGeneralItemSchema } from "@shared/schema";
+import { StockAdjustment } from "./StockAdjustment";
 
 const generalItemFormSchema = insertGeneralItemSchema.omit({ sku: true });
 
@@ -18,13 +19,14 @@ type GeneralItemFormData = z.infer<typeof generalItemFormSchema>;
 
 interface GeneralItemFormProps {
   item?: any;
+  isEditing?: boolean;
   onSuccess: () => void;
 }
 
-export function GeneralItemForm({ item, onSuccess }: GeneralItemFormProps) {
+export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: GeneralItemFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isEditing = !!item;
+  const isEditing = isEditingProp ?? !!item;
 
   const form = useForm<GeneralItemFormData>({
     resolver: zodResolver(generalItemFormSchema),
@@ -149,6 +151,16 @@ export function GeneralItemForm({ item, onSuccess }: GeneralItemFormProps) {
 
   return (
     <form id="general-item-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {/* Stock Adjustment - Only shown when editing */}
+      {isEditing && item && (
+        <StockAdjustment
+          itemId={item.id}
+          itemType="general"
+          currentStock={item.currentStock || 0}
+          itemName={item.name}
+        />
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>

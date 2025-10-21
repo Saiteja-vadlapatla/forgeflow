@@ -11,6 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { z } from "zod";
+import { StockAdjustment } from "./StockAdjustment";
 
 // Extended type to include currentStock which is handled in-memory
 type RawMaterialWithStock = RawMaterial & { currentStock?: number };
@@ -115,6 +116,14 @@ export function RawMaterialEdit({ materialId, onSuccess }: RawMaterialEditProps)
         onSubmit={form.handleSubmit((data) => updateMutation.mutate(data))}
         className="space-y-6 px-6 pb-6"
       >
+        {/* Stock Adjustment */}
+        <StockAdjustment
+          itemId={materialId}
+          itemType="materials"
+          currentStock={material.currentStock || 0}
+          itemName={`${material.materialType} ${material.grade} ${material.shape}`.trim()}
+        />
+
         {/* Basic Information */}
         <div className="space-y-4">
           <h3 className="font-semibold text-lg">Basic Information</h3>

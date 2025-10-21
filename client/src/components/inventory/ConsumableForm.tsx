@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { insertConsumableSchema } from "@shared/schema";
+import { StockAdjustment } from "./StockAdjustment";
 
 const consumableFormSchema = insertConsumableSchema.omit({ sku: true });
 
@@ -18,13 +19,14 @@ type ConsumableFormData = z.infer<typeof consumableFormSchema>;
 
 interface ConsumableFormProps {
   consumable?: any;
+  isEditing?: boolean;
   onSuccess: () => void;
 }
 
-export function ConsumableForm({ consumable, onSuccess }: ConsumableFormProps) {
+export function ConsumableForm({ consumable, isEditing: isEditingProp, onSuccess }: ConsumableFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const isEditing = !!consumable;
+  const isEditing = isEditingProp ?? !!consumable;
 
   const form = useForm<ConsumableFormData>({
     resolver: zodResolver(consumableFormSchema),
@@ -141,6 +143,16 @@ export function ConsumableForm({ consumable, onSuccess }: ConsumableFormProps) {
 
   return (
     <form id="consumable-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      {/* Stock Adjustment - Only shown when editing */}
+      {isEditing && consumable && (
+        <StockAdjustment
+          itemId={consumable.id}
+          itemType="consumables"
+          currentStock={consumable.currentStock || 0}
+          itemName={consumable.name}
+        />
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>
