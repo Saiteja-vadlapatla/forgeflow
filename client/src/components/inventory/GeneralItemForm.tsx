@@ -109,7 +109,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
       mutation.mutate(data);
     } else {
       const sku = generateSKU(data);
-      mutation.mutate({ ...data, sku });
+      mutation.mutate({ ...data, sku } as GeneralItemFormData);
     }
   };
 
@@ -155,7 +155,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
       {isEditing && item && (
         <StockAdjustment
           itemId={item.id}
-          itemType="general"
+          itemType="general-items"
           currentStock={item.currentStock || 0}
           itemName={item.name}
         />
@@ -211,7 +211,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             <div>
               <FormLabel htmlFor="subCategory" optional>Sub Category</FormLabel>
               <Select
-                value={form.watch("subCategory")}
+                value={form.watch("subCategory") || ""}
                 onValueChange={(value) => form.setValue("subCategory", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -269,7 +269,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             <div>
               <FormLabel htmlFor="condition" optional>Condition</FormLabel>
               <Select
-                value={form.watch("condition")}
+                value={form.watch("condition") || ""}
                 onValueChange={(value) => form.setValue("condition", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -424,7 +424,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
         </Card>
       </div>
 
-      <ScrollableDialogFooter form="general-item-form">
+      <ScrollableDialogFooter>
         <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
           Cancel
         </Button>
@@ -434,7 +434,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
           disabled={mutation.isPending}
           data-testid="button-submit"
         >
-          {mutation.isPending ? "Adding..." : "Add General Item"}
+          {mutation.isPending ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update General Item" : "Add General Item")}
         </Button>
       </ScrollableDialogFooter>
     </form>

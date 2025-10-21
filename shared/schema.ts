@@ -905,6 +905,13 @@ export const insertOperationSequenceSchema = createInsertSchema(operationSequenc
   id: true,
   createdAt: true,
 });
+export const insertToolSchema = createInsertSchema(tools).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  toolNumber: z.string().optional(),
+});
 export const insertRawMaterialSchema = createInsertSchema(rawMaterials).omit({
   id: true,
   createdAt: true,
