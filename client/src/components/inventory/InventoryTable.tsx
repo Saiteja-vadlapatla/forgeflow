@@ -26,7 +26,9 @@ export interface ColumnDef<T> {
   sortable?: boolean;
 }
 
-interface InventoryTableProps<T extends { id: string; currentStock?: number; reorderPoint?: number }> {
+interface InventoryTableProps<
+  T extends { id: string; currentStock?: number; reorderPoint?: number }
+> {
   data: T[];
   columns: ColumnDef<T>[];
   onView: (item: T) => void;
@@ -36,7 +38,9 @@ interface InventoryTableProps<T extends { id: string; currentStock?: number; reo
   itemsPerPageOptions?: number[];
 }
 
-export function InventoryTable<T extends { id: string; currentStock?: number; reorderPoint?: number }>({
+export function InventoryTable<
+  T extends { id: string; currentStock?: number; reorderPoint?: number }
+>({
   data,
   columns,
   onView,
@@ -57,11 +61,23 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
     const reorder = item.reorderPoint || 0;
 
     if (stock === 0) {
-      return <Badge variant="destructive" data-testid="badge-out-stock">Out of Stock</Badge>;
+      return (
+        <Badge variant="destructive" data-testid="badge-out-stock">
+          Out of Stock
+        </Badge>
+      );
     } else if (stock <= reorder) {
-      return <Badge variant="secondary" data-testid="badge-low-stock">Low Stock</Badge>;
+      return (
+        <Badge variant="secondary" data-testid="badge-low-stock">
+          Low Stock
+        </Badge>
+      );
     }
-    return <Badge variant="outline" data-testid="badge-in-stock">In Stock</Badge>;
+    return (
+      <Badge variant="outline" data-testid="badge-in-stock">
+        In Stock
+      </Badge>
+    );
   };
 
   // Filter data based on search term
@@ -71,17 +87,20 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
     const lowerSearch = searchTerm.toLowerCase();
     return data.filter((item) => {
       return columns.some((col) => {
-        const value = typeof col.accessor === "function" 
-          ? col.accessor(item) 
-          : item[col.accessor];
-        
+        const value =
+          typeof col.accessor === "function"
+            ? col.accessor(item)
+            : item[col.accessor];
+
         if (value === null || value === undefined) return false;
-        
+
         // Handle arrays
         if (Array.isArray(value)) {
-          return value.some(v => String(v).toLowerCase().includes(lowerSearch));
+          return value.some((v) =>
+            String(v).toLowerCase().includes(lowerSearch)
+          );
         }
-        
+
         return String(value).toLowerCase().includes(lowerSearch);
       });
     });
@@ -91,10 +110,10 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
   const sortedData = useMemo(() => {
     if (!sortColumn) return filteredData;
 
-    const column = columns.find((col) => 
+    const column = columns.find((col) =>
       typeof col.accessor === "string" ? col.accessor === sortColumn : false
     );
-    
+
     if (!column || typeof column.accessor !== "string") return filteredData;
 
     return [...filteredData].sort((a, b) => {
@@ -104,7 +123,11 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
       if (aValue === null || aValue === undefined) return 1;
       if (bValue === null || bValue === undefined) return -1;
 
-      const comparison = String(aValue).localeCompare(String(bValue), undefined, { numeric: true });
+      const comparison = String(aValue).localeCompare(
+        String(bValue),
+        undefined,
+        { numeric: true }
+      );
       return sortDirection === "asc" ? comparison : -comparison;
     });
   }, [filteredData, sortColumn, sortDirection, columns]);
@@ -138,8 +161,8 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
   return (
     <div className="space-y-4">
       {/* Search Bar */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+        <div className="relative flex-1 w-full sm:w-auto">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
             placeholder={searchPlaceholder}
@@ -152,9 +175,12 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
             data-testid="input-search"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <span className="text-sm text-gray-600">Show:</span>
-          <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
+          <Select
+            value={String(itemsPerPage)}
+            onValueChange={handleItemsPerPageChange}
+          >
             <SelectTrigger className="w-20" data-testid="select-items-per-page">
               <SelectValue />
             </SelectTrigger>
@@ -170,81 +196,121 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
       </div>
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
-        <Table>
+      <div className="border rounded-lg overflow-x-auto">
+        <Table className="min-w-full">
           <TableHeader>
             <TableRow>
               {columns.map((column, index) => (
-                <TableHead 
+                <TableHead
                   key={index}
-                  className={column.sortable && typeof column.accessor === "string" ? "cursor-pointer hover:bg-gray-50" : ""}
+                  className={`${
+                    column.sortable && typeof column.accessor === "string"
+                      ? "cursor-pointer hover:bg-gray-50"
+                      : ""
+                  } min-w-0`}
                   onClick={() => {
-                    if (column.sortable && typeof column.accessor === "string") {
+                    if (
+                      column.sortable &&
+                      typeof column.accessor === "string"
+                    ) {
                       handleSort(column.accessor);
                     }
                   }}
-                  data-testid={`header-${typeof column.accessor === "string" ? column.accessor : index}`}
+                  data-testid={`header-${
+                    typeof column.accessor === "string"
+                      ? column.accessor
+                      : index
+                  }`}
                 >
                   <div className="flex items-center gap-2">
-                    {column.header}
-                    {column.sortable && typeof column.accessor === "string" && sortColumn === column.accessor && (
-                      <span>{sortDirection === "asc" ? "↑" : "↓"}</span>
-                    )}
+                    <span className="text-xs sm:text-sm">{column.header}</span>
+                    {column.sortable &&
+                      typeof column.accessor === "string" &&
+                      sortColumn === column.accessor && (
+                        <span className="text-xs">
+                          {sortDirection === "asc" ? "↑" : "↓"}
+                        </span>
+                      )}
                   </div>
                 </TableHead>
               ))}
-              <TableHead>Stock Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="min-w-0">
+                <span className="text-xs sm:text-sm">Stock Status</span>
+              </TableHead>
+              <TableHead className="text-right min-w-0">
+                <span className="text-xs sm:text-sm">Actions</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + 2} className="text-center py-8 text-gray-500">
-                  {searchTerm ? "No items found matching your search" : "No items yet"}
+                <TableCell
+                  colSpan={columns.length + 2}
+                  className="text-center py-8 text-gray-500"
+                >
+                  {searchTerm
+                    ? "No items found matching your search"
+                    : "No items yet"}
                 </TableCell>
               </TableRow>
             ) : (
               paginatedData.map((item) => (
                 <TableRow key={item.id} data-testid={`row-${item.id}`}>
                   {columns.map((column, colIndex) => {
-                    const value = typeof column.accessor === "function" 
-                      ? column.accessor(item) 
-                      : item[column.accessor];
-                    
+                    const value =
+                      typeof column.accessor === "function"
+                        ? column.accessor(item)
+                        : item[column.accessor];
+
                     return (
-                      <TableCell key={colIndex} data-testid={`cell-${typeof column.accessor === "string" ? column.accessor : colIndex}-${item.id}`}>
-                        {column.cell ? column.cell(value, item) : value}
+                      <TableCell
+                        key={colIndex}
+                        className="min-w-0"
+                        data-testid={`cell-${
+                          typeof column.accessor === "string"
+                            ? column.accessor
+                            : colIndex
+                        }-${item.id}`}
+                      >
+                        <span className="text-xs sm:text-sm break-words">
+                          {column.cell ? column.cell(value, item) : value}
+                        </span>
                       </TableCell>
                     );
                   })}
-                  <TableCell>{getStockBadge(item)}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
+                  <TableCell className="min-w-0">
+                    {getStockBadge(item)}
+                  </TableCell>
+                  <TableCell className="text-right min-w-0">
+                    <div className="flex justify-end gap-1 sm:gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onView(item)}
+                        className="p-1 sm:p-2"
                         data-testid={`button-view-${item.id}`}
                       >
-                        <Eye className="h-4 w-4" />
+                        <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => onEdit(item)}
+                        className="p-1 sm:p-2"
                         data-testid={`button-edit-${item.id}`}
                       >
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="h-3 w-3 sm:h-4 sm:w-4" />
                       </Button>
                       {onDelete && (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onDelete(item)}
+                          className="p-1 sm:p-2"
                           data-testid={`button-delete-${item.id}`}
                         >
-                          <Trash2 className="h-4 w-4 text-red-500" />
+                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
                         </Button>
                       )}
                     </div>
@@ -260,7 +326,9 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
       {totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-gray-600">
-            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, sortedData.length)} of {sortedData.length} items
+            Showing {(currentPage - 1) * itemsPerPage + 1} to{" "}
+            {Math.min(currentPage * itemsPerPage, sortedData.length)} of{" "}
+            {sortedData.length} items
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -284,7 +352,7 @@ export function InventoryTable<T extends { id: string; currentStock?: number; re
                 } else {
                   pageNum = currentPage - 2 + i;
                 }
-                
+
                 return (
                   <Button
                     key={pageNum}
