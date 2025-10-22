@@ -2040,12 +2040,12 @@ export class MemStorage implements IStorage {
 
   // Consumables operations
   async getConsumables(): Promise<any[]> {
-    return await this.db.select().from(consumables);
+    return await db.select().from(consumables);
   }
 
   async createConsumable(consumable: any): Promise<any> {
     const sku = consumable.sku || `CON-${consumable.category.substring(0,3).toUpperCase()}-${Date.now()}`;
-    const result = await this.db.insert(consumables).values({
+    const result = await db.insert(consumables).values({
       ...consumable,
       sku
     }).returning();
@@ -2053,7 +2053,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateConsumable(id: string, updates: any): Promise<any> {
-    const result = await this.db.update(consumables)
+    const result = await db.update(consumables)
       .set({
         ...updates,
         updatedAt: new Date()
@@ -2065,12 +2065,12 @@ export class MemStorage implements IStorage {
 
   // Fasteners operations
   async getFasteners(): Promise<any[]> {
-    return await this.db.select().from(fasteners);
+    return await db.select().from(fasteners);
   }
 
   async createFastener(fastener: any): Promise<any> {
     const sku = fastener.sku || `FAS-${fastener.threadType.substring(0,3).toUpperCase()}-${Date.now()}`;
-    const result = await this.db.insert(fasteners).values({
+    const result = await db.insert(fasteners).values({
       ...fastener,
       sku
     }).returning();
@@ -2078,7 +2078,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateFastener(id: string, updates: any): Promise<any> {
-    const result = await this.db.update(fasteners)
+    const result = await db.update(fasteners)
       .set({
         ...updates,
         updatedAt: new Date()
@@ -2090,12 +2090,12 @@ export class MemStorage implements IStorage {
 
   // General Items operations
   async getGeneralItems(): Promise<any[]> {
-    return await this.db.select().from(generalItems);
+    return await db.select().from(generalItems);
   }
 
   async createGeneralItem(item: any): Promise<any> {
     const sku = item.sku || `GEN-${item.category.substring(0,3).toUpperCase()}-${Date.now()}`;
-    const result = await this.db.insert(generalItems).values({
+    const result = await db.insert(generalItems).values({
       ...item,
       sku
     }).returning();
@@ -2103,7 +2103,7 @@ export class MemStorage implements IStorage {
   }
 
   async updateGeneralItem(id: string, updates: any): Promise<any> {
-    const result = await this.db.update(generalItems)
+    const result = await db.update(generalItems)
       .set({
         ...updates,
         updatedAt: new Date()
