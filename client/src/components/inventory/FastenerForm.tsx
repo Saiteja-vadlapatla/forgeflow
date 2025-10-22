@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormLabel } from "@/components/ui/form-label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -23,59 +29,67 @@ interface FastenerFormProps {
   onSuccess: () => void;
 }
 
-export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: FastenerFormProps) {
+export function FastenerForm({
+  fastener,
+  isEditing: isEditingProp,
+  onSuccess,
+}: FastenerFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = isEditingProp ?? !!fastener;
 
   const form = useForm<FastenerFormData>({
     resolver: zodResolver(fastenerFormSchema),
-    defaultValues: fastener ? {
-      fastenerType: fastener.fastenerType || "",
-      threadType: fastener.threadType || "",
-      diameter: fastener.diameter || 0,
-      pitch: fastener.pitch,
-      threadDescription: fastener.threadDescription || "",
-      length: fastener.length,
-      headType: fastener.headType || "",
-      driveType: fastener.driveType || "",
-      material: fastener.material || "",
-      grade: fastener.grade || "",
-      finish: fastener.finish || "",
-      currentStock: fastener.currentStock || 0,
-      supplier: fastener.supplier || "",
-      unitCost: fastener.unitCost || 0,
-      reorderPoint: fastener.reorderPoint || 100,
-      maxStock: fastener.maxStock || 1000,
-      location: fastener.location || "",
-      specifications: fastener.specifications || "",
-    } : {
-      fastenerType: "",
-      threadType: "",
-      diameter: 0,
-      pitch: undefined,
-      threadDescription: "",
-      length: undefined,
-      headType: "",
-      driveType: "",
-      material: "",
-      grade: "",
-      finish: "",
-      currentStock: 0,
-      supplier: "",
-      unitCost: 0,
-      reorderPoint: 100,
-      maxStock: 1000,
-      location: "",
-      specifications: "",
-    },
+    defaultValues: fastener
+      ? {
+          fastenerType: fastener.fastenerType || "",
+          threadType: fastener.threadType || "",
+          diameter: fastener.diameter || 0,
+          pitch: fastener.pitch,
+          threadDescription: fastener.threadDescription || "",
+          length: fastener.length,
+          headType: fastener.headType || "",
+          driveType: fastener.driveType || "",
+          material: fastener.material || "",
+          grade: fastener.grade || "",
+          finish: fastener.finish || "",
+          currentStock: fastener.currentStock || 0,
+          supplier: fastener.supplier || "",
+          unitCost: fastener.unitCost || undefined,
+          reorderPoint: fastener.reorderPoint || 100,
+          maxStock: fastener.maxStock || 1000,
+          location: fastener.location || "",
+          specifications: fastener.specifications || "",
+        }
+      : {
+          fastenerType: "",
+          threadType: "",
+          diameter: 0,
+          pitch: undefined,
+          threadDescription: "",
+          length: undefined,
+          headType: "",
+          driveType: "",
+          material: "",
+          grade: "",
+          finish: "",
+          currentStock: undefined,
+          supplier: "",
+          unitCost: undefined,
+          reorderPoint: 100,
+          maxStock: 1000,
+          location: "",
+          specifications: "",
+        },
   });
 
   const mutation = useMutation({
     mutationFn: async (data: FastenerFormData) => {
-      const url = isEditing ? `/api/inventory/fasteners/${fastener.id}` : "/api/inventory/fasteners";
+      const url = isEditing
+        ? `/api/inventory/fasteners/${fastener.id}`
+        : "/api/inventory/fasteners";
       const method = isEditing ? "PATCH" : "POST";
-      
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -84,7 +98,11 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || `Failed to ${isEditing ? 'update' : 'create'} fastener`);
+        throw new Error(
+          errorData.details ||
+            errorData.error ||
+            `Failed to ${isEditing ? "update" : "create"} fastener`
+        );
       }
 
       return response.json();
@@ -93,14 +111,15 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/fasteners"] });
       toast({
         title: "Success",
-        description: `Fastener ${isEditing ? 'updated' : 'added'} successfully`,
+        description: `Fastener ${isEditing ? "updated" : "added"} successfully`,
       });
       onSuccess();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || `Failed to ${isEditing ? 'update' : 'add'} fastener`,
+        description:
+          error.message || `Failed to ${isEditing ? "update" : "add"} fastener`,
         variant: "destructive",
       });
     },
@@ -111,7 +130,7 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
       mutation.mutate(data);
     } else {
       const sku = generateSKU(data);
-      mutation.mutate({ ...data, sku });
+      mutation.mutate({ ...data, sku } as any);
     }
   };
 
@@ -123,45 +142,86 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
   };
 
   const fastenerTypes = [
-    "Bolt", "Screw", "Nut", "Washer", "Stud", "Threaded Rod",
-    "Set Screw", "Cap Screw", "Machine Screw"
+    "Bolt",
+    "Screw",
+    "Nut",
+    "Washer",
+    "Stud",
+    "Threaded Rod",
+    "Set Screw",
+    "Cap Screw",
+    "Machine Screw",
   ];
 
-  const threadTypes = [
-    "Metric", "UNC", "UNF", "BSP", "BSPT", "NPT", "NPTF"
-  ];
+  const threadTypes = ["Metric", "UNC", "UNF", "BSP", "BSPT", "NPT", "NPTF"];
 
   const headTypes = [
-    "Hex", "Socket Cap", "Button Head", "Flat Head", "Pan Head",
-    "Truss Head", "Round Head", "Countersunk"
+    "Hex",
+    "Socket Cap",
+    "Button Head",
+    "Flat Head",
+    "Pan Head",
+    "Truss Head",
+    "Round Head",
+    "Countersunk",
   ];
 
   const driveTypes = [
-    "Hex", "Allen/Hex Socket", "Torx", "Phillips", "Slotted",
-    "Robertson", "Pozidriv"
+    "Hex",
+    "Allen/Hex Socket",
+    "Torx",
+    "Phillips",
+    "Slotted",
+    "Robertson",
+    "Pozidriv",
   ];
 
   const materials = [
-    "Steel", "Stainless Steel 304", "Stainless Steel 316",
-    "Brass", "Aluminum", "Nylon", "Titanium"
+    "Steel",
+    "Stainless Steel 304",
+    "Stainless Steel 316",
+    "Brass",
+    "Aluminum",
+    "Nylon",
+    "Titanium",
   ];
 
   const grades = [
-    "8.8", "10.9", "12.9", "A2-70", "A4-80", "Grade 5", "Grade 8"
+    "8.8",
+    "10.9",
+    "12.9",
+    "A2-70",
+    "A4-80",
+    "Grade 5",
+    "Grade 8",
   ];
 
   const finishes = [
-    "Zinc Plated", "Black Oxide", "Plain", "Galvanized",
-    "Passivated", "Chrome Plated", "Nickel Plated"
+    "Zinc Plated",
+    "Black Oxide",
+    "Plain",
+    "Galvanized",
+    "Passivated",
+    "Chrome Plated",
+    "Nickel Plated",
   ];
 
   const suppliers = [
-    "Fastenal", "Grainger", "McMaster-Carr", "Bossard",
-    "Würth", "Stanley", "Local Supplier"
+    "Fastenal",
+    "Grainger",
+    "McMaster-Carr",
+    "Bossard",
+    "Würth",
+    "Stanley",
+    "Local Supplier",
   ];
 
   return (
-    <form id="fastener-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      id="fastener-form"
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
       {/* Stock Adjustment - Only shown when editing */}
       {isEditing && fastener && (
         <StockAdjustment
@@ -180,12 +240,17 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="fastenerType" required>Fastener Type</FormLabel>
+              <FormLabel htmlFor="fastenerType" required>
+                Fastener Type
+              </FormLabel>
               <Select
                 value={form.watch("fastenerType")}
                 onValueChange={(value) => form.setValue("fastenerType", value)}
               >
-                <SelectTrigger className="mt-1" data-testid="select-fastener-type">
+                <SelectTrigger
+                  className="mt-1"
+                  data-testid="select-fastener-type"
+                >
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -204,12 +269,17 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="threadType" required>Thread Type</FormLabel>
+              <FormLabel htmlFor="threadType" required>
+                Thread Type
+              </FormLabel>
               <Select
                 value={form.watch("threadType")}
                 onValueChange={(value) => form.setValue("threadType", value)}
               >
-                <SelectTrigger className="mt-1" data-testid="select-thread-type">
+                <SelectTrigger
+                  className="mt-1"
+                  data-testid="select-thread-type"
+                >
                   <SelectValue placeholder="Select thread type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -228,7 +298,9 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="threadDescription" optional>Thread Description</FormLabel>
+              <FormLabel htmlFor="threadDescription" optional>
+                Thread Description
+              </FormLabel>
               <Input
                 id="threadDescription"
                 {...form.register("threadDescription")}
@@ -243,7 +315,9 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FormLabel htmlFor="diameter" required>Diameter (mm)</FormLabel>
+                <FormLabel htmlFor="diameter" required>
+                  Diameter (mm)
+                </FormLabel>
                 <Input
                   id="diameter"
                   type="number"
@@ -261,12 +335,17 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
               </div>
 
               <div>
-                <FormLabel htmlFor="pitch" optional>Pitch (mm)</FormLabel>
+                <FormLabel htmlFor="pitch" required>
+                  Pitch (mm)
+                </FormLabel>
                 <Input
                   id="pitch"
                   type="number"
                   step="0.1"
-                  {...form.register("pitch", { valueAsNumber: true })}
+                  {...form.register("pitch", {
+                    valueAsNumber: true,
+                    setValueAs: (value) => (value === "" ? 0 : Number(value)),
+                  })}
                   placeholder="1.5"
                   className="mt-1"
                 />
@@ -274,12 +353,17 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="length" optional>Length (mm)</FormLabel>
+              <FormLabel htmlFor="length" optional>
+                Length (mm)
+              </FormLabel>
               <Input
                 id="length"
                 type="number"
                 step="0.1"
-                {...form.register("length", { valueAsNumber: true })}
+                {...form.register("length", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 0 : Number(value)),
+                })}
                 placeholder="30"
                 className="mt-1"
               />
@@ -294,9 +378,11 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="headType" optional>Head Type</FormLabel>
+              <FormLabel htmlFor="headType" optional>
+                Head Type
+              </FormLabel>
               <Select
-                value={form.watch("headType")}
+                value={form.watch("headType") || ""}
                 onValueChange={(value) => form.setValue("headType", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -313,9 +399,11 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="driveType" optional>Drive Type</FormLabel>
+              <FormLabel htmlFor="driveType" optional>
+                Drive Type
+              </FormLabel>
               <Select
-                value={form.watch("driveType")}
+                value={form.watch("driveType") || ""}
                 onValueChange={(value) => form.setValue("driveType", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -332,7 +420,9 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="material" required>Material</FormLabel>
+              <FormLabel htmlFor="material" required>
+                Material
+              </FormLabel>
               <Select
                 value={form.watch("material")}
                 onValueChange={(value) => form.setValue("material", value)}
@@ -356,9 +446,11 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="grade" optional>Grade/Class</FormLabel>
+              <FormLabel htmlFor="grade" optional>
+                Grade/Class
+              </FormLabel>
               <Select
-                value={form.watch("grade")}
+                value={form.watch("grade") || ""}
                 onValueChange={(value) => form.setValue("grade", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -375,9 +467,11 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
             </div>
 
             <div>
-              <FormLabel htmlFor="finish" optional>Finish/Coating</FormLabel>
+              <FormLabel htmlFor="finish" optional>
+                Finish/Coating
+              </FormLabel>
               <Select
-                value={form.watch("finish")}
+                value={form.watch("finish") || ""}
                 onValueChange={(value) => form.setValue("finish", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -404,13 +498,15 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="supplier" required>Supplier</FormLabel>
+              <FormLabel htmlFor="supplier" optional>
+                Supplier
+              </FormLabel>
               <Select
-                value={form.watch("supplier")}
+                value={form.watch("supplier") || ""}
                 onValueChange={(value) => form.setValue("supplier", value)}
               >
-                <SelectTrigger className="mt-1" data-testid="select-supplier">
-                  <SelectValue placeholder="Select supplier" />
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select supplier (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers.map((supplier) => (
@@ -420,33 +516,29 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.supplier && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.supplier.message}
-                </p>
-              )}
             </div>
 
             <div>
-              <FormLabel htmlFor="unitCost" required>Unit Cost ($)</FormLabel>
+              <FormLabel htmlFor="unitCost" optional>
+                Unit Cost ($)
+              </FormLabel>
               <Input
                 id="unitCost"
                 type="number"
                 step="0.01"
-                {...form.register("unitCost", { valueAsNumber: true })}
-                placeholder="0.25"
+                {...form.register("unitCost", {
+                  setValueAs: (value) =>
+                    !value || value === "" || isNaN(value) ? 0 : Number(value),
+                })}
+                placeholder="0.25 (optional)"
                 className="mt-1"
-                data-testid="input-unit-cost"
               />
-              {form.formState.errors.unitCost && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.unitCost.message}
-                </p>
-              )}
             </div>
 
             <div>
-              <FormLabel htmlFor="location" optional>Storage Location</FormLabel>
+              <FormLabel htmlFor="location" optional>
+                Storage Location
+              </FormLabel>
               <Input
                 id="location"
                 {...form.register("location")}
@@ -464,7 +556,9 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="currentStock" optional>Initial Stock Quantity</FormLabel>
+              <FormLabel htmlFor="currentStock" required>
+                Initial Stock Quantity
+              </FormLabel>
               <Input
                 id="currentStock"
                 type="number"
@@ -473,35 +567,52 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
                 className="mt-1"
                 data-testid="input-current-stock"
               />
+              {form.formState.errors.currentStock && (
+                <p className="text-sm text-red-600 mt-1">
+                  {form.formState.errors.currentStock.message}
+                </p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Number of individual fasteners
               </p>
             </div>
 
             <div>
-              <FormLabel htmlFor="reorderPoint" optional>Reorder Point</FormLabel>
+              <FormLabel htmlFor="reorderPoint" optional>
+                Reorder Point
+              </FormLabel>
               <Input
                 id="reorderPoint"
                 type="number"
-                {...form.register("reorderPoint", { valueAsNumber: true })}
+                {...form.register("reorderPoint", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 100 : Number(value)),
+                })}
                 placeholder="100"
                 className="mt-1"
               />
             </div>
 
             <div>
-              <FormLabel htmlFor="maxStock" optional>Maximum Stock</FormLabel>
+              <FormLabel htmlFor="maxStock" optional>
+                Maximum Stock
+              </FormLabel>
               <Input
                 id="maxStock"
                 type="number"
-                {...form.register("maxStock", { valueAsNumber: true })}
+                {...form.register("maxStock", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 1000 : Number(value)),
+                })}
                 placeholder="1000"
                 className="mt-1"
               />
             </div>
 
             <div>
-              <FormLabel htmlFor="specifications" optional>Additional Specifications</FormLabel>
+              <FormLabel htmlFor="specifications" optional>
+                Additional Specifications
+              </FormLabel>
               <Textarea
                 id="specifications"
                 {...form.register("specifications")}
@@ -514,15 +625,25 @@ export function FastenerForm({ fastener, isEditing: isEditingProp, onSuccess }: 
         </Card>
       </div>
 
-      <ScrollableDialogFooter form="fastener-form">
-        <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
+      <ScrollableDialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSuccess}
+          data-testid="button-cancel"
+        >
           Cancel
         </Button>
         <Button
           type="submit"
-          form="fastener-form"
           disabled={mutation.isPending}
           data-testid="button-submit"
+          onClick={() => {
+            console.log(
+              "DEBUG: Fastener button clicked, calling form.handleSubmit"
+            );
+            form.handleSubmit(onSubmit)();
+          }}
         >
           {mutation.isPending ? "Adding..." : "Add Fastener"}
         </Button>

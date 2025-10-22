@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -43,8 +43,8 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       grade: "",
       shape: "",
       supplier: "",
-      unitCost: 0,
-      currentStock: 0,
+      unitCost: undefined,
+      currentStock: undefined,
       reorderPoint: 10,
       maxStock: 100,
       location: "",
@@ -54,16 +54,24 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
       length: 0,
       specifications: "",
     },
+    mode: "onBlur", // Validate when fields lose focus
   });
 
   const mutation = useMutation({
     mutationFn: async (data: RawMaterialFormData) => {
+      // Generate SKU based on material properties
+      const sku = generateSKU(data);
+      const formData = {
+        ...data,
+        sku,
+      };
+
       const response = await fetch("/api/inventory/materials", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(formData),
       });
 
       if (!response.ok) {
@@ -95,18 +103,22 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
   });
 
   const onSubmit = (data: RawMaterialFormData) => {
-    console.log("Form submitted with data:", data);
-    console.log("Form validation errors:", form.formState.errors);
-
-    // Generate SKU based on material properties
-    const sku = generateSKU(data);
-    const formData = {
-      ...data,
-      sku,
-    };
-    console.log("Final form data with SKU:", formData);
-    mutation.mutate(formData);
+    mutation.mutate(data);
   };
+
+  // Debug test function (remove this eventually)
+  const testSubmit = () => {
+    console.log("DEBUG: Button clicked, calling form.handleSubmit");
+    form.handleSubmit(onSubmit)();
+  };
+
+  // TODO: Remove onClick handler after testing and clean up debug logs
+  React.useEffect(() => {
+    // Clean up logging after development
+    return () => {
+      // This will trigger cleanup when component unmounts
+    };
+  }, []);
 
   const generateSKU = (data: RawMaterialFormData): string => {
     const materialCode = data.materialType.substring(0, 3).toUpperCase();
@@ -472,7 +484,7 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="supplier" required>
+              <FormLabel htmlFor="supplier" optional>
                 Supplier
               </FormLabel>
               <Select
@@ -501,15 +513,18 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="unitCost" required>
+              <FormLabel htmlFor="unitCost" optional>
                 Unit Cost ($)
               </FormLabel>
               <Input
                 id="unitCost"
                 type="number"
                 step="0.01"
-                {...form.register("unitCost", { valueAsNumber: true })}
-                placeholder="15.50"
+                {...form.register("unitCost", {
+                  setValueAs: (value) =>
+                    !value || value === "" || isNaN(value) ? 0 : Number(value),
+                })}
+                placeholder="15.50 (optional)"
                 className="mt-1"
               />
               {form.formState.errors.unitCost && (
@@ -540,13 +555,16 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="currentStock" optional>
+              <FormLabel htmlFor="currentStock" required>
                 Initial Stock Quantity
               </FormLabel>
               <Input
                 id="currentStock"
                 type="number"
-                {...form.register("currentStock", { valueAsNumber: true })}
+                {...form.register("currentStock", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 0 : Number(value)),
+                })}
                 placeholder="0"
                 className="mt-1"
                 data-testid="input-current-stock"
@@ -563,7 +581,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
               <Input
                 id="reorderPoint"
                 type="number"
-                {...form.register("reorderPoint", { valueAsNumber: true })}
+                {...form.register("reorderPoint", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 10 : Number(value)),
+                })}
                 placeholder="10"
                 className="mt-1"
                 data-testid="input-reorder-point"
@@ -577,7 +598,10 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
               <Input
                 id="maxStock"
                 type="number"
-                {...form.register("maxStock", { valueAsNumber: true })}
+                {...form.register("maxStock", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 100 : Number(value)),
+                })}
                 placeholder="100"
                 className="mt-1"
                 data-testid="input-max-stock"
@@ -611,9 +635,15 @@ export function RawMaterialForm({ onSuccess }: RawMaterialFormProps) {
         </Button>
         <Button
           type="submit"
-          disabled={mutation.isPending}
+          disabled={
+            mutation.isPending ||
+            !form.watch("materialType") ||
+            !form.watch("grade") ||
+            !form.watch("shape") ||
+            form.watch("currentStock") === undefined
+          }
           data-testid="button-submit"
-          onClick={() => form.handleSubmit(onSubmit)()}
+          onClick={testSubmit}
         >
           {mutation.isPending ? "Adding..." : "Add Material"}
         </Button>

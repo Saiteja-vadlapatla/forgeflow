@@ -912,43 +912,91 @@ export const insertToolSchema = createInsertSchema(tools).omit({
 }).extend({
   toolNumber: z.string().optional(),
 });
-export const insertRawMaterialSchema = createInsertSchema(rawMaterials).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  // Make SKU optional since it can be generated client-side or server-side
+export const insertRawMaterialSchema = z.object({
   sku: z.string().optional(),
-  // Add initial stock level when creating material
-  currentStock: z.number().optional().default(0),
+  materialType: z.string().min(1, "Material type is required"),
+  grade: z.string().min(1, "Grade is required"),
+  shape: z.string().min(1, "Shape is required"),
+  diameter: z.number().optional(),
+  thickness: z.number().optional(),
+  width: z.number().optional(),
+  length: z.number().optional(),
+  currentStock: z.number().int().min(0, "Initial stock must be 0 or greater"),
+  supplier: z.string().optional(),
+  unitCost: z.number().min(0).optional(),
+  reorderPoint: z.number().default(10),
+  maxStock: z.number().default(100),
+  location: z.string().optional(),
+  specifications: z.any().optional(),
 });
 export const insertRawMaterialInventorySchema = createInsertSchema(rawMaterialInventory);
-export const insertInventoryToolSchema = createInsertSchema(inventoryTools).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
-  // Make SKU optional since it can be generated client-side or server-side
+export const insertInventoryToolSchema = z.object({
   sku: z.string().optional(),
-  // Add initial stock level when creating tool
-  currentStock: z.number().optional().default(0),
+  // Required fields
+  toolType: z.string().min(1, "Tool type is required"),
+  size: z.number().min(0.01, "Size must be greater than 0"),
+  length: z.number().min(0, "Overall length must be 0 or greater"),
+  material: z.string().min(1, "Material is required"),
+  currentStock: z.number().int().min(0, "Initial stock must be 0 or greater"),
+  // Optional fields
+  subType: z.string().optional(),
+  manufacturer: z.string().optional(),
+  model: z.string().optional(),
+  coating: z.string().optional(),
+  geometry: z.string().optional(),
+  applicationMaterial: z.array(z.string()).optional().default([]),
+  operationType: z.array(z.string()).optional().default([]),
+  supplier: z.string().optional(),
+  unitCost: z.number().min(0).optional(),
+  reorderPoint: z.number().default(5),
+  maxStock: z.number().default(50),
+  location: z.string().optional(),
 });
 export const insertToolInventorySchema = createInsertSchema(toolInventory);
-export const insertConsumableSchema = createInsertSchema(consumables).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
+export const insertConsumableSchema = z.object({
   sku: z.string().optional(),
-  currentStock: z.number().optional().default(0),
+  // Required fields
+  name: z.string().min(1, "Product name is required"),
+  category: z.string().min(1, "Category is required"),
+  capacity: z.number().min(0.01, "Capacity must be greater than 0"),
+  unitOfMeasure: z.string().min(1, "Unit of measure is required"),
+  currentStock: z.number().int().min(0, "Initial stock must be 0 or greater"),
+  // Optional fields
+  type: z.string().optional(),
+  manufacturer: z.string().optional(),
+  grade: z.string().optional(),
+  viscosity: z.string().optional(),
+  supplier: z.string().optional(),
+  unitCost: z.number().min(0).optional(),
+  reorderPoint: z.number().default(10),
+  maxStock: z.number().default(100),
+  location: z.string().optional(),
+  shelfLife: z.number().optional(),
+  specifications: z.string().optional(),
+  safetyDataSheet: z.string().optional(),
 });
-export const insertFastenerSchema = createInsertSchema(fasteners).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-}).extend({
+export const insertFastenerSchema = z.object({
   sku: z.string().optional(),
-  currentStock: z.number().optional().default(0),
+  // Required fields
+  fastenerType: z.string().min(1, "Fastener type is required"),
+  threadType: z.string().min(1, "Thread type is required"),
+  diameter: z.number().min(0.01, "Diameter must be greater than 0"),
+  material: z.string().min(1, "Material is required"),
+  currentStock: z.number().int().min(0, "Initial stock must be 0 or greater"),
+  // Optional fields
+  pitch: z.number().optional(),
+  threadDescription: z.string().optional(),
+  length: z.number().optional(),
+  headType: z.string().optional(),
+  driveType: z.string().optional(),
+  grade: z.string().optional(),
+  finish: z.string().optional(),
+  supplier: z.string().optional(),
+  unitCost: z.number().min(0).optional(),
+  reorderPoint: z.number().default(100),
+  maxStock: z.number().default(1000),
+  location: z.string().optional(),
+  specifications: z.string().optional(),
 });
 export const insertGeneralItemSchema = createInsertSchema(generalItems).omit({
   id: true,

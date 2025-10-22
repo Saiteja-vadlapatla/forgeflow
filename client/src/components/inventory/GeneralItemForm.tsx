@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormLabel } from "@/components/ui/form-label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -23,57 +29,65 @@ interface GeneralItemFormProps {
   onSuccess: () => void;
 }
 
-export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: GeneralItemFormProps) {
+export function GeneralItemForm({
+  item,
+  isEditing: isEditingProp,
+  onSuccess,
+}: GeneralItemFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isEditing = isEditingProp ?? !!item;
 
   const form = useForm<GeneralItemFormData>({
     resolver: zodResolver(generalItemFormSchema),
-    defaultValues: item ? {
-      name: item.name || "",
-      category: item.category || "",
-      subCategory: item.subCategory || "",
-      manufacturer: item.manufacturer || "",
-      model: item.model || "",
-      description: item.description || "",
-      specifications: item.specifications || {},
-      currentStock: item.currentStock || 0,
-      supplier: item.supplier || "",
-      unitCost: item.unitCost || 0,
-      reorderPoint: item.reorderPoint || 5,
-      maxStock: item.maxStock || 50,
-      location: item.location || "",
-      condition: item.condition || "new",
-      serialNumber: item.serialNumber || "",
-      purchaseDate: item.purchaseDate,
-      warrantyExpiry: item.warrantyExpiry,
-    } : {
-      name: "",
-      category: "",
-      subCategory: "",
-      manufacturer: "",
-      model: "",
-      description: "",
-      specifications: {},
-      currentStock: 0,
-      supplier: "",
-      unitCost: 0,
-      reorderPoint: 5,
-      maxStock: 50,
-      location: "",
-      condition: "new",
-      serialNumber: "",
-      purchaseDate: undefined,
-      warrantyExpiry: undefined,
-    },
+    defaultValues: item
+      ? {
+          name: item.name || "",
+          category: item.category || "",
+          subCategory: item.subCategory || "",
+          manufacturer: item.manufacturer || "",
+          model: item.model || "",
+          description: item.description || "",
+          specifications: item.specifications || {},
+          currentStock: item.currentStock || 0,
+          supplier: item.supplier || "",
+          unitCost: item.unitCost || 0,
+          reorderPoint: item.reorderPoint || 5,
+          maxStock: item.maxStock || 50,
+          location: item.location || "",
+          condition: item.condition || "new",
+          serialNumber: item.serialNumber || "",
+          purchaseDate: item.purchaseDate,
+          warrantyExpiry: item.warrantyExpiry,
+        }
+      : {
+          name: "",
+          category: "",
+          subCategory: "",
+          manufacturer: "",
+          model: "",
+          description: "",
+          specifications: {},
+          currentStock: 0,
+          supplier: "",
+          unitCost: 0,
+          reorderPoint: 5,
+          maxStock: 50,
+          location: "",
+          condition: "new",
+          serialNumber: "",
+          purchaseDate: undefined,
+          warrantyExpiry: undefined,
+        },
   });
 
   const mutation = useMutation({
     mutationFn: async (data: GeneralItemFormData) => {
-      const url = isEditing ? `/api/inventory/general-items/${item.id}` : "/api/inventory/general-items";
+      const url = isEditing
+        ? `/api/inventory/general-items/${item.id}`
+        : "/api/inventory/general-items";
       const method = isEditing ? "PATCH" : "POST";
-      
+
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -82,23 +96,33 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || `Failed to ${isEditing ? 'update' : 'create'} general item`);
+        throw new Error(
+          errorData.details ||
+            errorData.error ||
+            `Failed to ${isEditing ? "update" : "create"} general item`
+        );
       }
 
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/general-items"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/general-items"],
+      });
       toast({
         title: "Success",
-        description: `General item ${isEditing ? 'updated' : 'added'} successfully`,
+        description: `General item ${
+          isEditing ? "updated" : "added"
+        } successfully`,
       });
       onSuccess();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || `Failed to ${isEditing ? 'update' : 'add'} general item`,
+        description:
+          error.message ||
+          `Failed to ${isEditing ? "update" : "add"} general item`,
         variant: "destructive",
       });
     },
@@ -115,7 +139,10 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
 
   const generateSKU = (data: GeneralItemFormData): string => {
     const categoryCode = data.category.substring(0, 3).toUpperCase();
-    const nameCode = data.name.replace(/\s+/g, '').substring(0, 4).toUpperCase();
+    const nameCode = data.name
+      .replace(/\s+/g, "")
+      .substring(0, 4)
+      .toUpperCase();
     return `${categoryCode}-${nameCode}`;
   };
 
@@ -128,7 +155,7 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
     "Cleaning Equipment",
     "Workshop Equipment",
     "Storage",
-    "Other"
+    "Other",
   ];
 
   const subCategories = [
@@ -139,18 +166,27 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
     "Polishing",
     "Assembly",
     "Inspection",
-    "General Purpose"
+    "General Purpose",
   ];
 
   const conditions = ["new", "used", "refurbished"];
 
   const suppliers = [
-    "Grainger", "MSC Industrial", "McMaster-Carr", "Amazon Business",
-    "Harbor Freight", "Uline", "Local Supplier"
+    "Grainger",
+    "MSC Industrial",
+    "McMaster-Carr",
+    "Amazon Business",
+    "Harbor Freight",
+    "Uline",
+    "Local Supplier",
   ];
 
   return (
-    <form id="general-item-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      id="general-item-form"
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
       {/* Stock Adjustment - Only shown when editing */}
       {isEditing && item && (
         <StockAdjustment
@@ -169,7 +205,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="name" required>Item Name</FormLabel>
+              <FormLabel htmlFor="name" required>
+                Item Name
+              </FormLabel>
               <Input
                 id="name"
                 {...form.register("name")}
@@ -185,7 +223,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="category" required>Category</FormLabel>
+              <FormLabel htmlFor="category" required>
+                Category
+              </FormLabel>
               <Select
                 value={form.watch("category")}
                 onValueChange={(value) => form.setValue("category", value)}
@@ -209,7 +249,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="subCategory" optional>Sub Category</FormLabel>
+              <FormLabel htmlFor="subCategory" optional>
+                Sub Category
+              </FormLabel>
               <Select
                 value={form.watch("subCategory") || ""}
                 onValueChange={(value) => form.setValue("subCategory", value)}
@@ -228,7 +270,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="manufacturer" optional>Manufacturer</FormLabel>
+              <FormLabel htmlFor="manufacturer" optional>
+                Manufacturer
+              </FormLabel>
               <Input
                 id="manufacturer"
                 {...form.register("manufacturer")}
@@ -238,7 +282,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="model" optional>Model Number</FormLabel>
+              <FormLabel htmlFor="model" optional>
+                Model Number
+              </FormLabel>
               <Input
                 id="model"
                 {...form.register("model")}
@@ -256,7 +302,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="description" optional>Description</FormLabel>
+              <FormLabel htmlFor="description" optional>
+                Description
+              </FormLabel>
               <Textarea
                 id="description"
                 {...form.register("description")}
@@ -267,7 +315,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="condition" optional>Condition</FormLabel>
+              <FormLabel htmlFor="condition" optional>
+                Condition
+              </FormLabel>
               <Select
                 value={form.watch("condition") || ""}
                 onValueChange={(value) => form.setValue("condition", value)}
@@ -286,7 +336,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="serialNumber" optional>Serial Number</FormLabel>
+              <FormLabel htmlFor="serialNumber" optional>
+                Serial Number
+              </FormLabel>
               <Input
                 id="serialNumber"
                 {...form.register("serialNumber")}
@@ -306,7 +358,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="supplier" required>Supplier</FormLabel>
+              <FormLabel htmlFor="supplier" required>
+                Supplier
+              </FormLabel>
               <Select
                 value={form.watch("supplier")}
                 onValueChange={(value) => form.setValue("supplier", value)}
@@ -330,7 +384,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="unitCost" required>Unit Cost ($)</FormLabel>
+              <FormLabel htmlFor="unitCost" required>
+                Unit Cost ($)
+              </FormLabel>
               <Input
                 id="unitCost"
                 type="number"
@@ -348,7 +404,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="location" optional>Storage Location</FormLabel>
+              <FormLabel htmlFor="location" optional>
+                Storage Location
+              </FormLabel>
               <Input
                 id="location"
                 {...form.register("location")}
@@ -359,7 +417,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <FormLabel htmlFor="purchaseDate" optional>Purchase Date</FormLabel>
+                <FormLabel htmlFor="purchaseDate" optional>
+                  Purchase Date
+                </FormLabel>
                 <Input
                   id="purchaseDate"
                   type="date"
@@ -369,7 +429,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
               </div>
 
               <div>
-                <FormLabel htmlFor="warrantyExpiry" optional>Warranty Expiry</FormLabel>
+                <FormLabel htmlFor="warrantyExpiry" optional>
+                  Warranty Expiry
+                </FormLabel>
                 <Input
                   id="warrantyExpiry"
                   type="date"
@@ -388,7 +450,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="currentStock" optional>Initial Stock Quantity</FormLabel>
+              <FormLabel htmlFor="currentStock" optional>
+                Initial Stock Quantity
+              </FormLabel>
               <Input
                 id="currentStock"
                 type="number"
@@ -400,7 +464,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="reorderPoint" optional>Reorder Point</FormLabel>
+              <FormLabel htmlFor="reorderPoint" optional>
+                Reorder Point
+              </FormLabel>
               <Input
                 id="reorderPoint"
                 type="number"
@@ -411,7 +477,9 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
             </div>
 
             <div>
-              <FormLabel htmlFor="maxStock" optional>Maximum Stock</FormLabel>
+              <FormLabel htmlFor="maxStock" optional>
+                Maximum Stock
+              </FormLabel>
               <Input
                 id="maxStock"
                 type="number"
@@ -425,16 +493,33 @@ export function GeneralItemForm({ item, isEditing: isEditingProp, onSuccess }: G
       </div>
 
       <ScrollableDialogFooter>
-        <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSuccess}
+          data-testid="button-cancel"
+        >
           Cancel
         </Button>
         <Button
           type="submit"
           form="general-item-form"
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || !form.formState.isValid}
           data-testid="button-submit"
+          onClick={() => {
+            console.log(
+              "DEBUG: General Item button clicked, calling form.handleSubmit"
+            );
+            form.handleSubmit(onSubmit)();
+          }}
         >
-          {mutation.isPending ? (isEditing ? "Updating..." : "Adding...") : (isEditing ? "Update General Item" : "Add General Item")}
+          {mutation.isPending
+            ? isEditing
+              ? "Updating..."
+              : "Adding..."
+            : isEditing
+            ? "Update General Item"
+            : "Add General Item"}
         </Button>
       </ScrollableDialogFooter>
     </form>

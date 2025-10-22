@@ -8,7 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormLabel } from "@/components/ui/form-label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollableDialogFooter } from "@/components/ui/scrollable-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,8 +22,8 @@ import { useToast } from "@/hooks/use-toast";
 import { insertInventoryToolSchema } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
-const toolFormSchema = insertInventoryToolSchema.omit({ 
-  sku: true
+const toolFormSchema = insertInventoryToolSchema.omit({
+  sku: true,
 });
 
 type ToolFormData = z.infer<typeof toolFormSchema>;
@@ -29,7 +35,9 @@ interface ToolFormProps {
 export function ToolForm({ onSuccess }: ToolFormProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedApplications, setSelectedApplications] = useState<string[]>([]);
+  const [selectedApplications, setSelectedApplications] = useState<string[]>(
+    []
+  );
   const [selectedOperations, setSelectedOperations] = useState<string[]>([]);
 
   const form = useForm<ToolFormData>({
@@ -45,8 +53,8 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
       coating: "",
       geometry: "",
       supplier: "",
-      unitCost: 0,
-      currentStock: 0,
+      unitCost: undefined,
+      currentStock: undefined,
       reorderPoint: 5,
       maxStock: 50,
       location: "",
@@ -64,12 +72,14 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
         },
         body: JSON.stringify(data),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.details || errorData.error || "Failed to create tool");
+        throw new Error(
+          errorData.details || errorData.error || "Failed to create tool"
+        );
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -102,53 +112,113 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
   };
 
   const generateToolSKU = (data: ToolFormData): string => {
-    const typeCode = data.toolType.replace(/\s+/g, '').substring(0, 4).toUpperCase();
-    const materialCode = data.material ? `-${data.material.substring(0, 3).toUpperCase()}` : '';
-    const sizeCode = data.size ? `-D${data.size}` : '';
-    const coatingCode = data.coating && data.coating !== 'None' ? `-${data.coating.substring(0, 3).toUpperCase()}` : '';
-    
+    const typeCode = data.toolType
+      .replace(/\s+/g, "")
+      .substring(0, 4)
+      .toUpperCase();
+    const materialCode = data.material
+      ? `-${data.material.substring(0, 3).toUpperCase()}`
+      : "";
+    const sizeCode = data.size ? `-D${data.size}` : "";
+    const coatingCode =
+      data.coating && data.coating !== "None"
+        ? `-${data.coating.substring(0, 3).toUpperCase()}`
+        : "";
+
     return `${typeCode}${materialCode}${sizeCode}${coatingCode}`;
   };
 
   const toolTypes = [
-    "End Mill", "Drill Bit", "Turning Insert", "Milling Insert", 
-    "Boring Bar", "Threading Tool", "Face Mill", "Reamer", 
-    "Tap", "Die", "Countersink", "Spot Drill"
+    "End Mill",
+    "Drill Bit",
+    "Turning Insert",
+    "Milling Insert",
+    "Boring Bar",
+    "Threading Tool",
+    "Face Mill",
+    "Reamer",
+    "Tap",
+    "Die",
+    "Countersink",
+    "Spot Drill",
   ];
 
   const materials = [
-    "HSS", "Carbide", "Cobalt", "TiN Coated", "TiAlN Coated", 
-    "Diamond", "CBN", "Ceramic", "PCD"
+    "HSS",
+    "Carbide",
+    "Cobalt",
+    "TiN Coated",
+    "TiAlN Coated",
+    "Diamond",
+    "CBN",
+    "Ceramic",
+    "PCD",
   ];
 
   const coatings = [
-    "Uncoated", "TiN", "TiAlN", "TiCN", "AlCrN", "DLC", 
-    "Diamond", "Other"
+    "Uncoated",
+    "TiN",
+    "TiAlN",
+    "TiCN",
+    "AlCrN",
+    "DLC",
+    "Diamond",
+    "Other",
   ];
 
   const manufacturers = [
-    "Sandvik", "Kennametal", "Iscar", "Seco", "Walter", 
-    "Mitsubishi", "Kyocera", "Tungaloy", "Harvey Tool", 
-    "Haas", "Other"
+    "Sandvik",
+    "Kennametal",
+    "Iscar",
+    "Seco",
+    "Walter",
+    "Mitsubishi",
+    "Kyocera",
+    "Tungaloy",
+    "Harvey Tool",
+    "Haas",
+    "Other",
   ];
 
   const applicationMaterials = [
-    "Steel", "Stainless Steel", "Aluminum", "Cast Iron", 
-    "Titanium", "Brass", "Copper", "Plastic", "Composite"
+    "Steel",
+    "Stainless Steel",
+    "Aluminum",
+    "Cast Iron",
+    "Titanium",
+    "Brass",
+    "Copper",
+    "Plastic",
+    "Composite",
   ];
 
   const operationTypes = [
-    "TURNING", "MILLING", "DRILLING", "TAPPING", 
-    "GRINDING", "BORING", "REAMING", "THREADING"
+    "TURNING",
+    "MILLING",
+    "DRILLING",
+    "TAPPING",
+    "GRINDING",
+    "BORING",
+    "REAMING",
+    "THREADING",
   ];
 
   const suppliers = [
-    "MSC Industrial", "McMaster-Carr", "Grainger", "Fastenal", 
-    "Harvey Tool", "Local Supplier", "Direct from Manufacturer"
+    "MSC Industrial",
+    "McMaster-Carr",
+    "Grainger",
+    "Fastenal",
+    "Harvey Tool",
+    "Local Supplier",
+    "Direct from Manufacturer",
   ];
 
   return (
-    <form id="tool-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form
+      id="tool-form"
+      onSubmit={form.handleSubmit(onSubmit)}
+      className="space-y-6"
+    >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Basic Information */}
         <Card>
@@ -157,9 +227,11 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="toolType" required>Tool Type</FormLabel>
-              <Select 
-                value={form.watch("toolType")} 
+              <FormLabel htmlFor="toolType" required>
+                Tool Type
+              </FormLabel>
+              <Select
+                value={form.watch("toolType")}
                 onValueChange={(value) => form.setValue("toolType", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -181,7 +253,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="subType" optional>Sub Type</FormLabel>
+              <FormLabel htmlFor="subType" optional>
+                Sub Type
+              </FormLabel>
               <Input
                 id="subType"
                 {...form.register("subType")}
@@ -191,13 +265,15 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="manufacturer" required>Manufacturer</FormLabel>
-              <Select 
-                value={form.watch("manufacturer")} 
+              <FormLabel htmlFor="manufacturer" optional>
+                Manufacturer
+              </FormLabel>
+              <Select
+                value={form.watch("manufacturer") || ""}
                 onValueChange={(value) => form.setValue("manufacturer", value)}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select manufacturer" />
+                  <SelectValue placeholder="Select manufacturer (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {manufacturers.map((mfg) => (
@@ -207,26 +283,18 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.manufacturer && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.manufacturer.message}
-                </p>
-              )}
             </div>
 
             <div>
-              <FormLabel htmlFor="model" required>Model</FormLabel>
+              <FormLabel htmlFor="model" optional>
+                Model
+              </FormLabel>
               <Input
                 id="model"
                 {...form.register("model")}
-                placeholder="Model number or part number"
+                placeholder="Model number or part number (optional)"
                 className="mt-1"
               />
-              {form.formState.errors.model && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.model.message}
-                </p>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -238,7 +306,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="size" required>Size (mm)</FormLabel>
+              <FormLabel htmlFor="size" required>
+                Size (mm)
+              </FormLabel>
               <Input
                 id="size"
                 type="number"
@@ -255,7 +325,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="length" optional>Overall Length (mm)</FormLabel>
+              <FormLabel htmlFor="length" required>
+                Overall Length (mm)
+              </FormLabel>
               <Input
                 id="length"
                 type="number"
@@ -264,12 +336,19 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                 placeholder="75.0"
                 className="mt-1"
               />
+              {form.formState.errors.length && (
+                <p className="text-sm text-red-600 mt-1">
+                  {form.formState.errors.length.message}
+                </p>
+              )}
             </div>
 
             <div>
-              <FormLabel htmlFor="material" required>Material</FormLabel>
-              <Select 
-                value={form.watch("material")} 
+              <FormLabel htmlFor="material" required>
+                Material
+              </FormLabel>
+              <Select
+                value={form.watch("material")}
                 onValueChange={(value) => form.setValue("material", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -291,9 +370,11 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="coating" optional>Coating</FormLabel>
-              <Select 
-                value={form.watch("coating") || ""} 
+              <FormLabel htmlFor="coating" optional>
+                Coating
+              </FormLabel>
+              <Select
+                value={form.watch("coating") || ""}
                 onValueChange={(value) => form.setValue("coating", value)}
               >
                 <SelectTrigger className="mt-1">
@@ -310,7 +391,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="geometry" optional>Geometry (for inserts)</FormLabel>
+              <FormLabel htmlFor="geometry" optional>
+                Geometry (for inserts)
+              </FormLabel>
               <Input
                 id="geometry"
                 {...form.register("geometry")}
@@ -337,9 +420,14 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                       checked={selectedApplications.includes(material)}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setSelectedApplications([...selectedApplications, material]);
+                          setSelectedApplications([
+                            ...selectedApplications,
+                            material,
+                          ]);
                         } else {
-                          setSelectedApplications(selectedApplications.filter(m => m !== material));
+                          setSelectedApplications(
+                            selectedApplications.filter((m) => m !== material)
+                          );
                         }
                       }}
                     />
@@ -361,14 +449,19 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                       checked={selectedOperations.includes(operation)}
                       onCheckedChange={(checked) => {
                         if (checked) {
-                          setSelectedOperations([...selectedOperations, operation]);
+                          setSelectedOperations([
+                            ...selectedOperations,
+                            operation,
+                          ]);
                         } else {
-                          setSelectedOperations(selectedOperations.filter(o => o !== operation));
+                          setSelectedOperations(
+                            selectedOperations.filter((o) => o !== operation)
+                          );
                         }
                       }}
                     />
                     <Label htmlFor={`op-${operation}`} className="text-sm">
-                      {operation.replace('_', ' ')}
+                      {operation.replace("_", " ")}
                     </Label>
                   </div>
                 ))}
@@ -384,13 +477,15 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <FormLabel htmlFor="supplier" required>Supplier</FormLabel>
-              <Select 
-                value={form.watch("supplier")} 
+              <FormLabel htmlFor="supplier" optional>
+                Supplier
+              </FormLabel>
+              <Select
+                value={form.watch("supplier") || ""}
                 onValueChange={(value) => form.setValue("supplier", value)}
               >
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select supplier" />
+                  <SelectValue placeholder="Select supplier (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   {suppliers.map((supplier) => (
@@ -400,33 +495,30 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                   ))}
                 </SelectContent>
               </Select>
-              {form.formState.errors.supplier && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.supplier.message}
-                </p>
-              )}
             </div>
 
             <div>
-              <FormLabel htmlFor="unitCost" required>Unit Cost ($)</FormLabel>
+              <FormLabel htmlFor="unitCost" optional>
+                Unit Cost ($)
+              </FormLabel>
               <Input
                 id="unitCost"
                 type="number"
                 step="0.01"
-                {...form.register("unitCost", { valueAsNumber: true })}
-                placeholder="45.50"
+                {...form.register("unitCost", {
+                  setValueAs: (value) =>
+                    !value || value === "" || isNaN(value) ? 0 : Number(value),
+                })}
+                placeholder="45.50 (optional)"
                 className="mt-1"
                 data-testid="input-unit-cost"
               />
-              {form.formState.errors.unitCost && (
-                <p className="text-sm text-red-600 mt-1">
-                  {form.formState.errors.unitCost.message}
-                </p>
-              )}
             </div>
 
             <div>
-              <FormLabel htmlFor="currentStock" optional>Initial Stock Quantity</FormLabel>
+              <FormLabel htmlFor="currentStock" required>
+                Initial Stock Quantity
+              </FormLabel>
               <Input
                 id="currentStock"
                 type="number"
@@ -435,17 +527,27 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
                 className="mt-1"
                 data-testid="input-current-stock"
               />
+              {form.formState.errors.currentStock && (
+                <p className="text-sm text-red-600 mt-1">
+                  {form.formState.errors.currentStock.message}
+                </p>
+              )}
               <p className="text-sm text-gray-500 mt-1">
                 Starting inventory quantity (can be updated later)
               </p>
             </div>
 
             <div>
-              <FormLabel htmlFor="reorderPoint" optional>Reorder Point</FormLabel>
+              <FormLabel htmlFor="reorderPoint" optional>
+                Reorder Point
+              </FormLabel>
               <Input
                 id="reorderPoint"
                 type="number"
-                {...form.register("reorderPoint", { valueAsNumber: true })}
+                {...form.register("reorderPoint", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 5 : Number(value)),
+                })}
                 placeholder="5"
                 className="mt-1"
                 data-testid="input-reorder-point"
@@ -453,11 +555,16 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="maxStock" optional>Maximum Stock</FormLabel>
+              <FormLabel htmlFor="maxStock" optional>
+                Maximum Stock
+              </FormLabel>
               <Input
                 id="maxStock"
                 type="number"
-                {...form.register("maxStock", { valueAsNumber: true })}
+                {...form.register("maxStock", {
+                  valueAsNumber: true,
+                  setValueAs: (value) => (value === "" ? 50 : Number(value)),
+                })}
                 placeholder="50"
                 className="mt-1"
                 data-testid="input-max-stock"
@@ -465,7 +572,9 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
             </div>
 
             <div>
-              <FormLabel htmlFor="location" optional>Storage Location</FormLabel>
+              <FormLabel htmlFor="location" optional>
+                Storage Location
+              </FormLabel>
               <Input
                 id="location"
                 {...form.register("location")}
@@ -477,16 +586,26 @@ export function ToolForm({ onSuccess }: ToolFormProps) {
         </Card>
       </div>
 
-      <ScrollableDialogFooter form="tool-form">
-        <Button type="button" variant="outline" onClick={onSuccess} data-testid="button-cancel">
+      <ScrollableDialogFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onSuccess}
+          data-testid="button-cancel"
+        >
           Cancel
         </Button>
-        <Button 
-          type="submit" 
-          form="tool-form" 
-          disabled={mutation.isPending || !form.formState.isValid} 
+        <Button
+          type="submit"
+          disabled={mutation.isPending || !form.formState.isValid}
           className={mutation.isPending ? "opacity-50 cursor-not-allowed" : ""}
           data-testid="button-submit"
+          onClick={() => {
+            console.log(
+              "DEBUG: Tool button clicked, calling form.handleSubmit"
+            );
+            form.handleSubmit(onSubmit)();
+          }}
         >
           {mutation.isPending ? "Adding..." : "Add Tool"}
         </Button>
