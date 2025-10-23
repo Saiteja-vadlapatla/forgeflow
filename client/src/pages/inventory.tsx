@@ -102,24 +102,49 @@ export function InventoryPage() {
 
   // Column definitions for Raw Materials
   const materialColumns: ColumnDef<any>[] = [
-    { header: "SKU", accessor: "sku", sortable: true },
     { header: "Material Type", accessor: "materialType", sortable: true },
     { header: "Grade", accessor: "grade", sortable: true },
     { header: "Shape", accessor: "shape", sortable: true },
+    {
+      header: "Dimensions",
+      accessor: (row) => row,
+      cell: (row) => {
+        const { shape, diameter, thickness, width, length } = row;
+        const dimensions = [];
+
+        if (diameter) {
+          dimensions.push(`⌀${diameter}`);
+        }
+
+        if (thickness && shape?.toLowerCase().includes("plate")) {
+          dimensions.push(thickness);
+        }
+
+        if (width) {
+          dimensions.push(width);
+        }
+
+        if (length) {
+          dimensions.push(length);
+        }
+
+        return dimensions.length > 0 ? dimensions.join(" × ") : "-";
+      },
+      sortable: false,
+    },
     {
       header: "Stock",
       accessor: "currentStock",
       sortable: true,
       cell: (value) => value || 0,
     },
-    { header: "Supplier", accessor: "supplier", sortable: true },
+    { header: "Location", accessor: "location", sortable: true },
   ];
 
   // Column definitions for Tools
   const toolColumns: ColumnDef<any>[] = [
     { header: "SKU", accessor: "sku", sortable: true },
     { header: "Tool Type", accessor: "toolType", sortable: true },
-    { header: "Manufacturer", accessor: "manufacturer", sortable: true },
     { header: "Model", accessor: "model", sortable: true },
     {
       header: "Size (mm)",
@@ -132,7 +157,7 @@ export function InventoryPage() {
       sortable: true,
       cell: (value) => value || 0,
     },
-    { header: "Supplier", accessor: "supplier", sortable: true },
+    { header: "Location", accessor: "location", sortable: true },
   ];
 
   // Column definitions for Consumables
@@ -140,14 +165,14 @@ export function InventoryPage() {
     { header: "SKU", accessor: "sku", sortable: true },
     { header: "Name", accessor: "name", sortable: true },
     { header: "Category", accessor: "category", sortable: true },
-    { header: "Manufacturer", accessor: "manufacturer", sortable: true },
+    { header: "Grade", accessor: "grade", sortable: true },
     {
       header: "Stock",
       accessor: "currentStock",
       sortable: true,
       cell: (value) => value || 0,
     },
-    { header: "Supplier", accessor: "supplier", sortable: true },
+    { header: "Location", accessor: "location", sortable: true },
   ];
 
   // Column definitions for Fasteners
@@ -162,7 +187,7 @@ export function InventoryPage() {
       sortable: true,
       cell: (value) => value || 0,
     },
-    { header: "Supplier", accessor: "supplier", sortable: true },
+    { header: "Location", accessor: "location", sortable: true },
   ];
 
   // Column definitions for General Items
@@ -170,14 +195,14 @@ export function InventoryPage() {
     { header: "SKU", accessor: "sku", sortable: true },
     { header: "Name", accessor: "name", sortable: true },
     { header: "Category", accessor: "category", sortable: true },
-    { header: "Manufacturer", accessor: "manufacturer", sortable: true },
+    { header: "Model", accessor: "model", sortable: true },
     {
       header: "Stock",
       accessor: "currentStock",
       sortable: true,
       cell: (value) => value || 0,
     },
-    { header: "Supplier", accessor: "supplier", sortable: true },
+    { header: "Location", accessor: "location", sortable: true },
   ];
 
   return (
@@ -273,7 +298,7 @@ export function InventoryPage() {
                 columns={materialColumns}
                 onView={(item) => setViewingMaterialId(item.id)}
                 onEdit={(item) => setEditingMaterialId(item.id)}
-                searchPlaceholder="Search materials by SKU, type, grade, supplier..."
+                searchPlaceholder="Search materials by type, grade, shape, location..."
               />
             )}
           </TabsContent>
@@ -313,7 +338,7 @@ export function InventoryPage() {
                     "Tool edit coming soon - use view details for now"
                   )
                 }
-                searchPlaceholder="Search tools by SKU, type, manufacturer, model..."
+                searchPlaceholder="Search tools by SKU, type, model, location..."
               />
             )}
           </TabsContent>
@@ -353,7 +378,7 @@ export function InventoryPage() {
                 columns={consumableColumns}
                 onView={(item) => setViewingConsumableId(item.id)}
                 onEdit={(item) => setEditingConsumableId(item.id)}
-                searchPlaceholder="Search consumables by SKU, name, category, supplier..."
+                searchPlaceholder="Search consumables by SKU, name, category, grade, location..."
               />
             )}
           </TabsContent>
@@ -389,7 +414,7 @@ export function InventoryPage() {
                 columns={fastenerColumns}
                 onView={(item) => setViewingFastenerId(item.id)}
                 onEdit={(item) => setEditingFastenerId(item.id)}
-                searchPlaceholder="Search fasteners by SKU, type, thread, material, supplier..."
+                searchPlaceholder="Search fasteners by SKU, type, thread, material, location..."
               />
             )}
           </TabsContent>
@@ -429,7 +454,7 @@ export function InventoryPage() {
                 columns={generalItemColumns}
                 onView={(item) => setViewingGeneralItemId(item.id)}
                 onEdit={(item) => setEditingGeneralItemId(item.id)}
-                searchPlaceholder="Search general items by SKU, name, category, manufacturer..."
+                searchPlaceholder="Search general items by SKU, name, category, model, location..."
               />
             )}
           </TabsContent>
