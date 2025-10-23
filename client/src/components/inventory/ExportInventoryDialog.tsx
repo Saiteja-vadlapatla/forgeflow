@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { FormLabel } from "@/components/ui/form-label";
 import { Input } from "@/components/ui/input";
@@ -20,7 +27,11 @@ interface ExportInventoryDialogProps {
   };
 }
 
-export function ExportInventoryDialog({ open, onOpenChange, inventoryData }: ExportInventoryDialogProps) {
+export function ExportInventoryDialog({
+  open,
+  onOpenChange,
+  inventoryData,
+}: ExportInventoryDialogProps) {
   const { toast } = useToast();
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -33,14 +44,14 @@ export function ExportInventoryDialog({ open, onOpenChange, inventoryData }: Exp
       // Filter data by date range if specified
       const filterByDate = (items: any[]) => {
         if (!startDate && !endDate) return items;
-        
-        return items.filter(item => {
+
+        return items.filter((item) => {
           if (!item.createdAt && !item.dateAdded) return true; // Include items without dates
-          
+
           const itemDate = new Date(item.createdAt || item.dateAdded);
           const start = startDate ? new Date(startDate) : new Date(0);
           const end = endDate ? new Date(endDate) : new Date();
-          
+
           return itemDate >= start && itemDate <= end;
         });
       };
@@ -48,101 +59,53 @@ export function ExportInventoryDialog({ open, onOpenChange, inventoryData }: Exp
       // Create workbook
       const workbook = utils.book_new();
 
-      // Raw Materials sheet
-      const materialsData = filterByDate(inventoryData.materials).map(item => ({
-        SKU: item.sku,
-        Name: item.name,
-        Grade: item.grade,
-        "Current Stock": item.currentStock,
-        Unit: item.unit,
-        "Unit Cost": item.unitCost,
-        Supplier: item.supplier,
-        Location: item.location || "",
-        "Reorder Point": item.reorderPoint || "",
-        "Max Stock": item.maxStock || "",
-      }));
+      // Raw Materials sheet - Export all raw data
+      const materialsData = filterByDate(inventoryData.materials);
       if (materialsData.length > 0) {
         const ws1 = utils.json_to_sheet(materialsData);
         utils.book_append_sheet(workbook, ws1, "Raw Materials");
       }
 
-      // Tools sheet
-      const toolsData = filterByDate(inventoryData.tools).map(item => ({
-        SKU: item.sku,
-        Name: item.name,
-        "Tool Type": item.toolType,
-        "Current Stock": item.currentStock,
-        "Unit Cost": item.unitCost,
-        Supplier: item.supplier,
-        Manufacturer: item.manufacturer || "",
-        Model: item.model || "",
-        Condition: item.condition || "",
-        Location: item.location || "",
-      }));
+      // Tools sheet - Export all raw data
+      const toolsData = filterByDate(inventoryData.tools);
       if (toolsData.length > 0) {
         const ws2 = utils.json_to_sheet(toolsData);
         utils.book_append_sheet(workbook, ws2, "Tools");
       }
 
-      // Consumables sheet
-      const consumablesData = filterByDate(inventoryData.consumables).map(item => ({
-        SKU: item.sku,
-        Name: item.name,
-        Category: item.category,
-        "Current Stock": item.currentStock,
-        Unit: item.unit,
-        "Unit Cost": item.unitCost,
-        Supplier: item.supplier,
-        Manufacturer: item.manufacturer || "",
-        Location: item.location || "",
-        "Reorder Point": item.reorderPoint || "",
-      }));
+      // Consumables sheet - Export all raw data
+      const consumablesData = filterByDate(inventoryData.consumables);
       if (consumablesData.length > 0) {
         const ws3 = utils.json_to_sheet(consumablesData);
         utils.book_append_sheet(workbook, ws3, "Consumables");
       }
 
-      // Fasteners sheet
-      const fastenersData = filterByDate(inventoryData.fasteners).map(item => ({
-        SKU: item.sku,
-        Name: item.name,
-        Type: item.type,
-        Size: item.size,
-        Material: item.material,
-        "Current Stock": item.currentStock,
-        "Unit Cost": item.unitCost,
-        Supplier: item.supplier,
-        Grade: item.grade || "",
-        Finish: item.finish || "",
-      }));
+      // Fasteners sheet - Export all raw data
+      const fastenersData = filterByDate(inventoryData.fasteners);
       if (fastenersData.length > 0) {
         const ws4 = utils.json_to_sheet(fastenersData);
         utils.book_append_sheet(workbook, ws4, "Fasteners");
       }
 
-      // General Items sheet
-      const generalData = filterByDate(inventoryData.generalItems).map(item => ({
-        SKU: item.sku,
-        Name: item.name,
-        Category: item.category,
-        "Current Stock": item.currentStock,
-        "Unit Cost": item.unitCost,
-        Supplier: item.supplier,
-        Manufacturer: item.manufacturer || "",
-        Model: item.model || "",
-        Condition: item.condition || "",
-        Location: item.location || "",
-      }));
+      // General Items sheet - Export all raw data
+      const generalData = filterByDate(inventoryData.generalItems);
       if (generalData.length > 0) {
         const ws5 = utils.json_to_sheet(generalData);
         utils.book_append_sheet(workbook, ws5, "General Items");
       }
 
       // Generate filename with date range
-      const dateRangeStr = startDate && endDate 
-        ? `_${format(new Date(startDate), "yyyy-MM-dd")}_to_${format(new Date(endDate), "yyyy-MM-dd")}`
-        : "";
-      const filename = `Inventory_Export${dateRangeStr}_${format(new Date(), "yyyy-MM-dd_HHmmss")}.xlsx`;
+      const dateRangeStr =
+        startDate && endDate
+          ? `_${format(new Date(startDate), "yyyy-MM-dd")}_to_${format(
+              new Date(endDate),
+              "yyyy-MM-dd"
+            )}`
+          : "";
+      const filename = `Inventory_Export${dateRangeStr}_${format(
+        new Date(),
+        "yyyy-MM-dd_HHmmss"
+      )}.xlsx`;
 
       // Download file
       writeFile(workbook, filename);
@@ -171,13 +134,16 @@ export function ExportInventoryDialog({ open, onOpenChange, inventoryData }: Exp
         <DialogHeader>
           <DialogTitle>Export Inventory Data</DialogTitle>
           <DialogDescription>
-            Select a date range to filter inventory items, or leave empty to export all items.
+            Select a date range to filter inventory items, or leave empty to
+            export all items.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
           <div className="space-y-2">
-            <FormLabel htmlFor="startDate" optional>Start Date</FormLabel>
+            <FormLabel htmlFor="startDate" optional>
+              Start Date
+            </FormLabel>
             <Input
               id="startDate"
               type="date"
@@ -188,7 +154,9 @@ export function ExportInventoryDialog({ open, onOpenChange, inventoryData }: Exp
           </div>
 
           <div className="space-y-2">
-            <FormLabel htmlFor="endDate" optional>End Date</FormLabel>
+            <FormLabel htmlFor="endDate" optional>
+              End Date
+            </FormLabel>
             <Input
               id="endDate"
               type="date"
