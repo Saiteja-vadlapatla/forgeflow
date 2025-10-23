@@ -42,11 +42,14 @@ export interface InventoryTransaction {
   timestamp: string;
   itemId: string;
   itemType: string;
-  adjustment: number;
+  adjustmentType: string;
+  quantity: number; // Actual quantity changed
+  adjustment: number; // Legacy field - same as quantity
   previousStock: number;
   newStock: number;
   reason: string;
   adjustedBy: string;
+  accountableBy: string; // Person accountable for the adjustment
   costImpact: number;
   notes?: string;
 }
@@ -62,7 +65,7 @@ interface StockAdjustmentHistoryProps {
   className?: string;
 }
 
-type SortField = "timestamp" | "adjustment" | "reason" | "adjustedBy";
+type SortField = "timestamp" | "adjustment" | "reason";
 type SortDirection = "asc" | "desc";
 
 export function StockAdjustmentHistory({
@@ -123,6 +126,9 @@ export function StockAdjustmentHistory({
         const matchesSearch =
           !searchQuery ||
           transaction.reason
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          transaction.accountableBy
             .toLowerCase()
             .includes(searchQuery.toLowerCase()) ||
           transaction.adjustedBy
@@ -264,17 +270,7 @@ export function StockAdjustmentHistory({
                       </span>
                     )}
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-gray-50 select-none"
-                    onClick={() => handleSort("adjustment")}
-                  >
-                    Adjustment
-                    {sortField === "adjustment" && (
-                      <span className="ml-1">
-                        {sortDirection === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </TableHead>
+                  <TableHead>Quantity</TableHead>
                   <TableHead>Stock Level</TableHead>
                   <TableHead
                     className="cursor-pointer hover:bg-gray-50 select-none"
@@ -287,17 +283,7 @@ export function StockAdjustmentHistory({
                       </span>
                     )}
                   </TableHead>
-                  <TableHead
-                    className="cursor-pointer hover:bg-gray-50 select-none"
-                    onClick={() => handleSort("adjustedBy")}
-                  >
-                    Adjusted By
-                    {sortField === "adjustedBy" && (
-                      <span className="ml-1">
-                        {sortDirection === "asc" ? "↑" : "↓"}
-                      </span>
-                    )}
-                  </TableHead>
+                  <TableHead>Accountable By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -323,7 +309,8 @@ export function StockAdjustmentHistory({
                         )}
                         className="font-mono font-medium"
                       >
-                        {getAdjustmentIcon(transaction.adjustment)}
+                        {getAdjustmentIcon(transaction.quantity)}
+                        {Math.abs(transaction.quantity)}
                         <span className="ml-1">
                           {transaction.adjustment > 0 ? "+" : ""}
                           {transaction.adjustment}
@@ -352,7 +339,7 @@ export function StockAdjustmentHistory({
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-gray-400" />
                         <span className="text-sm">
-                          {transaction.adjustedBy}
+                          {transaction.accountableBy}
                         </span>
                       </div>
                     </TableCell>

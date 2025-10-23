@@ -420,14 +420,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create inventory transaction record for audit trail
       await storage.createInventoryTransaction({
         itemId: id,
-        itemType: 'raw_material',
+        itemType: 'materials',
         adjustmentType: adjustmentType,
         quantity: newStock - currentStock,
         reason: req.body.reason || 'Stock adjustment',
         notes: req.body.notes,
         previousStock: currentStock,
         newStock: newStock,
-        adjustedBy: req.user?.id || 'admin', // TODO: Add proper user auth
+        adjustedBy: req.user?.id || 'admin',
+        accountableBy: req.body.accountableBy,
         costImpact: (newStock - currentStock) * (material.unitCost || 0),
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
@@ -522,8 +523,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/inventory/tools/:id/update-stock", async (req, res) => {
     try {
+      console.log('📨 [Server] Tools update-stock received:', {
+        params: req.params,
+        body: req.body
+      });
+
       const { id } = req.params;
-      const { adjustmentType, adjustmentQuantity, reason, notes } = req.body;
+      const { adjustmentType, adjustmentQuantity, reason, notes, accountableBy } = req.body;
       
       // Get current tool to check stock levels
       const tools = await storage.getInventoryTools();
@@ -556,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create inventory transaction record for audit trail
       await storage.createInventoryTransaction({
         itemId: id,
-        itemType: 'inventory_tool',
+        itemType: 'tools',
         adjustmentType: adjustmentType,
         quantity: newStock - currentStock,
         reason: req.body.reason || 'Stock adjustment',
@@ -564,6 +570,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousStock: currentStock,
         newStock: newStock,
         adjustedBy: req.user?.id || 'admin',
+        accountableBy: req.body.accountableBy,
         costImpact: (newStock - currentStock) * (tool.unitCost || 0),
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
@@ -646,8 +653,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/inventory/consumables/:id/update-stock", async (req, res) => {
     try {
+      console.log('📨 [Server] Consumables update-stock received:', {
+        params: req.params,
+        body: req.body
+      });
+
       const { id } = req.params;
-      const { adjustmentType, adjustmentQuantity } = req.body;
+      const { adjustmentType, adjustmentQuantity, reason, notes, accountableBy } = req.body;
       const consumables = await storage.getConsumables();
       const consumable = consumables.find(c => c.id === id);
       if (!consumable) {
@@ -659,9 +671,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStock = currentStock + adjustmentQuantity;
       } else if (adjustmentType === 'remove') {
         if (adjustmentQuantity > currentStock) {
-          return res.status(400).json({ 
-            error: "Insufficient stock", 
-            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          return res.status(400).json({
+            error: "Insufficient stock",
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.`
           });
         }
         newStock = currentStock - adjustmentQuantity;
@@ -673,14 +685,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create inventory transaction record for audit trail
       await storage.createInventoryTransaction({
         itemId: id,
-        itemType: 'consumable',
+        itemType: 'consumables',
         adjustmentType: adjustmentType,
         quantity: newStock - currentStock,
-        reason: req.body.reason || 'Stock adjustment',
-        notes: req.body.notes,
+        reason: reason || 'Stock adjustment',
+        notes: notes,
         previousStock: currentStock,
         newStock: newStock,
         adjustedBy: req.user?.id || 'admin',
+        accountableBy: accountableBy,
         costImpact: (newStock - currentStock) * (consumable.unitCost || 0),
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
@@ -747,7 +760,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/inventory/fasteners/:id/update-stock", async (req, res) => {
     try {
       const { id } = req.params;
-      const { adjustmentType, adjustmentQuantity } = req.body;
+      const { adjustmentType, adjustmentQuantity, reason, notes, accountableBy } = req.body;
       const fasteners = await storage.getFasteners();
       const fastener = fasteners.find(f => f.id === id);
       if (!fastener) {
@@ -759,9 +772,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStock = currentStock + adjustmentQuantity;
       } else if (adjustmentType === 'remove') {
         if (adjustmentQuantity > currentStock) {
-          return res.status(400).json({ 
-            error: "Insufficient stock", 
-            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          return res.status(400).json({
+            error: "Insufficient stock",
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.`
           });
         }
         newStock = currentStock - adjustmentQuantity;
@@ -773,14 +786,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create inventory transaction record for audit trail
       await storage.createInventoryTransaction({
         itemId: id,
-        itemType: 'fastener',
+        itemType: 'fasteners',
         adjustmentType: adjustmentType,
         quantity: newStock - currentStock,
-        reason: req.body.reason || 'Stock adjustment',
-        notes: req.body.notes,
+        reason: reason || 'Stock adjustment',
+        notes: notes,
         previousStock: currentStock,
         newStock: newStock,
         adjustedBy: req.user?.id || 'admin',
+        accountableBy: accountableBy,
         costImpact: (newStock - currentStock) * (fastener.unitCost || 0),
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
@@ -847,7 +861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/inventory/general-items/:id/update-stock", async (req, res) => {
     try {
       const { id } = req.params;
-      const { adjustmentType, adjustmentQuantity } = req.body;
+      const { adjustmentType, adjustmentQuantity, reason, notes, accountableBy } = req.body;
       const items = await storage.getGeneralItems();
       const item = items.find(i => i.id === id);
       if (!item) {
@@ -859,9 +873,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStock = currentStock + adjustmentQuantity;
       } else if (adjustmentType === 'remove') {
         if (adjustmentQuantity > currentStock) {
-          return res.status(400).json({ 
-            error: "Insufficient stock", 
-            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.` 
+          return res.status(400).json({
+            error: "Insufficient stock",
+            details: `Cannot withdraw ${adjustmentQuantity} units. Only ${currentStock} units available.`
           });
         }
         newStock = currentStock - adjustmentQuantity;
@@ -873,14 +887,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create inventory transaction record for audit trail
       await storage.createInventoryTransaction({
         itemId: id,
-        itemType: 'general_item',
+        itemType: 'general-items',
         adjustmentType: adjustmentType,
         quantity: newStock - currentStock,
-        reason: req.body.reason || 'Stock adjustment',
-        notes: req.body.notes,
+        reason: reason || 'Stock adjustment',
+        notes: notes,
         previousStock: currentStock,
         newStock: newStock,
         adjustedBy: req.user?.id || 'admin',
+        accountableBy: accountableBy,
         costImpact: (newStock - currentStock) * (item.unitCost || 0),
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
@@ -3245,8 +3260,14 @@ app.get("/api/production-plans/:id", async (req, res) => {
       }
 
       // Map route parameter to database itemType
-      const dbItemType = itemType === 'raw_materials' ? 'raw_material' :
-                        itemType.replace('_', ' ').slice(0, -1); // Remove 's' and map to db type
+      const itemTypeMapping = {
+        'raw_materials': 'materials',
+        'inventory_tools': 'tools',
+        'consumables': 'consumables',
+        'fasteners': 'fasteners',
+        'general_items': 'general-items'
+      };
+      const dbItemType = itemTypeMapping[itemType as keyof typeof itemTypeMapping];
 
       const transactions = await storage.getInventoryTransactionsByItem(id, dbItemType);
 

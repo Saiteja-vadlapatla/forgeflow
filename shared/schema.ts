@@ -243,11 +243,12 @@ export const inventoryTransactions = pgTable("inventory_transactions", {
   itemType: text("item_type").notNull(), // 'materials', 'tools', 'consumables', 'fasteners', 'general-items'
   adjustmentType: text("adjustment_type").notNull(), // 'add', 'remove', 'set'
   quantity: real("quantity").notNull(), // Amount adjusted (positive for add, negative for remove)
-  reason: text("reason"), // Stock Received, Consumed in Production, Damaged/Lost, etc.
+  reason: text("reason").notNull(), // Stock Received, Consumed in Production, Damaged/Lost, etc. (required field)
   notes: text("notes"), // Free-text notes
   previousStock: real("previous_stock").notNull(),
   newStock: real("new_stock").notNull(),
   adjustedBy: varchar("adjusted_by").references(() => users.id), // References users table
+  accountableBy: varchar("accountable_by").notNull(), // Person accountable for the stock adjustment (required field)
   costImpact: real("cost_impact"), // Cost impact of adjustment (quantity * unitCost)
   batchNumber: text("batch_number"), // For tracking receipts/allocations
   reference: text("reference"), // Work order ID, PO number, etc.

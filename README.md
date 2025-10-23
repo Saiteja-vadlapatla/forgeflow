@@ -155,6 +155,10 @@ DEBUG=true
 
 #### 4. Database Schema Setup
 ```bash
+# If setting up first time, first ensure username matches the system username.
+# Then, setup "aether_mes" db first
+psql "${DATABASE_URL%/*}/postgres" -c "CREATE DATABASE aether_mes;"
+
 # Initialize database schema
 npm run db:push
 

@@ -1,11 +1,27 @@
 import { useQuery } from "@tanstack/react-query";
-import { Wrench, DollarSign, MapPin, Ruler, Box, Info, AlertCircle, Package } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Wrench,
+  DollarSign,
+  MapPin,
+  Ruler,
+  Box,
+  Info,
+  AlertCircle,
+  Package,
+} from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { InventoryTool } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { StockAdjustment } from "@/components/inventory/StockAdjustment";
+import { StockAdjustmentHistory } from "@/components/inventory/StockAdjustmentHistory";
 
 // Extended type to include currentStock which is handled in-memory
 type InventoryToolWithStock = InventoryTool & { currentStock?: number };
@@ -21,7 +37,7 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
     queryKey: ["/api/inventory/tools"],
   });
 
-  const tool = tools.find(t => t.id === toolId);
+  const tool = tools.find((t) => t.id === toolId);
 
   if (isLoading) {
     return (
@@ -36,7 +52,11 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
       <div className="p-6 text-center">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
         <p className="text-gray-600">Tool not found</p>
-        <Button onClick={onClose} className="mt-4" data-testid="button-close-not-found">
+        <Button
+          onClick={onClose}
+          className="mt-4"
+          data-testid="button-close-not-found"
+        >
           Close
         </Button>
       </div>
@@ -71,7 +91,11 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
           </h3>
           <p className="text-gray-600 mt-1">SKU: {tool.sku}</p>
         </div>
-        <Badge variant={stockStatus.variant} className="text-sm" data-testid="badge-stock-status">
+        <Badge
+          variant={stockStatus.variant}
+          className="text-sm"
+          data-testid="badge-stock-status"
+        >
           {stockStatus.label}
         </Badge>
       </div>
@@ -86,6 +110,9 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
         itemName={`${tool.toolType} - ${tool.manufacturer} ${tool.model}`}
       />
 
+      {/* Stock Adjustment History */}
+      <StockAdjustmentHistory itemId={toolId} itemType="inventory_tools" />
+
       {/* Tool Specifications */}
       <Card>
         <CardHeader>
@@ -97,54 +124,72 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
         <CardContent className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-600">Tool Type</p>
-            <p className="font-semibold" data-testid="text-tool-type">{tool.toolType}</p>
+            <p className="font-semibold" data-testid="text-tool-type">
+              {tool.toolType}
+            </p>
           </div>
           {tool.subType && (
             <div>
               <p className="text-sm text-gray-600">Sub Type</p>
-              <p className="font-semibold" data-testid="text-sub-type">{tool.subType}</p>
+              <p className="font-semibold" data-testid="text-sub-type">
+                {tool.subType}
+              </p>
             </div>
           )}
           <div>
             <p className="text-sm text-gray-600">Manufacturer</p>
-            <p className="font-semibold" data-testid="text-manufacturer">{tool.manufacturer}</p>
+            <p className="font-semibold" data-testid="text-manufacturer">
+              {tool.manufacturer}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Model</p>
-            <p className="font-semibold" data-testid="text-model">{tool.model}</p>
+            <p className="font-semibold" data-testid="text-model">
+              {tool.model}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Size</p>
-            <p className="font-semibold" data-testid="text-size">{tool.size} mm</p>
+            <p className="font-semibold" data-testid="text-size">
+              {tool.size} mm
+            </p>
           </div>
           {tool.length && tool.length > 0 && (
             <div>
               <p className="text-sm text-gray-600">Length</p>
-              <p className="font-semibold" data-testid="text-length">{tool.length} mm</p>
+              <p className="font-semibold" data-testid="text-length">
+                {tool.length} mm
+              </p>
             </div>
           )}
           <div>
             <p className="text-sm text-gray-600">Material</p>
-            <p className="font-semibold" data-testid="text-material">{tool.material}</p>
+            <p className="font-semibold" data-testid="text-material">
+              {tool.material}
+            </p>
           </div>
           {tool.coating && (
             <div>
               <p className="text-sm text-gray-600">Coating</p>
-              <p className="font-semibold" data-testid="text-coating">{tool.coating}</p>
+              <p className="font-semibold" data-testid="text-coating">
+                {tool.coating}
+              </p>
             </div>
           )}
           {tool.geometry && (
             <div className="col-span-2">
               <p className="text-sm text-gray-600">Geometry</p>
-              <p className="font-semibold" data-testid="text-geometry">{tool.geometry}</p>
+              <p className="font-semibold" data-testid="text-geometry">
+                {tool.geometry}
+              </p>
             </div>
           )}
         </CardContent>
       </Card>
 
       {/* Application Information */}
-      {((tool.applicationMaterial && tool.applicationMaterial.length > 0) || 
-       (tool.operationType && tool.operationType.length > 0)) && (
+      {((tool.applicationMaterial && tool.applicationMaterial.length > 0) ||
+        (tool.operationType && tool.operationType.length > 0)) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -153,22 +198,35 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {tool.applicationMaterial && tool.applicationMaterial.length > 0 && (
-              <div>
-                <p className="text-sm text-gray-600 mb-2">Application Materials</p>
-                <div className="flex flex-wrap gap-2" data-testid="list-application-materials">
-                  {tool.applicationMaterial.map((material) => (
-                    <Badge key={material} variant="outline">{material}</Badge>
-                  ))}
+            {tool.applicationMaterial &&
+              tool.applicationMaterial.length > 0 && (
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Application Materials
+                  </p>
+                  <div
+                    className="flex flex-wrap gap-2"
+                    data-testid="list-application-materials"
+                  >
+                    {tool.applicationMaterial.map((material) => (
+                      <Badge key={material} variant="outline">
+                        {material}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             {tool.operationType && tool.operationType.length > 0 && (
               <div>
                 <p className="text-sm text-gray-600 mb-2">Operation Types</p>
-                <div className="flex flex-wrap gap-2" data-testid="list-operation-types">
+                <div
+                  className="flex flex-wrap gap-2"
+                  data-testid="list-operation-types"
+                >
                   {tool.operationType.map((operation) => (
-                    <Badge key={operation} variant="secondary">{operation}</Badge>
+                    <Badge key={operation} variant="secondary">
+                      {operation}
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -194,19 +252,25 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
           </div>
           <div>
             <p className="text-sm text-gray-600">Reorder Point</p>
-            <p className="text-lg font-semibold" data-testid="text-reorder-point">
-              {tool.reorderPoint || 'Not set'}
+            <p
+              className="text-lg font-semibold"
+              data-testid="text-reorder-point"
+            >
+              {tool.reorderPoint || "Not set"}
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Maximum Stock</p>
             <p className="text-lg font-semibold" data-testid="text-max-stock">
-              {tool.maxStock || 'Not set'}
+              {tool.maxStock || "Not set"}
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Available Stock</p>
-            <p className="text-lg font-semibold text-green-600" data-testid="text-available-stock">
+            <p
+              className="text-lg font-semibold text-green-600"
+              data-testid="text-available-stock"
+            >
               {tool.currentStock || 0}
             </p>
           </div>
@@ -224,19 +288,24 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
         <CardContent className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-600">Supplier</p>
-            <p className="font-semibold" data-testid="text-supplier">{tool.supplier}</p>
+            <p className="font-semibold" data-testid="text-supplier">
+              {tool.supplier}
+            </p>
           </div>
           <div>
             <p className="text-sm text-gray-600">Unit Cost</p>
             <p className="font-semibold" data-testid="text-unit-cost">
               <DollarSign className="h-4 w-4 inline" />
-              {tool.unitCost?.toFixed(2) || '0.00'}
+              {tool.unitCost?.toFixed(2) || "0.00"}
             </p>
           </div>
           {tool.location && (
             <div className="col-span-2">
               <p className="text-sm text-gray-600">Storage Location</p>
-              <p className="font-semibold flex items-center gap-2" data-testid="text-location">
+              <p
+                className="font-semibold flex items-center gap-2"
+                data-testid="text-location"
+              >
                 <MapPin className="h-4 w-4" />
                 {tool.location}
               </p>
@@ -255,9 +324,12 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-gray-700 whitespace-pre-wrap" data-testid="text-specifications">
-              {typeof tool.specifications === 'string' 
-                ? tool.specifications 
+            <p
+              className="text-gray-700 whitespace-pre-wrap"
+              data-testid="text-specifications"
+            >
+              {typeof tool.specifications === "string"
+                ? tool.specifications
                 : JSON.stringify(tool.specifications, null, 2)}
             </p>
           </CardContent>
@@ -267,7 +339,11 @@ export function ToolDetails({ toolId, onEdit, onClose }: ToolDetailsProps) {
       {/* Action Buttons */}
       <div className="flex justify-end gap-3 pt-4 border-t">
         {onEdit && (
-          <Button onClick={onEdit} variant="outline" data-testid="button-edit-tool">
+          <Button
+            onClick={onEdit}
+            variant="outline"
+            data-testid="button-edit-tool"
+          >
             Edit Tool
           </Button>
         )}

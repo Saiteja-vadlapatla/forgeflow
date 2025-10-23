@@ -49,6 +49,7 @@ export function StockAdjustment({
   const [adjustmentQuantity, setAdjustmentQuantity] = useState("");
   const [adjustmentReason, setAdjustmentReason] = useState("");
   const [adjustmentNotes, setAdjustmentNotes] = useState("");
+  const [accountableBy, setAccountableBy] = useState("");
 
   const updateStockMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -87,6 +88,8 @@ export function StockAdjustment({
           ? "raw_materials"
           : itemType === "tools"
           ? "inventory_tools"
+          : itemType === "general-items"
+          ? "general_items"
           : itemType;
 
       // Invalidate stock level queries
@@ -125,6 +128,7 @@ export function StockAdjustment({
     setAdjustmentReason("");
     setAdjustmentNotes("");
     setAdjustmentType("add");
+    setAccountableBy("");
   };
 
   const handleStockUpdate = () => {
@@ -140,6 +144,27 @@ export function StockAdjustment({
       return;
     }
 
+    // Validate reason (required)
+    if (!adjustmentReason.trim()) {
+      toast({
+        title: "Reason Required",
+        description: "Please select a reason for this stock adjustment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate accountableBy (required for all adjustment types)
+    if (!accountableBy.trim()) {
+      toast({
+        title: "Accountable By Required",
+        description:
+          "Please enter who is accountable for this stock adjustment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (adjustmentType !== "set" && quantity <= 0) {
       toast({
         title: "Invalid Quantity",
@@ -150,12 +175,15 @@ export function StockAdjustment({
       return;
     }
 
-    updateStockMutation.mutate({
+    const mutationData: any = {
       adjustmentType,
       adjustmentQuantity: quantity,
-      reason: adjustmentReason,
-      notes: adjustmentNotes,
-    });
+      reason: adjustmentReason.trim(),
+      notes: adjustmentNotes.trim(),
+      accountableBy: accountableBy.trim(),
+    };
+
+    updateStockMutation.mutate(mutationData);
   };
 
   return (
@@ -230,7 +258,7 @@ export function StockAdjustment({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason</Label>
+              <Label htmlFor="reason">Reason *</Label>
               <Select
                 value={adjustmentReason}
                 onValueChange={setAdjustmentReason}
@@ -239,7 +267,7 @@ export function StockAdjustment({
                   id="reason"
                   data-testid="select-adjustment-reason"
                 >
-                  <SelectValue placeholder="Select reason (optional)" />
+                  <SelectValue placeholder="Select reason (required)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="received">Stock Received</SelectItem>
@@ -254,6 +282,18 @@ export function StockAdjustment({
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="accountableBy">Accountable By *</Label>
+              <Input
+                id="accountableBy"
+                type="text"
+                placeholder="Enter name of person accountable for this adjustment"
+                value={accountableBy}
+                onChange={(e) => setAccountableBy(e.target.value)}
+                data-testid="input-accountable-by"
+              />
             </div>
 
             <div className="space-y-2">
