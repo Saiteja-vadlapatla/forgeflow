@@ -123,6 +123,12 @@ export interface IStorage {
   createGeneralItem(item: any): Promise<any>;
   updateGeneralItem(id: string, updates: any): Promise<any>;
 
+  // Inventory Transactions operations
+  createInventoryTransaction(transaction: any): Promise<any>;
+  getInventoryTransaction(id: string): Promise<any | undefined>;
+  getInventoryTransactionsByItem(itemId: string, itemType: string): Promise<any[]>;
+  getAllInventoryTransactions(filters?: any): Promise<any[]>;
+
   // Production Planning operations
   getProductionPlans(): Promise<any[]>;
   createProductionPlan(plan: any): Promise<any>;
@@ -349,6 +355,9 @@ export class MemStorage implements IStorage {
   private reasonCodes: Map<string, ReasonCode>;
   private scrapLogs: Map<string, ScrapLog>;
 
+  // Inventory Transactions storage
+  private inventoryTransactions: Map<string, any>;
+
   constructor() {
     this.users = new Map();
     this.machines = new Map();
@@ -387,6 +396,9 @@ export class MemStorage implements IStorage {
     this.operatorSessions = new Map();
     this.reasonCodes = new Map();
     this.scrapLogs = new Map();
+
+    // Initialize inventory transactions storage
+    this.inventoryTransactions = new Map();
 
     this.initializeTestData();
   }
@@ -3846,6 +3858,59 @@ export class MemStorage implements IStorage {
         percentage: total > 0 ? Math.round((value / total) * 10000) / 100 : 0
       }))
       .sort((a, b) => b.value - a.value);
+  }
+
+  // Inventory Transactions operations
+  async createInventoryTransaction(transaction: any): Promise<any> {
+    const id = randomUUID();
+    const now = new Date();
+    const newTransaction = {
+      ...transaction,
+      id,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.inventoryTransactions.set(id, newTransaction);
+    return newTransaction;
+  }
+
+  async getInventoryTransaction(id: string): Promise<any | undefined> {
+    return this.inventoryTransactions.get(id);
+  }
+
+  async getInventoryTransactionsByItem(itemId: string, itemType: string): Promise<any[]> {
+    return Array.from(this.inventoryTransactions.values())
+      .filter(transaction => transaction.itemId === itemId && transaction.itemType === itemType)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  async getAllInventoryTransactions(filters?: any): Promise<any[]> {
+    let transactions = Array.from(this.inventoryTransactions.values());
+
+    if (filters) {
+      if (filters.itemId) {
+        transactions = transactions.filter(t => t.itemId === filters.itemId);
+      }
+      if (filters.itemType) {
+        transactions = transactions.filter(t => t.itemType === filters.itemType);
+      }
+      if (filters.adjustedBy) {
+        transactions = transactions.filter(t => t.adjustedBy === filters.adjustedBy);
+      }
+      if (filters.reason) {
+        transactions = transactions.filter(t => t.reason === filters.reason);
+      }
+      if (filters.startDate) {
+        const startDate = new Date(filters.startDate);
+        transactions = transactions.filter(t => new Date(t.timestamp) >= startDate);
+      }
+      if (filters.endDate) {
+        const endDate = new Date(filters.endDate);
+        transactions = transactions.filter(t => new Date(t.timestamp) <= endDate);
+      }
+    }
+
+    return transactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }
 }
 

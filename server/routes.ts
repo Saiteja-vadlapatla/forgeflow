@@ -416,7 +416,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update the stock in storage
       await storage.updateRawMaterial(id, { currentStock: newStock });
-      
+
+      // Create inventory transaction record for audit trail
+      await storage.createInventoryTransaction({
+        itemId: id,
+        itemType: 'raw_material',
+        adjustmentType: adjustmentType,
+        quantity: newStock - currentStock,
+        reason: req.body.reason || 'Stock adjustment',
+        notes: req.body.notes,
+        previousStock: currentStock,
+        newStock: newStock,
+        adjustedBy: req.user?.id || 'admin', // TODO: Add proper user auth
+        costImpact: (newStock - currentStock) * (material.unitCost || 0),
+        batchNumber: req.body.batchNumber,
+        reference: req.body.reference,
+        timestamp: new Date(),
+      });
+
       // Cross-module side-effects: inventory alerts
       const minStockLevel = material.minStockLevel || 0;
       if (newStock <= minStockLevel && newStock < currentStock) {
@@ -535,7 +552,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update the stock in storage
       await storage.updateInventoryTool(id, { currentStock: newStock });
-      
+
+      // Create inventory transaction record for audit trail
+      await storage.createInventoryTransaction({
+        itemId: id,
+        itemType: 'inventory_tool',
+        adjustmentType: adjustmentType,
+        quantity: newStock - currentStock,
+        reason: req.body.reason || 'Stock adjustment',
+        notes: req.body.notes,
+        previousStock: currentStock,
+        newStock: newStock,
+        adjustedBy: req.user?.id || 'admin',
+        costImpact: (newStock - currentStock) * (tool.unitCost || 0),
+        batchNumber: req.body.batchNumber,
+        reference: req.body.reference,
+        timestamp: new Date(),
+      });
+
       // Cross-module side-effects: inventory alerts
       const minStockLevel = tool.minStockLevel || 0;
       if (newStock <= minStockLevel && newStock < currentStock) {
@@ -635,6 +669,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStock = adjustmentQuantity;
       }
       await storage.updateConsumable(id, { currentStock: newStock });
+
+      // Create inventory transaction record for audit trail
+      await storage.createInventoryTransaction({
+        itemId: id,
+        itemType: 'consumable',
+        adjustmentType: adjustmentType,
+        quantity: newStock - currentStock,
+        reason: req.body.reason || 'Stock adjustment',
+        notes: req.body.notes,
+        previousStock: currentStock,
+        newStock: newStock,
+        adjustedBy: req.user?.id || 'admin',
+        costImpact: (newStock - currentStock) * (consumable.unitCost || 0),
+        batchNumber: req.body.batchNumber,
+        reference: req.body.reference,
+        timestamp: new Date(),
+      });
+
       res.json({ success: true, newStock, previousStock: currentStock });
       broadcastRealtimeData();
     } catch (error) {
@@ -717,6 +769,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStock = adjustmentQuantity;
       }
       await storage.updateFastener(id, { currentStock: newStock });
+
+      // Create inventory transaction record for audit trail
+      await storage.createInventoryTransaction({
+        itemId: id,
+        itemType: 'fastener',
+        adjustmentType: adjustmentType,
+        quantity: newStock - currentStock,
+        reason: req.body.reason || 'Stock adjustment',
+        notes: req.body.notes,
+        previousStock: currentStock,
+        newStock: newStock,
+        adjustedBy: req.user?.id || 'admin',
+        costImpact: (newStock - currentStock) * (fastener.unitCost || 0),
+        batchNumber: req.body.batchNumber,
+        reference: req.body.reference,
+        timestamp: new Date(),
+      });
+
       res.json({ success: true, newStock, previousStock: currentStock });
       broadcastRealtimeData();
     } catch (error) {
@@ -799,6 +869,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         newStock = adjustmentQuantity;
       }
       await storage.updateGeneralItem(id, { currentStock: newStock });
+
+      // Create inventory transaction record for audit trail
+      await storage.createInventoryTransaction({
+        itemId: id,
+        itemType: 'general_item',
+        adjustmentType: adjustmentType,
+        quantity: newStock - currentStock,
+        reason: req.body.reason || 'Stock adjustment',
+        notes: req.body.notes,
+        previousStock: currentStock,
+        newStock: newStock,
+        adjustedBy: req.user?.id || 'admin',
+        costImpact: (newStock - currentStock) * (item.unitCost || 0),
+        batchNumber: req.body.batchNumber,
+        reference: req.body.reference,
+        timestamp: new Date(),
+      });
+
       res.json({ success: true, newStock, previousStock: currentStock });
       broadcastRealtimeData();
     } catch (error) {
@@ -3083,6 +3171,221 @@ app.get("/api/production-plans/:id", async (req, res) => {
       broadcastRealtimeData();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete setup matrix entry" });
+    }
+  });
+
+  // Inventory Transaction API endpoints (NEW - Phase 3)
+  app.get("/api/inventory/transactions", async (req, res) => {
+    try {
+      const {
+        itemId,
+        itemType,
+        adjustedBy,
+        reason,
+        startDate,
+        endDate,
+        limit,
+        offset
+      } = req.query;
+
+      const filters: any = {};
+
+      if (itemId) filters.itemId = itemId as string;
+      if (itemType) filters.itemType = itemType as string;
+      if (adjustedBy) filters.adjustedBy = adjustedBy as string;
+      if (reason) filters.reason = reason as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+
+      const transactions = await storage.getAllInventoryTransactions(filters);
+
+      // Apply pagination if requested
+      const limitNum = limit ? parseInt(limit as string) : undefined;
+      const offsetNum = offset ? parseInt(offset as string) : 0;
+
+      let paginatedTransactions = transactions;
+      if (limitNum) {
+        paginatedTransactions = transactions.slice(offsetNum, offsetNum + limitNum);
+      }
+
+      res.json({
+        transactions: paginatedTransactions,
+        total: transactions.length,
+        limit: limitNum,
+        offset: offsetNum
+      });
+    } catch (error) {
+      console.error('Error fetching inventory transactions:', error);
+      res.status(500).json({ error: "Failed to fetch inventory transactions" });
+    }
+  });
+
+  app.get("/api/inventory/transactions/:id", async (req, res) => {
+    try {
+      const transaction = await storage.getInventoryTransaction(req.params.id);
+      if (!transaction) {
+        return res.status(404).json({ error: "Inventory transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      console.error('Error fetching inventory transaction:', error);
+      res.status(500).json({ error: "Failed to fetch inventory transaction" });
+    }
+  });
+
+  app.get("/api/inventory/:itemType/:id/transactions", async (req, res) => {
+    try {
+      const { itemType, id } = req.params;
+      const { limit, offset } = req.query;
+
+      // Validate itemType
+      const validTypes = ['raw_materials', 'inventory_tools', 'consumables', 'fasteners', 'general_items'];
+      if (!validTypes.includes(itemType)) {
+        return res.status(400).json({ error: "Invalid item type", validTypes });
+      }
+
+      // Map route parameter to database itemType
+      const dbItemType = itemType === 'raw_materials' ? 'raw_material' :
+                        itemType.replace('_', ' ').slice(0, -1); // Remove 's' and map to db type
+
+      const transactions = await storage.getInventoryTransactionsByItem(id, dbItemType);
+
+      // Apply pagination if requested
+      const limitNum = limit ? parseInt(limit as string) : undefined;
+      const offsetNum = offset ? parseInt(offset as string) : 0;
+
+      let paginatedTransactions = transactions;
+      if (limitNum) {
+        paginatedTransactions = transactions.slice(offsetNum, offsetNum + limitNum);
+      }
+
+      res.json({
+        transactions: paginatedTransactions,
+        total: transactions.length,
+        limit: limitNum,
+        offset: offsetNum
+      });
+    } catch (error) {
+      console.error('Error fetching transactions for item:', error);
+      res.status(500).json({ error: "Failed to fetch transactions for item" });
+    }
+  });
+
+  app.get("/api/inventory/transactions/summary", async (req, res) => {
+    try {
+      const {
+        itemId,
+        itemType,
+        startDate,
+        endDate,
+        adjustedBy
+      } = req.query;
+
+      const filters: any = {};
+      if (itemId) filters.itemId = itemId as string;
+      if (itemType) filters.itemType = itemType as string;
+      if (adjustedBy) filters.adjustedBy = adjustedBy as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+
+      const transactions = await storage.getAllInventoryTransactions(filters);
+
+      // Calculate summary statistics
+      const summary: {
+        totalTransactions: number;
+        totalAdjustments: number;
+        adjustmentsByReason: Record<string, number>;
+        adjustmentsByUser: Record<string, number>;
+        itemTypesAffected: Record<string, { count: number; totalAdjustment: number }>;
+        dateRange: { from: any; to: any };
+        mostRecentTransaction: any;
+      } = {
+        totalTransactions: transactions.length,
+        totalAdjustments: transactions.reduce((sum, t) => sum + (t.adjustment || 0), 0),
+        adjustmentsByReason: {},
+        adjustmentsByUser: {},
+        itemTypesAffected: {},
+        dateRange: {
+          from: startDate || null,
+          to: endDate || null
+        },
+        mostRecentTransaction: transactions.length > 0 ?
+          transactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0] : null
+      };
+
+      // Group by reason
+      transactions.forEach(transaction => {
+        const reason = transaction.reason || 'Unknown';
+        summary.adjustmentsByReason[reason] = (summary.adjustmentsByReason[reason] || 0) + (transaction.adjustment || 0);
+      });
+
+      // Group by user
+      transactions.forEach(transaction => {
+        const user = transaction.adjustedBy || 'System';
+        summary.adjustmentsByUser[user] = (summary.adjustmentsByUser[user] || 0) + (transaction.adjustment || 0);
+      });
+
+      // Count unique item types affected
+      const uniqueItemTypes = Array.from(new Set(transactions.map(t => t.itemType)));
+      uniqueItemTypes.forEach(itemType => {
+        const typeTransactions = transactions.filter(t => t.itemType === itemType);
+        summary.itemTypesAffected[itemType] = {
+          count: typeTransactions.length,
+          totalAdjustment: typeTransactions.reduce((sum, t) => sum + (t.adjustment || 0), 0)
+        };
+      });
+
+      res.json(summary);
+    } catch (error) {
+      console.error('Error generating transaction summary:', error);
+      res.status(500).json({ error: "Failed to generate transaction summary" });
+    }
+  });
+
+  // CSV Export endpoint
+  app.get("/api/inventory/transactions/export", async (req, res) => {
+    try {
+      const {
+        itemId,
+        itemType,
+        adjustedBy,
+        reason,
+        startDate,
+        endDate,
+        format = 'csv'
+      } = req.query;
+
+      const filters: any = {};
+      if (itemId) filters.itemId = itemId as string;
+      if (itemType) filters.itemType = itemType as string;
+      if (adjustedBy) filters.adjustedBy = adjustedBy as string;
+      if (reason) filters.reason = reason as string;
+      if (startDate) filters.startDate = startDate as string;
+      if (endDate) filters.endDate = endDate as string;
+
+      const transactions = await storage.getAllInventoryTransactions(filters);
+
+      if (format === 'csv') {
+        // Set CSV headers
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="inventory_transactions.csv"');
+
+        // CSV header
+        const csvHeader = 'ID,Timestamp,Item ID,Item Type,Adjustment,Previous Stock,New Stock,Reason,Adjusted By,Cost Impact,Notes\n';
+
+        // CSV rows
+        const csvRows = transactions.map(t =>
+          `${t.id},${t.timestamp},${t.itemId},${t.itemType},${t.adjustment || 0},${t.previousStock || 0},${t.newStock || 0},"${(t.reason || '').replace(/"/g, '""')}","${(t.adjustedBy || '').replace(/"/g, '""')}",${t.costImpact || 0},"${(t.notes || '').replace(/"/g, '""')}"`
+        ).join('\n');
+
+        res.write(csvHeader + csvRows);
+        res.end();
+      } else {
+        return res.status(400).json({ error: "Unsupported export format. Use format=csv" });
+      }
+    } catch (error) {
+      console.error('Error exporting inventory transactions:', error);
+      res.status(500).json({ error: "Failed to export inventory transactions" });
     }
   });
 

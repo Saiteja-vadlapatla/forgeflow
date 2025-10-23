@@ -236,6 +236,25 @@ export const alerts = pgTable("alerts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Inventory Transaction Audit Trail Table
+export const inventoryTransactions = pgTable("inventory_transactions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  itemId: varchar("item_id").notNull(), // References items across all 5 inventory types
+  itemType: text("item_type").notNull(), // 'materials', 'tools', 'consumables', 'fasteners', 'general-items'
+  adjustmentType: text("adjustment_type").notNull(), // 'add', 'remove', 'set'
+  quantity: real("quantity").notNull(), // Amount adjusted (positive for add, negative for remove)
+  reason: text("reason"), // Stock Received, Consumed in Production, Damaged/Lost, etc.
+  notes: text("notes"), // Free-text notes
+  previousStock: real("previous_stock").notNull(),
+  newStock: real("new_stock").notNull(),
+  adjustedBy: varchar("adjusted_by").references(() => users.id), // References users table
+  costImpact: real("cost_impact"), // Cost impact of adjustment (quantity * unitCost)
+  batchNumber: text("batch_number"), // For tracking receipts/allocations
+  reference: text("reference"), // Work order ID, PO number, etc.
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
@@ -276,6 +295,11 @@ export const insertProductionLogSchema = createInsertSchema(productionLogs).omit
 });
 
 export const insertAlertSchema = createInsertSchema(alerts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInventoryTransactionSchema = createInsertSchema(inventoryTransactions).omit({
   id: true,
   createdAt: true,
 });
@@ -329,6 +353,9 @@ export type InsertProductionLog = z.infer<typeof insertProductionLogSchema>;
 
 export type Alert = typeof alerts.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
+
+export type InventoryTransaction = typeof inventoryTransactions.$inferSelect;
+export type InsertInventoryTransaction = z.infer<typeof insertInventoryTransactionSchema>;
 
 // Data Entry Module Types
 export type ShiftReport = typeof shiftReports.$inferSelect;

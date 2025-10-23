@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { RawMaterial } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { StockAdjustment } from "@/components/inventory/StockAdjustment";
+import { StockAdjustmentHistory } from "@/components/inventory/StockAdjustmentHistory";
 
 // Extended type to include currentStock which is handled in-memory
 type RawMaterialWithStock = RawMaterial & { currentStock?: number };
@@ -116,6 +117,11 @@ export function RawMaterialDetails({
         currentStock={material.currentStock || 0}
         itemName={`${material.materialType} - ${material.grade}`}
       />
+
+      {/* Transaction History */}
+      <div className="mt-6">
+        <StockAdjustmentHistory itemId={materialId} itemType="raw_materials" />
+      </div>
 
       {/* Material Specifications */}
       <Card>
