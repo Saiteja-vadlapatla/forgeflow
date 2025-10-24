@@ -358,6 +358,292 @@ export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type InventoryTransaction = typeof inventoryTransactions.$inferSelect;
 export type InsertInventoryTransaction = z.infer<typeof insertInventoryTransactionSchema>;
 
+// Inventory Analytics Types
+export interface InventoryAnalyticsSummary {
+  period: string;
+  totalTransactions: number;
+  totalAdjustments: number;
+  totalCostImpact: number;
+  adjustmentTypes: AdjustmentTypeBreakdown[];
+  reasonAnalysis: ReasonAnalysis;
+  userActivityMetrics: UserActivityMetrics[];
+  inventoryTypeMetrics: InventoryTypeMetrics[];
+  adjustmentTrends: InventoryTrendPoint[];
+  costImpactAnalysis: CostImpactAnalysis;
+  anomalies: InventoryAnomaly[];
+  turnoverEfficiency: TurnoverEfficiency;
+  lastUpdated: Date;
+}
+
+export interface AdjustmentTypeBreakdown {
+  adjustmentType: string; // 'add', 'remove', 'set'
+  transactionCount: number;
+  totalQuantity: number;
+  totalCost: number;
+  averageQuantity: number;
+  averageCost: number;
+}
+
+export interface ReasonAnalysis {
+  topReasons: ReasonParetoItem[];
+  totalUniqueReasons: number;
+  mostCommonReason: string;
+}
+
+export interface ReasonParetoItem {
+  reason: string;
+  transactionCount: number;
+  totalQuantity: number;
+  totalCost: number;
+  percentage: number;
+  cumulativePercentage: number;
+}
+
+export interface UserActivityMetrics {
+  userId: string;
+  transactionCount: number;
+  totalQuantity: number;
+  totalCost: number;
+  averageQuantityPerTransaction: number;
+  averageCostPerTransaction: number;
+  uniqueItemTypesAdjusted: number;
+  mostCommonReason: string;
+  lastActivity: Date;
+}
+
+export interface InventoryTypeMetrics {
+  itemType: string; // 'materials', 'tools', 'consumables', 'fasteners', 'general-items'
+  transactionCount: number;
+  totalQuantity: number;
+  totalCost: number;
+  adjustments: number;
+  reductions: number;
+  netChange: number;
+  adjustmentRatio: number; // percentage of additions vs total
+}
+
+export interface InventoryTrendPoint {
+  date: string;
+  timestamp: Date;
+  transactionCount: number;
+  totalQuantity: number;
+  totalCost: number;
+  addQuantity: number;
+  removeQuantity: number;
+  setQuantity: number;
+}
+
+export interface CostImpactAnalysis {
+  totalPositiveCost: number;
+  totalNegativeCost: number;
+  netCostImpact: number;
+  positiveTransactions: number;
+  negativeTransactions: number;
+  zeroCostTransactions: number;
+  costRanges: CostRangeAnalysis;
+  averageCostPerTransaction: number;
+}
+
+export interface CostRangeAnalysis {
+  lowCostTransactions: number; // < $100
+  mediumCostTransactions: number; // $100 - $1000
+  highCostTransactions: number; // > $1000
+  lowCostPercentage: number;
+  mediumCostPercentage: number;
+  highCostPercentage: number;
+}
+
+export interface InventoryAnomaly {
+  type: 'large_quantity' | 'high_cost_impact' | 'frequent_user_item_adjustments' | 'out_of_hours' | 'unusual_pattern';
+  description: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  transactionId?: string;
+  itemId: string;
+  itemType: string;
+  value: number; // quantity or cost amount
+  timestamp: Date;
+  userId?: string;
+}
+
+export interface TurnoverEfficiency {
+  overallTurnoverRate: number;
+  highTurnoverItems: TurnoverItem[];
+  lowTurnoverItems: TurnoverItem[];
+  stagnantItems: StagnantItem[];
+}
+
+export interface TurnoverItem {
+  itemId: string;
+  turnoverRate: number;
+  transactionCount: number;
+  netChange: number;
+}
+
+export interface StagnantItem {
+  itemId: string;
+  daysSinceLastAdjustment: number;
+  transactionCount: number;
+}
+
+// Advanced Analytics Types
+export interface AdvancedTrendAnalysis {
+  granularity: 'daily' | 'weekly' | 'monthly';
+  trends: AdvancedTrendPoint[];
+  summary: TrendSummary;
+  trendIndicators: TrendIndicators;
+}
+
+export interface AdvancedTrendPoint {
+  period: string;
+  timestamp: Date;
+  transactionCount: number;
+  totalQuantity: number;
+  totalCost: number;
+  uniqueUsers: number;
+  avgTransactionsPerUser: number;
+  operationDistribution: {
+    addPercentage: number;
+    removePercentage: number;
+    setPercentage: number;
+  };
+  topReason: string;
+  efficiencyScore: number;
+}
+
+export interface TrendSummary {
+  totalPeriods: number;
+  totalTransactions: number;
+  avgTransactionsPerPeriod: number;
+  totalCostImpact: number;
+  averageUniqueUsers: number;
+  growthRate: number;
+  peakPeriod: string;
+  mostEfficientPeriod: string;
+}
+
+export interface TrendIndicators {
+  increasingTrend: boolean;
+  consistentGrowth: boolean;
+  seasonalPattern: boolean;
+  automationPotential: boolean;
+}
+
+export interface UserPerformanceAnalysis {
+  userProfiles: UserPerformanceProfile[];
+  overallStatistics: UserPerformanceStats;
+  insights: string[];
+}
+
+export interface UserPerformanceProfile {
+  userId: string;
+  performanceMetrics: UserPerformanceMetrics;
+  behavioralPatterns: UserBehavioralPatterns;
+  riskIndicators: UserRiskIndicators;
+  recommendations: string[];
+}
+
+export interface UserPerformanceMetrics {
+  totalTransactions: number;
+  totalQuantity: number;
+  totalCost: number;
+  qualityScore: number;
+  productivityScore: number;
+  consistencyScore: number;
+}
+
+export interface UserBehavioralPatterns {
+  preferredAdjustmentTypes: string[];
+  commonReasons: string[];
+  itemTypePreferences: string[];
+  preferredHours: string[];
+  avgTransactionsPerHour: number;
+}
+
+export interface UserRiskIndicators {
+  errorPatterns: number;
+  highValueTransactions: number;
+  unusualHourTransactions: number;
+  correctionFrequency: number;
+}
+
+export interface UserPerformanceStats {
+  totalUsers: number;
+  avgQualityScore: number;
+  avgProductivityScore: number;
+  totalTransactions: number;
+  efficiencyDistribution: EfficiencyDistribution;
+}
+
+export interface EfficiencyDistribution {
+  highPerformers: number;
+  mediumPerformers: number;
+  needsTraining: number;
+}
+
+export interface AdvancedReasonAnalysis {
+  categories: ReasonCategory[];
+  effectiveness: ReasonEffectiveness[];
+  trends: ReasonTrend[];
+  userPatterns: UserReasonPattern[];
+  insights: string[];
+}
+
+export interface ReasonCategory {
+  category: string;
+  transactionCount: number;
+  totalCost: number;
+  reasons: string[];
+  percentage: number;
+  avgCostPerTransaction: number;
+}
+
+export interface ReasonEffectiveness {
+  reason: string;
+  followedByCorrections: number;
+  avgQuantity: number;
+  consistency: number;
+  effectiveness: number;
+}
+
+export interface ReasonTrend {
+  week: number;
+  reason: string;
+  transactionCount: number;
+  percentage: number;
+}
+
+export interface UserReasonPattern {
+  userId: string;
+  primaryReason: string;
+  primaryReasonCount: number;
+  secondaryReasons: string[];
+  reasonDiversity: number;
+  consistencyIndex: number;
+}
+
+export interface PredictiveAnalytics {
+  forecasts: InventoryForecast[];
+  confidence: number;
+  seasonality: string;
+  recommendations: string[];
+}
+
+export interface InventoryForecast {
+  date: string;
+  predictedTransactions: number;
+  confidence: number;
+  expectedCost: number;
+  seasonalityFactor: number;
+}
+
+export interface DailyAverage {
+  dayOfWeek: number;
+  averageTransactions: number;
+  averageCost: number;
+  confidence: number;
+  seasonalityIndex: number;
+}
+
 // Data Entry Module Types
 export type ShiftReport = typeof shiftReports.$inferSelect;
 export type InsertShiftReport = z.infer<typeof insertShiftReportSchema>;

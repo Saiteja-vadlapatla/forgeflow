@@ -30,6 +30,8 @@ import { ToolDetails } from "@/components/inventory/ToolDetails";
 import { ConsumableDetails } from "@/components/inventory/ConsumableDetails";
 import { FastenerDetails } from "@/components/inventory/FastenerDetails";
 import { GeneralItemDetails } from "@/components/inventory/GeneralItemDetails";
+import { InventoryTransactionReport } from "@/components/inventory/InventoryTransactionReport";
+import { InventoryTransactionAnalytics } from "@/components/inventory/InventoryTransactionAnalytics";
 import { RawMaterialEdit } from "@/components/inventory/RawMaterialEdit";
 import {
   InventoryTable,
