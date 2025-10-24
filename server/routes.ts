@@ -428,7 +428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         previousStock: currentStock,
         newStock: newStock,
         adjustedBy: req.user?.id || 'admin',
-        accountableBy: req.body.accountableBy,
+        accountableBy: req.body.accountableBy || req.user?.id || 'admin',
         costImpact: (newStock - currentStock) * (material.unitCost || 0),
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
@@ -900,6 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         batchNumber: req.body.batchNumber,
         reference: req.body.reference,
         timestamp: new Date(),
+        createdAt: new Date(),
       });
 
       res.json({ success: true, newStock, previousStock: currentStock });
@@ -3396,7 +3397,7 @@ app.get("/api/production-plans/:id", async (req, res) => {
 
         // CSV rows
         const csvRows = transactions.map(t =>
-          `${t.id},${t.timestamp},${t.itemId},${t.itemType},${t.adjustment || 0},${t.previousStock || 0},${t.newStock || 0},"${(t.reason || '').replace(/"/g, '""')}","${(t.adjustedBy || '').replace(/"/g, '""')}",${t.costImpact || 0},"${(t.notes || '').replace(/"/g, '""')}"`
+          `${t.id},${t.timestamp},${t.itemId},${t.itemType},${t.quantity || 0},${t.previousStock || 0},${t.newStock || 0},"${(t.reason || '').replace(/"/g, '""')}","${(t.adjustedBy || '').replace(/"/g, '""')}",${t.costImpact || 0},"${(t.notes || '').replace(/"/g, '""')}"`
         ).join('\n');
 
         res.write(csvHeader + csvRows);

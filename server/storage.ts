@@ -30,12 +30,14 @@ import {
   type AnalyticsKPIs, type OEEBreakdown, type AdherenceMetrics,
   type UtilizationMetrics, type QualitySummary, type TrendPoint,
   type MachineOEESnapshot, type AnalyticsFilters,
-  rawMaterials, inventoryTools, consumables, fasteners, generalItems
+  rawMaterials, inventoryTools, consumables, fasteners, generalItems,
+  inventoryTransactions, type InventoryTransaction
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { ProductionScheduler } from "./scheduling";
 import { AnalyticsEngine } from "./analytics";
-import { eq } from "drizzle-orm";
+import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 
 export interface IStorage {
@@ -313,7 +315,6 @@ export interface IStorage {
 }
 
 export class MemStorage implements IStorage {
-  private db: ReturnType<typeof drizzle>;
   private users: Map<string, User>;
   private machines: Map<string, Machine>;
   private workOrders: Map<string, WorkOrder>;
@@ -3862,55 +3863,68 @@ export class MemStorage implements IStorage {
 
   // Inventory Transactions operations
   async createInventoryTransaction(transaction: any): Promise<any> {
-    const id = randomUUID();
-    const now = new Date();
-    const newTransaction = {
-      ...transaction,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.inventoryTransactions.set(id, newTransaction);
-    return newTransaction;
+    let result;
+    try {
+      result = await db.insert(inventoryTransactions).values(transaction).returning();
+    } catch(e) {
+      console.log(e);
+    }
+    // const result = await db.insert(inventoryTransactions).values(transaction).returning();
+    return result ? result[0] : 'fail';
   }
 
   async getInventoryTransaction(id: string): Promise<any | undefined> {
-    return this.inventoryTransactions.get(id);
+    const result = await db.select()
+      .from(inventoryTransactions)
+      .where(eq(inventoryTransactions.id, id))
+      .limit(1);
+    return result[0];
   }
 
   async getInventoryTransactionsByItem(itemId: string, itemType: string): Promise<any[]> {
-    return Array.from(this.inventoryTransactions.values())
-      .filter(transaction => transaction.itemId === itemId && transaction.itemType === itemType)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return await db.select()
+      .from(inventoryTransactions)
+      .where(and(
+        eq(inventoryTransactions.itemId, itemId),
+        eq(inventoryTransactions.itemType, itemType)
+      ))
+      .orderBy(desc(inventoryTransactions.timestamp));
   }
 
   async getAllInventoryTransactions(filters?: any): Promise<any[]> {
-    let transactions = Array.from(this.inventoryTransactions.values());
-
     if (filters) {
+      const conditions = [];
+
       if (filters.itemId) {
-        transactions = transactions.filter(t => t.itemId === filters.itemId);
+        conditions.push(eq(inventoryTransactions.itemId, filters.itemId));
       }
       if (filters.itemType) {
-        transactions = transactions.filter(t => t.itemType === filters.itemType);
+        conditions.push(eq(inventoryTransactions.itemType, filters.itemType));
       }
       if (filters.adjustedBy) {
-        transactions = transactions.filter(t => t.adjustedBy === filters.adjustedBy);
+        conditions.push(eq(inventoryTransactions.adjustedBy, filters.adjustedBy));
       }
       if (filters.reason) {
-        transactions = transactions.filter(t => t.reason === filters.reason);
+        conditions.push(eq(inventoryTransactions.reason, filters.reason));
       }
       if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        transactions = transactions.filter(t => new Date(t.timestamp) >= startDate);
+        conditions.push(gte(inventoryTransactions.timestamp, new Date(filters.startDate)));
       }
       if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        transactions = transactions.filter(t => new Date(t.timestamp) <= endDate);
+        conditions.push(lte(inventoryTransactions.timestamp, new Date(filters.endDate)));
+      }
+
+      if (conditions.length > 0) {
+        return await db.select()
+          .from(inventoryTransactions)
+          .where(and(...conditions))
+          .orderBy(desc(inventoryTransactions.timestamp));
       }
     }
 
-    return transactions.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return await db.select()
+      .from(inventoryTransactions)
+      .orderBy(desc(inventoryTransactions.timestamp));
   }
 }
 

@@ -247,8 +247,8 @@ export const inventoryTransactions = pgTable("inventory_transactions", {
   notes: text("notes"), // Free-text notes
   previousStock: real("previous_stock").notNull(),
   newStock: real("new_stock").notNull(),
-  adjustedBy: varchar("adjusted_by").references(() => users.id), // References users table
-  accountableBy: varchar("accountable_by").notNull(), // Person accountable for the stock adjustment (required field)
+  adjustedBy: varchar("adjusted_by"), // References users table (nullable for in-memory storage)
+  accountableBy: varchar("accountable_by"), // Person accountable for the stock adjustment (nullable)
   costImpact: real("cost_impact"), // Cost impact of adjustment (quantity * unitCost)
   batchNumber: text("batch_number"), // For tracking receipts/allocations
   reference: text("reference"), // Work order ID, PO number, etc.
@@ -579,7 +579,6 @@ export const consumables = pgTable("consumables", {
   location: text("location"), // Storage location
   shelfLife: integer("shelf_life"), // in months
   specifications: text("specifications"), // Additional product specs
-  safetyDataSheet: text("safety_data_sheet"), // SDS reference or link
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
