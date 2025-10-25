@@ -9,6 +9,7 @@ import {
   Hammer,
   Box,
   Download,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,6 +38,7 @@ import {
 } from "@/components/inventory/InventoryTable";
 import { ResponsiveLayout } from "@/components/layout/ResponsiveLayout";
 import { ExportInventoryDialog } from "@/components/inventory/ExportInventoryDialog";
+import { BulkImportDialog } from "@/components/inventory/BulkImportDialog";
 
 export function InventoryPage() {
   const [isAddingMaterial, setIsAddingMaterial] = useState(false);
@@ -71,6 +73,7 @@ export function InventoryPage() {
     string | null
   >(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
   const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery<
     any[]
@@ -219,6 +222,16 @@ export function InventoryPage() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setIsBulkImportOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Bulk Import</span>
+              <span className="sm:hidden">Import</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -621,6 +634,12 @@ export function InventoryPage() {
             fasteners: fasteners,
             generalItems: generalItems,
           }}
+        />
+
+        {/* Bulk Import Dialog */}
+        <BulkImportDialog
+          open={isBulkImportOpen}
+          onOpenChange={setIsBulkImportOpen}
         />
       </div>
     </ResponsiveLayout>
