@@ -24,6 +24,7 @@ import { utils, read, writeFile } from "xlsx";
 interface BulkImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onImportSuccess?: () => void;
 }
 
 const INVENTORY_TYPES = [
@@ -37,6 +38,7 @@ const INVENTORY_TYPES = [
 export function BulkImportDialog({
   open,
   onOpenChange,
+  onImportSuccess,
 }: BulkImportDialogProps) {
   const [step, setStep] = useState<
     "select-type" | "upload" | "processing" | "results"
@@ -538,7 +540,6 @@ export function BulkImportDialog({
       }
 
       const bulkResult = await response.json();
-      setResults((prev: any) => ({ ...prev!, ...bulkResult }));
 
       toast({
         title: "Bulk Import Completed",
@@ -557,18 +558,63 @@ export function BulkImportDialog({
 
           if (confirmResponse.ok) {
             const confirmResult = await confirmResponse.json();
+
+            // Create combined results with validation and confirmation details
+            const finalResults = {
+              ...bulkResult,
+              ...confirmResult,
+              successCount: confirmResult.summary?.successfulImports || 0,
+              errors:
+                confirmResult.results
+                  ?.filter((r: any) => !r.success)
+                  .map((r: any) => r.error) || [],
+            };
+
             toast({
               title: "Import Successful",
-              description: `${
-                confirmResult.summary?.successfulImports || 0
-              } items imported successfully`,
+              description: `${finalResults.successCount} items imported successfully`,
             });
+
             setStep("results");
-            setResults(confirmResult);
+            setResults(finalResults);
+
+            // Call success callback to refetch data
+            onImportSuccess?.();
+
+            // Auto-close dialog after successful import
+            setTimeout(() => {
+              onOpenChange(false);
+              resetDialog();
+            }, 3000); // Show results for 3 seconds before auto-close
+          } else {
+            // Confirmation failed
+            setResults({
+              ...bulkResult,
+              successCount: 0,
+              errors: [`Confirmation failed: ${confirmResponse.statusText}`],
+            });
+            toast({
+              title: "Import Confirmation Failed",
+              description: "Items were validated but could not be imported.",
+              variant: "destructive",
+            });
           }
         } catch (confirmError) {
           console.error("Auto-confirm failed:", confirmError);
+          setResults({
+            ...bulkResult,
+            successCount: 0,
+            errors: [`Confirmation failed: ${confirmError}`],
+          });
+          toast({
+            title: "Import Confirmation Failed",
+            description: "Items were validated but could not be imported.",
+            variant: "destructive",
+          });
         }
+      } else {
+        // Set validation results for display
+        setResults(bulkResult);
       }
     } catch (error) {
       console.error("Bulk import error:", error);
@@ -576,6 +622,12 @@ export function BulkImportDialog({
         title: "Import Failed",
         description: "Failed to import items. Please try again.",
         variant: "destructive",
+      });
+
+      // Set error results
+      setResults({
+        successCount: 0,
+        errors: ["Failed to process bulk import request"],
       });
     }
   };

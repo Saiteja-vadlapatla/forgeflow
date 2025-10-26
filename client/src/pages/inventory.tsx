@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus,
@@ -74,6 +74,19 @@ export function InventoryPage() {
   >(null);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  const handleImportSuccess = useCallback(() => {
+    // Refetch all inventory data after successful bulk import
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory/materials"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory/tools"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory/consumables"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/inventory/fasteners"] });
+    queryClient.invalidateQueries({
+      queryKey: ["/api/inventory/general-items"],
+    });
+  }, [queryClient]);
 
   const { data: rawMaterials = [], isLoading: materialsLoading } = useQuery<
     any[]
@@ -640,6 +653,7 @@ export function InventoryPage() {
         <BulkImportDialog
           open={isBulkImportOpen}
           onOpenChange={setIsBulkImportOpen}
+          onImportSuccess={handleImportSuccess}
         />
       </div>
     </ResponsiveLayout>
