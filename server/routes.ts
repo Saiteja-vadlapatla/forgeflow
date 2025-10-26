@@ -3411,5 +3411,758 @@ app.get("/api/production-plans/:id", async (req, res) => {
     }
   });
 
+  // Bulk Import endpoints
+  app.get("/api/inventory/bulk-import/template/:type", async (req, res) => {
+    try {
+      const { type } = req.params;
+      const validTypes = ['materials', 'tools', 'consumables', 'fasteners', 'general-items'];
+
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: "Invalid inventory type", validTypes });
+      }
+
+      // Generate sample Excel template based on inventory type
+      const sampleData = generateSampleData(type);
+      const csvContent = convertToCSV(sampleData);
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${type}_template.csv"`);
+      res.write(csvContent);
+      res.end();
+    } catch (error) {
+      console.error('Error generating template:', error);
+      res.status(500).json({ error: "Failed to generate template" });
+    }
+  });
+
+  app.post("/api/inventory/bulk-import/:type", async (req, res) => {
+    try {
+      const { type } = req.params;
+      const validTypes = ['materials', 'tools', 'consumables', 'fasteners', 'general-items'];
+
+      if (!validTypes.includes(type)) {
+        return res.status(400).json({ error: "Invalid inventory type", validTypes });
+      }
+
+      // Get JSON data from frontend
+      const jsonData = req.body.csvData;
+      if (!jsonData) {
+        return res.status(400).json({ error: "JSON data is required" });
+      }
+
+      // Parse JSON data sent from frontend
+      const dataRows = JSON.parse(jsonData);
+      if (!Array.isArray(dataRows)) {
+        return res.status(400).json({ error: "Data must be an array of items" });
+      }
+
+      // Validate each row data using type-specific validation
+      const validationErrors: Array<{ row: number; errors: string[]; item?: any }> = [];
+      const validItems: any[] = [];
+
+      dataRows.forEach((row, index) => {
+        const validation = validateInventoryItemByType(type, row);
+        if (validation.errors.length > 0) {
+          validationErrors.push({
+            row: index + 1, // 1-indexed for user display
+            errors: validation.errors,
+            item: row
+          });
+        } else {
+          validItems.push(validation.item);
+        }
+      });
+
+      // Store import session for preview/confirmation
+      const importId = `import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      importSessions[importId] = {
+        type,
+        items: validItems,
+        errors: validationErrors,
+        createdAt: new Date()
+      };
+
+      res.json({
+        importId,
+        type,
+        totalRows: dataRows.length,
+        validItems: validItems.length,
+        errors: validationErrors.length,
+        errorDetails: validationErrors.slice(0, 10), // Show first 10 errors
+        canProceed: validationErrors.length === 0
+      });
+
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error processing bulk import:', error);
+      res.status(500).json({ error: "Failed to process bulk import" });
+    }
+  });
+
+  app.get("/api/inventory/bulk-import/preview/:importId", async (req, res) => {
+    try {
+      const { importId } = req.params;
+      const importSession = importSessions[importId];
+
+      if (!importSession) {
+        return res.status(404).json({ error: "Import session not found" });
+      }
+
+      res.json({
+        importId,
+        type: importSession.type,
+        items: importSession.items,
+        errors: importSession.errors,
+        summary: {
+          totalValidItems: importSession.items.length,
+          totalErrors: importSession.errors.length,
+          createdAt: importSession.createdAt
+        }
+      });
+    } catch (error) {
+      console.error('Error getting import preview:', error);
+      res.status(500).json({ error: "Failed to get import preview" });
+    }
+  });
+
+
+  app.post("/api/inventory/bulk-import/confirm/:importId", async (req, res) => {
+    try {
+      const { importId } = req.params;
+      const importSession = importSessions[importId];
+
+      if (!importSession) {
+        return res.status(404).json({ error: "Import session not found or expired" });
+      }
+
+      if (importSession.errors.length > 0) {
+        return res.status(400).json({ error: "Cannot confirm import with validation errors" });
+      }
+
+      console.log('🔍 [Server] Confirming import:', {
+        importId,
+        type: importSession.type,
+        itemCount: importSession.items.length,
+        firstItem: importSession.items[0]
+      });
+
+      // Import items based on type
+      const results = [];
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const item of importSession.items) {
+        try {
+          let createdItem;
+          console.log('➡️ [Server] Creating item:', { type: importSession.type, item });
+
+          switch (importSession.type) {
+            case 'materials':
+              createdItem = await storage.createRawMaterial(item);
+              break;
+            case 'tools':
+              createdItem = await storage.createInventoryTool(item);
+              break;
+            case 'consumables':
+              createdItem = await storage.createConsumable(item);
+              break;
+            case 'fasteners':
+              createdItem = await storage.createFastener(item);
+              break;
+            case 'general-items':
+              createdItem = await storage.createGeneralItem(item);
+              break;
+            default:
+              throw new Error(`Unsupported inventory type: ${importSession.type}`);
+          }
+          results.push({ success: true, item: createdItem });
+          successCount++;
+          console.log('✅ [Server] Item created successfully:', createdItem?.id);
+        } catch (error) {
+          console.error('❌ [Server] Item creation failed:', error);
+          results.push({
+            success: false,
+            item,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          errorCount++;
+        }
+      }
+
+      console.log('📊 [Server] Import summary:', { totalItems: importSession.items.length, successCount, errorCount });
+
+      // Clean up import session
+      delete importSessions[importId];
+
+      res.json({
+        importId,
+        type: importSession.type,
+        summary: {
+          totalItems: importSession.items.length,
+          successfulImports: successCount,
+          failedImports: errorCount
+        },
+        results: results.slice(0, 100), // Limit detailed results
+        completedAt: new Date()
+      });
+
+      // Broadcast update
+      broadcastRealtimeData();
+    } catch (error) {
+      console.error('Error confirming bulk import:', error);
+      res.status(500).json({ error: "Failed to confirm bulk import" });
+    }
+  });
+
+  // Storage for bulk import sessions (in production, use Redis/database)
+  const importSessions: Record<string, {
+    type: string;
+    items: any[];
+    errors: any[];
+    createdAt: Date;
+  }> = {};
+
+  // Helper functions for bulk import
+  function generateSampleData(type: string) {
+    const baseSample = {
+      id: 'AUTO_GENERATED',
+      name: 'Sample Item',
+      description: 'Sample description',
+      unit: 'pcs',
+      unitCost: '10.00',
+      currentStock: '100',
+      minStockLevel: '10',
+      maxStockLevel: '500',
+      location: 'Warehouse A',
+      supplier: 'Sample Supplier'
+    };
+
+    switch (type) {
+      case 'materials':
+        return [baseSample];
+      case 'tools':
+        return [{
+          ...baseSample,
+          type: 'cutting',
+          lifespan: '1000',
+          calibrationRequired: 'true'
+        }];
+      case 'consumables':
+        return [{
+          ...baseSample,
+          category: 'lubricants',
+          safetyStock: '20'
+        }];
+      case 'fasteners':
+        return [{
+          ...baseSample,
+          size: 'M10',
+          type: 'bolt',
+          material: 'steel'
+        }];
+      case 'general-items':
+        return [{
+          ...baseSample,
+          category: 'spares',
+          partNumber: 'ABC-123'
+        }];
+      default:
+        return [baseSample];
+    }
+  }
+
+  function getExpectedHeaders(type: string): string[] {
+    const baseHeaders = ['id', 'name', 'description', 'unit', 'unitCost', 'currentStock',
+                        'minStockLevel', 'maxStockLevel', 'location', 'supplier'];
+
+    switch (type) {
+      case 'materials':
+        return baseHeaders;
+      case 'tools':
+        return [...baseHeaders, 'type', 'lifespan', 'calibrationRequired'];
+      case 'consumables':
+        return [...baseHeaders, 'category', 'safetyStock'];
+      case 'fasteners':
+        return [...baseHeaders, 'size', 'fastenerType', 'material'];
+      case 'general-items':
+        return [...baseHeaders, 'category', 'partNumber'];
+      default:
+        return baseHeaders;
+    }
+  }
+
+  
+function validateInventoryItemByType(type: string, row: any) {
+    const errors: string[] = [];
+    const item: any = {};
+
+    console.log(`🔍 [Validation] Validating ${type} item:`, row);
+
+    // Type-specific validations - only check database-required fields
+    switch (type) {
+      case 'materials':
+        // Database required: materialType, grade, shape
+        if (!row.materialType || String(row.materialType).trim() === '') {
+          errors.push('Material type is required');
+        } else {
+          item.materialType = String(row.materialType).trim();
+        }
+
+        if (!row.grade || String(row.grade).trim() === '') {
+          errors.push('Grade is required');
+        } else {
+          item.grade = String(row.grade).trim();
+        }
+
+        if (!row.shape || String(row.shape).trim() === '') {
+          errors.push('Shape is required');
+        } else {
+          item.shape = String(row.shape).trim();
+        }
+
+        if (row.supplier) item.supplier = String(row.supplier).trim();
+        if (row.unitCost !== undefined && row.unitCost !== null && row.unitCost !== '') {
+          const cost = parseFloat(row.unitCost);
+          if (!isNaN(cost) && cost >= 0) item.unitCost = cost;
+        }
+        if (row.diameter !== undefined && row.diameter !== null && row.diameter !== '') {
+          const diameter = parseFloat(row.diameter);
+          if (!isNaN(diameter) && diameter > 0) item.diameter = diameter;
+        }
+        if (row.thickness !== undefined && row.thickness !== null && row.thickness !== '') {
+          const thickness = parseFloat(row.thickness);
+          if (!isNaN(thickness) && thickness > 0) item.thickness = thickness;
+        }
+        if (row.width !== undefined && row.width !== null && row.width !== '') {
+          const width = parseFloat(row.width);
+          if (!isNaN(width) && width > 0) item.width = width;
+        }
+        if (row.length !== undefined && row.length !== null && row.length !== '') {
+          const length = parseFloat(row.length);
+          if (!isNaN(length) && length > 0) item.length = length;
+        }
+        if (row.currentStock !== undefined && row.currentStock !== null && row.currentStock !== '') {
+          const stock = parseInt(row.currentStock);
+          if (!isNaN(stock) && stock >= 0) item.currentStock = stock;
+        }
+        if (row.reorderPoint !== undefined && row.reorderPoint !== null && row.reorderPoint !== '') {
+          const reorderPoint = parseInt(row.reorderPoint);
+          if (!isNaN(reorderPoint) && reorderPoint >= 0) item.reorderPoint = reorderPoint;
+        }
+        if (row.maxStock !== undefined && row.maxStock !== null && row.maxStock !== '') {
+          const maxStock = parseInt(row.maxStock);
+          if (!isNaN(maxStock) && maxStock >= 0) item.maxStock = maxStock;
+        }
+        if (row.location) item.location = String(row.location).trim();
+        if (row.specifications) item.specifications = row.specifications;
+        break;
+
+      case 'tools':
+        // Database required: toolType, material, size, length
+        if (!row.toolType || String(row.toolType).trim() === '') {
+          errors.push('Tool type is required');
+        } else {
+          item.toolType = String(row.toolType).trim();
+        }
+
+        if (!row.material || String(row.material).trim() === '') {
+          errors.push('Material is required');
+        } else {
+          item.material = String(row.material).trim();
+        }
+
+        if (row.size === undefined || row.size === null || row.size === '') {
+          errors.push('Size is required');
+        } else {
+          const size = parseFloat(row.size);
+          if (isNaN(size) || size <= 0) {
+            errors.push('Size must be a valid positive number');
+          } else {
+            item.size = size;
+          }
+        }
+
+        if (row.length === undefined || row.length === null || row.length === '') {
+          errors.push('Length is required');
+        } else {
+          const length = parseInt(row.length);
+          if (isNaN(length) || length < 0) {
+            errors.push('Length must be a valid non-negative integer');
+          } else {
+            item.length = length;
+          }
+        }
+
+        if (row.manufacturer) item.manufacturer = String(row.manufacturer).trim();
+        if (row.model) item.model = String(row.model).trim();
+        if (row.subType) item.subType = String(row.subType).trim();
+        if (row.coating) item.coating = String(row.coating).trim();
+        if (row.geometry) item.geometry = String(row.geometry).trim();
+        if (row.applicationMaterial) {
+          if (Array.isArray(row.applicationMaterial)) {
+            item.applicationMaterial = row.applicationMaterial;
+          } else if (typeof row.applicationMaterial === 'string') {
+            item.applicationMaterial = String(row.applicationMaterial).split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        if (row.operationType) {
+          if (Array.isArray(row.operationType)) {
+            item.operationType = row.operationType;
+          } else if (typeof row.operationType === 'string') {
+            item.operationType = String(row.operationType).split(',').map(s => s.trim()).filter(Boolean);
+          }
+        }
+        if (row.supplier) item.supplier = String(row.supplier).trim();
+        if (row.unitCost !== undefined && row.unitCost !== null && row.unitCost !== '') {
+          const cost = parseFloat(row.unitCost);
+          if (!isNaN(cost) && cost >= 0) item.unitCost = cost;
+        }
+        if (row.currentStock !== undefined && row.currentStock !== null && row.currentStock !== '') {
+          const stock = parseInt(row.currentStock);
+          if (!isNaN(stock) && stock >= 0) item.currentStock = stock;
+        }
+        if (row.reorderPoint !== undefined && row.reorderPoint !== null && row.reorderPoint !== '') {
+          const reorderPoint = parseInt(row.reorderPoint);
+          if (!isNaN(reorderPoint) && reorderPoint >= 0) item.reorderPoint = reorderPoint;
+        }
+        if (row.maxStock !== undefined && row.maxStock !== null && row.maxStock !== '') {
+          const maxStock = parseInt(row.maxStock);
+          if (!isNaN(maxStock) && maxStock >= 0) item.maxStock = maxStock;
+        }
+        if (row.location) item.location = String(row.location).trim();
+        if (row.specifications) item.specifications = row.specifications;
+        break;
+
+      case 'consumables':
+        // Database required: name, category, unit_of_measure, capacity, manufacturer
+        if (!row.name || String(row.name).trim() === '') {
+          errors.push('Name is required');
+        } else {
+          item.name = String(row.name).trim();
+        }
+
+        if (!row.category || String(row.category).trim() === '') {
+          errors.push('Category is required');
+        } else {
+          item.category = String(row.category).trim();
+        }
+
+        if (!row.unitOfMeasure || String(row.unitOfMeasure).trim() === '') {
+          errors.push('Unit of measure is required');
+        } else {
+          item.unitOfMeasure = String(row.unitOfMeasure).trim();
+        }
+
+        if (row.capacity === undefined || row.capacity === null || row.capacity === '') {
+          errors.push('Capacity is required');
+        } else {
+          const capacity = parseFloat(row.capacity);
+          if (isNaN(capacity) || capacity <= 0) {
+            errors.push('Capacity must be a valid positive number');
+          } else {
+            item.capacity = capacity;
+          }
+        }
+
+        if (!row.manufacturer || String(row.manufacturer).trim() === '') {
+          errors.push('Manufacturer is required');
+        } else {
+          item.manufacturer = String(row.manufacturer).trim();
+        }
+
+        if (row.supplier) item.supplier = String(row.supplier).trim();
+        if (row.unitCost !== undefined && row.unitCost !== null && row.unitCost !== '') {
+          const cost = parseFloat(row.unitCost);
+          if (!isNaN(cost) && cost >= 0) item.unitCost = cost;
+        }
+        if (row.currentStock !== undefined && row.currentStock !== null && row.currentStock !== '') {
+          const stock = parseInt(row.currentStock);
+          if (!isNaN(stock) && stock >= 0) item.currentStock = stock;
+        }
+        if (row.reorderPoint !== undefined && row.reorderPoint !== null && row.reorderPoint !== '') {
+          const reorderPoint = parseInt(row.reorderPoint);
+          if (!isNaN(reorderPoint) && reorderPoint >= 0) item.reorderPoint = reorderPoint;
+        }
+        if (row.maxStock !== undefined && row.maxStock !== null && row.maxStock !== '') {
+          const maxStock = parseInt(row.maxStock);
+          if (!isNaN(maxStock) && maxStock >= 0) item.maxStock = maxStock;
+        }
+        if (row.location) item.location = String(row.location).trim();
+        if (row.shelfLife !== undefined && row.shelfLife !== null && row.shelfLife !== '') {
+          const shelfLife = parseInt(row.shelfLife);
+          if (!isNaN(shelfLife) && shelfLife > 0) item.shelfLife = shelfLife;
+        }
+        if (row.type) item.type = String(row.type).trim();
+        if (row.grade) item.grade = String(row.grade).trim();
+        if (row.viscosity) item.viscosity = String(row.viscosity).trim();
+        if (row.specifications) item.specifications = String(row.specifications).trim();
+        break;
+
+      case 'fasteners':
+        // Database required: fastener_type, thread_type, diameter, material
+        if (!row.fastenerType || String(row.fastenerType).trim() === '') {
+          errors.push('Fastener type is required');
+        } else {
+          item.fastenerType = String(row.fastenerType).trim();
+        }
+
+        if (!row.threadType || String(row.threadType).trim() === '') {
+          errors.push('Thread type is required');
+        } else {
+          item.threadType = String(row.threadType).trim();
+        }
+
+        if (row.diameter === undefined || row.diameter === null || row.diameter === '') {
+          errors.push('Diameter is required');
+        } else {
+          const diameter = parseFloat(row.diameter);
+          if (isNaN(diameter) || diameter <= 0) {
+            errors.push('Diameter must be a valid positive number');
+          } else {
+            item.diameter = diameter;
+          }
+        }
+
+        if (!row.material || String(row.material).trim() === '') {
+          errors.push('Material is required');
+        } else {
+          item.material = String(row.material).trim();
+        }
+
+        if (row.supplier) item.supplier = String(row.supplier).trim();
+        if (row.unitCost !== undefined && row.unitCost !== null && row.unitCost !== '') {
+          const cost = parseFloat(row.unitCost);
+          if (!isNaN(cost) && cost >= 0) item.unitCost = cost;
+        }
+        if (row.currentStock !== undefined && row.currentStock !== null && row.currentStock !== '') {
+          const stock = parseInt(row.currentStock);
+          if (!isNaN(stock) && stock >= 0) item.currentStock = stock;
+        }
+        if (row.reorderPoint !== undefined && row.reorderPoint !== null && row.reorderPoint !== '') {
+          const reorderPoint = parseInt(row.reorderPoint);
+          if (!isNaN(reorderPoint) && reorderPoint >= 0) item.reorderPoint = reorderPoint;
+        }
+        if (row.maxStock !== undefined && row.maxStock !== null && row.maxStock !== '') {
+          const maxStock = parseInt(row.maxStock);
+          if (!isNaN(maxStock) && maxStock >= 0) item.maxStock = maxStock;
+        }
+        if (row.location) item.location = String(row.location).trim();
+        if (row.pitch !== undefined && row.pitch !== null && row.pitch !== '') {
+          const pitch = parseFloat(row.pitch);
+          if (!isNaN(pitch) && pitch > 0) item.pitch = pitch;
+        }
+        if (row.threadDescription) item.threadDescription = String(row.threadDescription).trim();
+        if (row.length !== undefined && row.length !== null && row.length !== '') {
+          const length = parseFloat(row.length);
+          if (!isNaN(length) && length > 0) item.length = length;
+        }
+        if (row.headType) item.headType = String(row.headType).trim();
+        if (row.driveType) item.driveType = String(row.driveType).trim();
+        if (row.grade) item.grade = String(row.grade).trim();
+        if (row.finish) item.finish = String(row.finish).trim();
+        if (row.specifications) item.specifications = String(row.specifications).trim();
+        break;
+
+      case 'general-items':
+        // Database required: name, category, supplier, unit_cost
+        if (!row.name || String(row.name).trim() === '') {
+          errors.push('Name is required');
+        } else {
+          item.name = String(row.name).trim();
+        }
+
+        if (!row.category || String(row.category).trim() === '') {
+          errors.push('Category is required');
+        } else {
+          item.category = String(row.category).trim();
+        }
+
+        if (!row.supplier || String(row.supplier).trim() === '') {
+          errors.push('Supplier is required');
+        } else {
+          item.supplier = String(row.supplier).trim();
+        }
+
+        if (row.unitCost === undefined || row.unitCost === null || row.unitCost === '') {
+          errors.push('Unit cost is required');
+        } else {
+          const cost = parseFloat(row.unitCost);
+          if (isNaN(cost) || cost < 0) {
+            errors.push('Unit cost must be a valid non-negative number');
+          } else {
+            item.unitCost = cost;
+          }
+        }
+
+        if (row.manufacturer) item.manufacturer = String(row.manufacturer).trim();
+        if (row.model) item.model = String(row.model).trim();
+        if (row.partNumber) item.partNumber = String(row.partNumber).trim();
+        if (row.subCategory) item.subCategory = String(row.subCategory).trim();
+        if (row.description) item.description = String(row.description).trim();
+        if (row.currentStock !== undefined && row.currentStock !== null && row.currentStock !== '') {
+          const stock = parseInt(row.currentStock);
+          if (!isNaN(stock) && stock >= 0) item.currentStock = stock;
+        }
+        if (row.reorderPoint !== undefined && row.reorderPoint !== null && row.reorderPoint !== '') {
+          const reorderPoint = parseInt(row.reorderPoint);
+          if (!isNaN(reorderPoint) && reorderPoint >= 0) item.reorderPoint = reorderPoint;
+        }
+        if (row.maxStock !== undefined && row.maxStock !== null && row.maxStock !== '') {
+          const maxStock = parseInt(row.maxStock);
+          if (!isNaN(maxStock) && maxStock >= 0) item.maxStock = maxStock;
+        }
+        if (row.location) item.location = String(row.location).trim();
+        if (row.condition) item.condition = String(row.condition).trim();
+        if (row.serialNumber) item.serialNumber = String(row.serialNumber).trim();
+        if (row.purchaseDate) item.purchaseDate = row.purchaseDate;
+        if (row.purchase_date) item.purchaseDate = row.purchase_date;
+        if (row.warrantyExpiry) item.warrantyExpiry = row.warrantyExpiry;
+        if (row.warranty_expiry) item.warrantyExpiry = row.warranty_expiry;
+        if (row.specifications) item.specifications = row.specifications;
+        break;
+
+      default:
+        errors.push(`Unsupported inventory type: ${type}`);
+    }
+
+    console.log(`🔍 [Validation] ${type} validation result:`, { errors: errors.length, valid: errors.length === 0, item: errors.length === 0 ? item : 'validation failed' });
+
+    return { errors, item };
+  }
+
+  function validateInventoryItem(type: string, row: any) {
+    const errors = [];
+    const item: any = {};
+
+    // Common validations
+    if (!row.name || row.name.trim() === '') {
+      errors.push('Name is required');
+    } else {
+      item.name = row.name.trim();
+    }
+
+    item.description = row.description?.trim() || '';
+    item.unit = row.unit?.trim() || 'pcs';
+
+    if (row.unitcost || row.unitCost) {
+      const cost = parseFloat(row.unitcost || row.unitCost);
+      if (isNaN(cost) || cost < 0) {
+        errors.push('Unit cost must be a valid positive number');
+      } else {
+        item.unitCost = cost;
+      }
+    }
+
+    if (row.currentstock || row.currentStock) {
+      const stock = parseInt(row.currentstock || row.currentStock);
+      if (isNaN(stock) || stock < 0) {
+        errors.push('Current stock must be a valid non-negative integer');
+      } else {
+        item.currentStock = stock;
+      }
+    }
+
+    if (row.minstocklevel || row.minStockLevel) {
+      const minStock = parseInt(row.minstocklevel || row.minStockLevel);
+      if (isNaN(minStock) || minStock < 0) {
+        errors.push('Minimum stock level must be a valid non-negative integer');
+      } else {
+        item.minStockLevel = minStock;
+      }
+    }
+
+    if (row.maxstocklevel || row.maxStockLevel) {
+      const maxStock = parseInt(row.maxstocklevel || row.maxStockLevel);
+      if (isNaN(maxStock) || maxStock < 0) {
+        errors.push('Maximum stock level must be a valid non-negative integer');
+      } else {
+        item.maxStockLevel = maxStock;
+      }
+    }
+
+    item.location = row.location?.trim() || '';
+    item.supplier = row.supplier?.trim() || '';
+
+    // Type-specific validations
+    switch (type) {
+      case 'tools':
+        if (!row.type || row.type.trim() === '') {
+          errors.push('Tool type is required');
+        } else {
+          item.type = row.type.trim();
+        }
+
+        if (row.lifespan) {
+          const lifespan = parseInt(row.lifespan);
+          if (isNaN(lifespan) || lifespan <= 0) {
+            errors.push('Lifespan must be a valid positive integer');
+          } else {
+            item.lifespan = lifespan;
+          }
+        }
+
+        item.calibrationRequired = row.calibrationrequired === 'true' || row.calibrationRequired === 'TRUE';
+        break;
+
+      case 'consumables':
+        if (!row.category || row.category.trim() === '') {
+          errors.push('Category is required');
+        } else {
+          item.category = row.category.trim();
+        }
+
+        if (row.safetystock || row.safetyStock) {
+          const safetyStock = parseInt(row.safetystock || row.safetyStock);
+          if (isNaN(safetyStock) || safetyStock < 0) {
+            errors.push('Safety stock must be a valid non-negative integer');
+          } else {
+            item.safetyStock = safetyStock;
+          }
+        }
+        break;
+
+      case 'fasteners':
+        if (!row.size || row.size.trim() === '') {
+          errors.push('Size is required');
+        } else {
+          item.size = row.size.trim();
+        }
+
+        if (!row.type || !row.fastenerType) {
+          errors.push('Fastener type is required');
+        } else {
+          item.type = (row.type || row.fastenerType).trim();
+        }
+
+        item.material = row.material?.trim() || '';
+        break;
+
+      case 'general-items':
+        if (!row.category || row.category.trim() === '') {
+          errors.push('Category is required');
+        } else {
+          item.category = row.category.trim();
+        }
+
+        item.partNumber = row.partnumber || row.partNumber || '';
+        break;
+    }
+
+    return { errors, item };
+  }
+
+  function convertToCSV(data: any[]): string {
+    if (data.length === 0) return '';
+
+    const headers = Object.keys(data[0]);
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => headers.map(header => `"${row[header] || ''}"`).join(','))
+    ];
+
+    return csvRows.join('\n');
+  }
+
   return httpServer;
 }

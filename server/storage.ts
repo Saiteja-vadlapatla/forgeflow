@@ -131,6 +131,13 @@ export interface IStorage {
   getInventoryTransactionsByItem(itemId: string, itemType: string): Promise<any[]>;
   getAllInventoryTransactions(filters?: any): Promise<any[]>;
 
+  // Bulk Import operations
+  bulkImportRawMaterials(items: any[]): Promise<{ successCount: number; errors: string[] }>;
+  bulkImportTools(items: any[]): Promise<{ successCount: number; errors: string[] }>;
+  bulkImportConsumables(items: any[]): Promise<{ successCount: number; errors: string[] }>;
+  bulkImportFasteners(items: any[]): Promise<{ successCount: number; errors: string[] }>;
+  bulkImportGeneralItems(items: any[]): Promise<{ successCount: number; errors: string[] }>;
+
   // Production Planning operations
   getProductionPlans(): Promise<any[]>;
   createProductionPlan(plan: any): Promise<any>;
@@ -3925,6 +3932,207 @@ export class MemStorage implements IStorage {
     return await db.select()
       .from(inventoryTransactions)
       .orderBy(desc(inventoryTransactions.timestamp));
+  }
+
+  // Bulk Import operations
+  async bulkImportRawMaterials(items: any[]): Promise<{ successCount: number; errors: string[] }> {
+    const results = { successCount: 0, errors: [] as string[] };
+
+    for (let i = 0; i < items.length; i++) {
+      try {
+        // Generate SKU if not provided
+        const sku = items[i].sku || `RM-${items[i].materialType?.substring(0,2).toUpperCase() || 'UNK'}-${(items[i].grade || 'UNK').substring(0,3).toUpperCase()}-${Date.now()}`;
+        items[i].sku = sku;
+
+        await db.insert(rawMaterials).values(items[i]);
+
+        // Create initial inventory transaction
+        if (items[i].currentStock) {
+          await db.insert(inventoryTransactions).values({
+            id: randomUUID(),
+            itemId: items[i].id,
+            itemType: 'materials',
+            adjustmentType: 'add',
+            quantity: items[i].currentStock,
+            reason: 'Bulk import',
+            previousStock: 0,
+            newStock: items[i].currentStock,
+            adjustedBy: 'admin',
+            accountableBy: 'admin',
+            costImpact: (items[i].currentStock || 0) * (items[i].unitCost || 0),
+            timestamp: new Date(),
+            createdAt: new Date()
+          });
+        }
+
+        results.successCount++;
+      } catch (error) {
+        const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+      }
+    }
+
+    return results;
+  }
+
+  async bulkImportTools(items: any[]): Promise<{ successCount: number; errors: string[] }> {
+    const results = { successCount: 0, errors: [] as string[] };
+
+    for (let i = 0; i < items.length; i++) {
+      try {
+        // Generate SKU if not provided
+        const sku = items[i].sku || `TL-${items[i].toolType?.substring(0,2).toUpperCase() || 'UNK'}-${items[i].size || 'UNK'}-${Date.now()}`;
+        items[i].sku = sku;
+
+        await db.insert(inventoryTools).values(items[i]);
+
+        // Create initial inventory transaction
+        if (items[i].currentStock) {
+          await db.insert(inventoryTransactions).values({
+            id: randomUUID(),
+            itemId: items[i].id,
+            itemType: 'tools',
+            adjustmentType: 'add',
+            quantity: items[i].currentStock,
+            reason: 'Bulk import',
+            previousStock: 0,
+            newStock: items[i].currentStock,
+            adjustedBy: 'admin',
+            accountableBy: 'admin',
+            costImpact: (items[i].currentStock || 0) * (items[i].unitCost || 0),
+            timestamp: new Date(),
+            createdAt: new Date()
+          });
+        }
+
+        results.successCount++;
+      } catch (error) {
+        const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+      }
+    }
+
+    return results;
+  }
+
+  async bulkImportConsumables(items: any[]): Promise<{ successCount: number; errors: string[] }> {
+    const results = { successCount: 0, errors: [] as string[] };
+
+    for (let i = 0; i < items.length; i++) {
+      try {
+        // Generate SKU if not provided
+        const sku = items[i].sku || `CON-${items[i].category?.substring(0,3).toUpperCase() || 'UNK'}-${Date.now()}`;
+        items[i].sku = sku;
+
+        await db.insert(consumables).values(items[i]);
+
+        // Create initial inventory transaction
+        if (items[i].currentStock) {
+          await db.insert(inventoryTransactions).values({
+            id: randomUUID(),
+            itemId: items[i].id,
+            itemType: 'consumables',
+            adjustmentType: 'add',
+            quantity: items[i].currentStock,
+            reason: 'Bulk import',
+            previousStock: 0,
+            newStock: items[i].currentStock,
+            adjustedBy: 'admin',
+            accountableBy: 'admin',
+            costImpact: (items[i].currentStock || 0) * (items[i].unitCost || 0),
+            timestamp: new Date(),
+            createdAt: new Date()
+          });
+        }
+
+        results.successCount++;
+      } catch (error) {
+        const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+      }
+    }
+
+    return results;
+  }
+
+  async bulkImportFasteners(items: any[]): Promise<{ successCount: number; errors: string[] }> {
+    const results = { successCount: 0, errors: [] as string[] };
+
+    for (let i = 0; i < items.length; i++) {
+      try {
+        // Generate SKU if not provided
+        const sku = items[i].sku || `FAS-${items[i].threadType?.substring(0,3).toUpperCase() || 'UNK'}-${Date.now()}`;
+        items[i].sku = sku;
+
+        await db.insert(fasteners).values(items[i]);
+
+        // Create initial inventory transaction
+        if (items[i].currentStock) {
+          await db.insert(inventoryTransactions).values({
+            id: randomUUID(),
+            itemId: items[i].id,
+            itemType: 'fasteners',
+            adjustmentType: 'add',
+            quantity: items[i].currentStock,
+            reason: 'Bulk import',
+            previousStock: 0,
+            newStock: items[i].currentStock,
+            adjustedBy: 'admin',
+            accountableBy: 'admin',
+            costImpact: (items[i].currentStock || 0) * (items[i].unitCost || 0),
+            timestamp: new Date(),
+            createdAt: new Date()
+          });
+        }
+
+        results.successCount++;
+      } catch (error) {
+        const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+      }
+    }
+
+    return results;
+  }
+
+  async bulkImportGeneralItems(items: any[]): Promise<{ successCount: number; errors: string[] }> {
+    const results = { successCount: 0, errors: [] as string[] };
+
+    for (let i = 0; i < items.length; i++) {
+      try {
+        // Generate SKU if not provided
+        const sku = items[i].sku || `GEN-${items[i].category?.substring(0,3).toUpperCase() || 'UNK'}-${Date.now()}`;
+        items[i].sku = sku;
+
+        await db.insert(generalItems).values(items[i]);
+
+        // Create initial inventory transaction
+        if (items[i].currentStock) {
+          await db.insert(inventoryTransactions).values({
+            id: randomUUID(),
+            itemId: items[i].id,
+            itemType: 'general-items',
+            adjustmentType: 'add',
+            quantity: items[i].currentStock,
+            reason: 'Bulk import',
+            previousStock: 0,
+            newStock: items[i].currentStock,
+            adjustedBy: 'admin',
+            accountableBy: 'admin',
+            costImpact: (items[i].currentStock || 0) * (items[i].unitCost || 0),
+            timestamp: new Date(),
+            createdAt: new Date()
+          });
+        }
+
+        results.successCount++;
+      } catch (error) {
+        const errorMsg = `Row ${i + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        results.errors.push(errorMsg);
+      }
+    }
+
+    return results;
   }
 }
 

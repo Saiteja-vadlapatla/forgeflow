@@ -421,57 +421,103 @@ export function BulkImportDialog({
       errors: [] as string[],
     };
 
-    // Common validations
-    if (
-      !item.name &&
-      !item.materialType &&
-      !item.toolType &&
-      !item.fastenerType
-    ) {
-      result.isValid = false;
-      result.errors.push(
-        "Missing item identifier (name/materialType/toolType/etc)"
-      );
-    }
-
-    // Type-specific validations
+    // Type-specific identifier validations
     switch (type) {
       case "materials":
-        if (!item.materialType || !item.grade) {
+        if (!item.materialType) {
           result.isValid = false;
-          result.errors.push(
-            "materialType and grade are required for materials"
-          );
+          result.errors.push("Material type is required for materials");
+        }
+        if (!item.grade) {
+          result.isValid = false;
+          result.errors.push("Grade is required for materials");
+        }
+        if (!item.shape) {
+          result.isValid = false;
+          result.errors.push("Shape is required for materials");
         }
         break;
       case "tools":
-        if (!item.toolType || !item.size) {
+        if (!item.toolType) {
           result.isValid = false;
-          result.errors.push("toolType and size are required for tools");
+          result.errors.push("Tool type is required for tools");
+        }
+        if (!item.material) {
+          result.isValid = false;
+          result.errors.push("Material is required for tools");
+        }
+        if (item.size === undefined || item.size === null) {
+          result.isValid = false;
+          result.errors.push("Size is required for tools");
+        }
+        if (item.length === undefined || item.length === null) {
+          result.isValid = false;
+          result.errors.push("Length is required for tools");
         }
         break;
       case "consumables":
-        if (!item.name || !item.category) {
+        if (!item.name) {
           result.isValid = false;
-          result.errors.push("name and category are required for consumables");
+          result.errors.push("Name is required for consumables");
+        }
+        if (!item.category) {
+          result.isValid = false;
+          result.errors.push("Category is required for consumables");
+        }
+        if (item.capacity === undefined || item.capacity === null) {
+          result.isValid = false;
+          result.errors.push("Capacity is required for consumables");
+        }
+        if (!item.unitOfMeasure) {
+          result.isValid = false;
+          result.errors.push("Unit of measure is required for consumables");
         }
         break;
       case "fasteners":
-        if (!item.fastenerType || !item.threadType) {
+        if (!item.fastenerType) {
           result.isValid = false;
-          result.errors.push(
-            "fastenerType and threadType are required for fasteners"
-          );
+          result.errors.push("Fastener type is required for fasteners");
+        }
+        if (!item.threadType) {
+          result.isValid = false;
+          result.errors.push("Thread type is required for fasteners");
+        }
+        if (item.diameter === undefined || item.diameter === null) {
+          result.isValid = false;
+          result.errors.push("Diameter is required for fasteners");
+        }
+        if (!item.material) {
+          result.isValid = false;
+          result.errors.push("Material is required for fasteners");
         }
         break;
       case "general-items":
-        if (!item.name || !item.category) {
+        if (!item.name) {
           result.isValid = false;
-          result.errors.push(
-            "name and category are required for general items"
-          );
+          result.errors.push("Name is required for general items");
+        }
+        if (!item.category) {
+          result.isValid = false;
+          result.errors.push("Category is required for general items");
+        }
+        if (!item.supplier) {
+          result.isValid = false;
+          result.errors.push("Supplier is required for general items");
+        }
+        if (item.unitCost === undefined || item.unitCost === null) {
+          result.isValid = false;
+          result.errors.push("Unit cost is required for general items");
         }
         break;
+    }
+
+    // Check for currentStock/current quantity
+    if (item.currentStock === undefined || item.currentStock === null) {
+      result.isValid = false;
+      result.errors.push("Current stock (quantity) is required");
+    } else if (isNaN(parseInt(item.currentStock))) {
+      result.isValid = false;
+      result.errors.push("Current stock must be a valid number");
     }
 
     return result;
@@ -479,14 +525,16 @@ export function BulkImportDialog({
 
   const submitBulkImport = async (type: string, items: any[]) => {
     try {
-      const response = await fetch(`/api/inventory/${type}/bulk-import`, {
+      const response = await fetch(`/api/inventory/bulk-import/${type}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ csvData: JSON.stringify(items) }),
       });
 
       if (!response.ok) {
-        throw new Error("Failed to submit bulk import");
+        const errorText = await response.text();
+        console.error("Server response:", errorText);
+        throw new Error(`Failed to submit bulk import: ${response.status}`);
       }
 
       const bulkResult = await response.json();
@@ -494,10 +542,34 @@ export function BulkImportDialog({
 
       toast({
         title: "Bulk Import Completed",
-        description: `${
-          bulkResult.successCount || 0
-        } items imported successfully`,
+        description: `${bulkResult.validItems || 0} items ready for import`,
       });
+
+      if (bulkResult.canProceed && bulkResult.importId) {
+        // Auto-confirm the import
+        try {
+          const confirmResponse = await fetch(
+            `/api/inventory/bulk-import/confirm/${bulkResult.importId}`,
+            {
+              method: "POST",
+            }
+          );
+
+          if (confirmResponse.ok) {
+            const confirmResult = await confirmResponse.json();
+            toast({
+              title: "Import Successful",
+              description: `${
+                confirmResult.summary?.successfulImports || 0
+              } items imported successfully`,
+            });
+            setStep("results");
+            setResults(confirmResult);
+          }
+        } catch (confirmError) {
+          console.error("Auto-confirm failed:", confirmError);
+        }
+      }
     } catch (error) {
       console.error("Bulk import error:", error);
       toast({
